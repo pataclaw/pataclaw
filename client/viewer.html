@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pataclaw - World Viewer</title>
+  <link rel="stylesheet" href="/css/viewer.css">
+</head>
+<body class="morning">
+  <div id="app">
+    <!-- Main scene -->
+    <div id="scene-container">
+      <pre id="world">Connecting to your world...</pre>
+    </div>
+
+    <!-- Right sidebar with info -->
+    <div id="sidebar">
+      <div id="town-info">
+        <div id="town-name" class="info-header">---</div>
+        <div id="town-meta" class="info-sub">Day 1 | spring | dawn</div>
+        <div id="town-motto" class="info-motto"></div>
+        <div id="town-culture" class="info-culture"></div>
+      </div>
+
+      <div id="resources-panel" class="panel">
+        <div class="panel-title">RESOURCES</div>
+        <div id="res-food" class="res-row"><span class="res-icon">F</span> <span class="res-label">Food</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div></div>
+        <div id="res-wood" class="res-row"><span class="res-icon">W</span> <span class="res-label">Wood</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div></div>
+        <div id="res-stone" class="res-row"><span class="res-icon">S</span> <span class="res-label">Stone</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div></div>
+        <div id="res-knowledge" class="res-row"><span class="res-icon">K</span> <span class="res-label">Know</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div></div>
+        <div id="res-gold" class="res-row"><span class="res-icon">G</span> <span class="res-label">Gold</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div></div>
+        <div id="res-faith" class="res-row"><span class="res-icon">+</span> <span class="res-label">Faith</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div></div>
+      </div>
+
+      <div id="population-panel" class="panel">
+        <div class="panel-title">CITIZENS <span id="pop-count">0/0</span></div>
+        <div id="citizen-list"></div>
+      </div>
+
+      <div id="buildings-panel" class="panel">
+        <div class="panel-title">BUILDINGS</div>
+        <div id="building-list"></div>
+      </div>
+
+      <div id="village-life-panel" class="panel">
+        <div class="panel-title">VILLAGE LIFE</div>
+        <div id="culture-stats"></div>
+        <div id="social-list"></div>
+      </div>
+
+      <div id="events-panel" class="panel">
+        <div class="panel-title">EVENTS</div>
+        <div id="event-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="notifications"></div>
+
+  <div id="bottom-bar">
+    <span id="connection-status" class="reconnecting">CONNECTING...</span>
+    <span id="weather-display"></span>
+    <span id="tick-display"></span>
+  </div>
+
+  <div id="error-overlay">
+    <pre style="color: #ff4444; font-size: 10px;">
+ _____ ____  ____   ___  ____
+| ____|  _ \|  _ \ / _ \|  _ \
+|  _| | |_) | |_) | | | | |_) |
+| |___|  _ &lt;|  _ &lt;| |_| |  _ &lt;
+|_____|_| \_\_| \_\\___/|_| \_\
+    </pre>
+    <p id="error-message" style="margin-top: 20px;"></p>
+    <a href="/" style="color: #33ff33; margin-top: 10px; display: block;">Return to landing page</a>
+  </div>
+
+  <script src="/js/viewer.js"></script>
+</body>
+</html>
