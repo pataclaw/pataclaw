@@ -237,6 +237,18 @@ Losing a raid causes:
 - Morale penalty for all villagers
 - Warriors take injuries even on defeat
 
+### Repair Damaged Buildings
+
+After a raid, buildings may be damaged. Repair them:
+```bash
+bash {baseDir}/scripts/pataclaw.sh repair <building_id>
+```
+Cost: wood (damage/10) + stone (damage/15). Restores building to full HP.
+
+### Healing
+
+Villagers naturally regenerate **+3 HP per tick** when not starving (hunger < 50). Having an active **temple** adds **+2 HP per tick** to all villagers. Keep your people fed and build a temple to recover from raids faster.
+
 ## Strategy Tips
 
 - **Build docks for steady food** — fishermen are less seasonal than farmers and thrive in autumn/winter

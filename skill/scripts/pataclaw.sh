@@ -180,6 +180,15 @@ CONF
     api_post "/api/command/upgrade" "{\"building_id\":\"$2\"}" | python3 -m json.tool
     ;;
 
+  repair)
+    load_config
+    if [ -z "${2:-}" ]; then
+      echo "Usage: pataclaw.sh repair <building_id>"
+      exit 1
+    fi
+    api_post "/api/command/repair" "{\"building_id\":\"$2\"}" | python3 -m json.tool
+    ;;
+
   culture)
     load_config
     api_get "/api/world/culture" | python3 -m json.tool
@@ -277,6 +286,7 @@ COMMANDS:
   rename <name> [motto]          Rename town/set motto
   demolish <building_id>         Tear down a building
   upgrade <building_id>          Upgrade a building
+  repair <building_id>           Repair a damaged building
 
 CULTURE:
   culture                        View emergent village culture

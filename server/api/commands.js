@@ -179,6 +179,33 @@ router.post('/upgrade', (req, res) => {
   res.json({ ok: true, newLevel: building.level + 1, cost: upgradeCost });
 });
 
+// POST /api/command/repair
+router.post('/repair', (req, res) => {
+  const { building_id } = req.body;
+  if (!building_id) return res.status(400).json({ error: 'Missing building_id' });
+
+  const building = db.prepare("SELECT * FROM buildings WHERE id = ? AND world_id = ? AND status = 'active'").get(building_id, req.worldId);
+  if (!building) return res.status(404).json({ error: 'Active building not found' });
+  if (building.hp >= building.max_hp) return res.status(400).json({ error: 'Building is already at full health' });
+
+  const damage = building.max_hp - building.hp;
+  const woodCost = Math.ceil(damage / 10);
+  const stoneCost = Math.ceil(damage / 15);
+
+  const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
+  const resMap = {};
+  for (const r of resources) resMap[r.type] = r.amount;
+
+  if ((resMap.wood || 0) < woodCost) return res.status(400).json({ error: `Need ${woodCost} wood (have ${Math.floor(resMap.wood || 0)})` });
+  if ((resMap.stone || 0) < stoneCost) return res.status(400).json({ error: `Need ${stoneCost} stone (have ${Math.floor(resMap.stone || 0)})` });
+
+  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
+  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
+  db.prepare('UPDATE buildings SET hp = max_hp WHERE id = ?').run(building_id);
+
+  res.json({ ok: true, repaired: building.type, hpRestored: damage, cost: { wood: woodCost, stone: stoneCost } });
+});
+
 // POST /api/command/teach
 router.post('/teach', (req, res) => {
   const { phrases, greetings } = req.body;

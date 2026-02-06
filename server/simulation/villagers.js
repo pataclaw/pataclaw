@@ -7,6 +7,12 @@ const { getCulture } = require('./culture');
 function processVillagers(worldId, isStarving, weather) {
   const culture = getCulture(worldId);
   const events = [];
+
+  // Temple healing bonus: +2 HP/tick if active temple exists
+  const hasTemple = db.prepare(
+    "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'temple' AND status = 'active'"
+  ).get(worldId).c > 0;
+
   const villagers = db.prepare(
     "SELECT * FROM villagers WHERE world_id = ? AND status = 'alive'"
   ).all(worldId);
@@ -28,6 +34,11 @@ function processVillagers(worldId, isStarving, weather) {
     // HP from starvation
     if (hunger >= 80) {
       hp -= 5;
+    }
+
+    // HP regeneration: heal when not starving (+3 base, +2 if temple)
+    if (hunger < 50 && hp > 0 && hp < v.max_hp) {
+      hp = Math.min(v.max_hp, hp + 3 + (hasTemple ? 2 : 0));
     }
 
     // Morale adjustments
