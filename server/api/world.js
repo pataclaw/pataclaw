@@ -282,4 +282,59 @@ router.post('/events/mark-read', (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/world/claim-nft — mint world as ERC-721 NFT on Base
+router.post('/claim-nft', async (req, res) => {
+  const config = require('../config');
+  if (!config.nft.enabled) {
+    return res.status(503).json({ error: 'NFT minting is not configured. Set NFT_CONTRACT_ADDRESS and NFT_SERVER_KEY env vars.' });
+  }
+
+  const { wallet } = req.body;
+  if (!wallet) {
+    return res.status(400).json({ error: 'Missing wallet address' });
+  }
+
+  const { ethers } = require('ethers');
+  if (!ethers.isAddress(wallet)) {
+    return res.status(400).json({ error: 'Invalid wallet address' });
+  }
+
+  const existingMint = db.prepare('SELECT * FROM nft_mints WHERE world_id = ?').get(req.worldId);
+  if (existingMint) {
+    return res.status(409).json({
+      error: 'Already minted',
+      tokenId: existingMint.token_id,
+      txHash: existingMint.tx_hash,
+    });
+  }
+
+  const { mintWorld, isAlreadyMinted, worldIdToTokenId } = require('../blockchain/base');
+  const { v4: uuidGen } = require('uuid');
+  const tokenId = worldIdToTokenId(req.worldId);
+
+  const onChain = await isAlreadyMinted(tokenId);
+  if (onChain) {
+    return res.status(409).json({ error: 'Token already exists on-chain', tokenId });
+  }
+
+  try {
+    const result = await mintWorld(wallet, tokenId);
+
+    db.prepare(
+      'INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash) VALUES (?, ?, ?, ?, ?)'
+    ).run(uuidGen(), req.worldId, tokenId, wallet, result.txHash);
+
+    const baseUrl = config.nft.baseUrl || `http://localhost:${config.port}/api/nft`;
+    res.json({
+      ok: true,
+      tokenId,
+      txHash: result.txHash,
+      metadata_url: `${baseUrl}/${tokenId}/metadata`,
+    });
+  } catch (err) {
+    console.error('NFT mint failed:', err.message);
+    res.status(500).json({ error: 'Minting failed: ' + err.message });
+  }
+});
+
 module.exports = router;

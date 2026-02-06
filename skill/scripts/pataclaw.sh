@@ -189,6 +189,21 @@ CONF
     api_post "/api/command/repair" "{\"building_id\":\"$2\"}" | python3 -m json.tool
     ;;
 
+  pray)
+    load_config
+    api_post "/api/command/pray" | python3 -m json.tool
+    ;;
+
+  claim-nft)
+    load_config
+    if [ -z "${2:-}" ]; then
+      echo "Usage: pataclaw.sh claim-nft <wallet_address>"
+      echo "Mints your world as an ERC-721 NFT on Base"
+      exit 1
+    fi
+    api_post "/api/world/claim-nft" "{\"wallet\":\"$2\"}" | python3 -m json.tool
+    ;;
+
   trade)
     load_config
     if [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ]; then
@@ -311,6 +326,10 @@ COMMANDS:
   upgrade <building_id>          Upgrade a building
   repair <building_id>           Repair a damaged building
   trade <buy|sell> <res> <amt>   Trade at the market for gold
+  pray                           Spend 5 faith to summon a refugee
+
+NFT:
+  claim-nft <wallet>             Mint world as ERC-721 NFT on Base
 
 CULTURE:
   culture                        View emergent village culture

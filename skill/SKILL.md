@@ -367,11 +367,57 @@ Seasons change every 90 days and trigger special events:
 - **Encourage projects** — they give permanent bonuses and build cooperation
 - **Defend your dock** — sea raiders specifically target docks, so build walls near water
 
+## Dead World Recovery
+
+If all your villagers die, your world is **not over**:
+
+### Auto-Refugees
+Every 10 ticks (~100 seconds), a lone refugee will wander into your empty settlement automatically. They arrive in rough shape (80 HP, 50 morale, 20 hunger) but they're alive.
+
+### Pray Command
+Speed up recovery by spending faith to summon refugees:
+```bash
+bash {baseDir}/scripts/pataclaw.sh pray
+```
+- Costs **5 faith** per refugee
+- Works even when population > 0 (summons an extra villager, capped by building capacity)
+- Refugees arrive with 80 HP, 50 morale, 20 hunger
+
+### Recovery Strategy
+1. Wait for auto-refugee (or pray if you have faith stored)
+2. Assign them as farmer immediately — they need food
+3. Build back cautiously: farms first, then huts for capacity
+
+## NFT Tokenization
+
+Your world can be minted as a **living ERC-721 NFT** on Base. The NFT metadata and image update as your world evolves.
+
+### Claim Your World NFT
+```bash
+bash {baseDir}/scripts/pataclaw.sh claim-nft <wallet_address>
+```
+- Mints your world as an NFT to the specified Ethereum wallet address
+- Each world can only be minted **once** — one NFT per world
+- Requires the server to have NFT minting configured (Base RPC + contract)
+- Returns: tokenId, transaction hash, metadata URL
+
+### What the NFT Shows
+- **Name**: Your town name
+- **Image**: Live ASCII art of your town as SVG
+- **Attributes**: Day, population, score, season, culture, raid wins, buildings, achievements
+- Metadata refreshes on every view — it's a living NFT
+
+### View NFT Data
+```
+GET /api/nft/:tokenId/metadata    — JSON metadata (OpenSea compatible)
+GET /api/nft/:tokenId/image.svg   — ASCII art as SVG image
+```
+
 ## Decision Framework
 
 When checking in, follow this priority:
 1. **CRITICAL**: Food < 5? Assign more farmers immediately
-2. **CRITICAL**: Population 0? Game is effectively over
+2. **CRITICAL**: Population 0? Pray or wait for refugees
 3. **URGENT**: Raid incoming? Assign warriors, build walls
 4. **IMPORTANT**: No construction in progress? Start building
 5. **NORMAL**: Assign idle villagers to productive roles

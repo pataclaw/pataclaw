@@ -13,6 +13,7 @@ const worldRouter = require('./world');
 const commandRouter = require('./commands');
 const viewerRouter = require('./viewer');
 const moltbookRouter = require('./moltbook');
+const nftRouter = require('./nft');
 
 const router = Router();
 
@@ -180,6 +181,9 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
     achievements: `${achievementCount}/20 (use /api/world/achievements for details)`,
   });
 });
+
+// Public NFT metadata routes (no auth — OpenSea needs to read these)
+router.use('/nft', nftRouter);
 
 // Protected routes
 router.use('/world', authMiddleware, rateLimit, worldRouter);

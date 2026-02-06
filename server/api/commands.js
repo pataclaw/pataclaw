@@ -275,6 +275,51 @@ router.post('/trade', (req, res) => {
   }
 });
 
+// POST /api/command/pray — spend faith to summon a refugee villager
+router.post('/pray', (req, res) => {
+  const { randomName, randomTrait, TRAIT_PERSONALITY } = require('../world/templates');
+  const { CENTER } = require('../world/map');
+
+  const faith = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'faith'").get(req.worldId);
+  if (!faith || faith.amount < 5) {
+    return res.status(400).json({ error: `Not enough faith. Need 5, have ${Math.floor(faith ? faith.amount : 0)}` });
+  }
+
+  // Check building capacity
+  const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(req.worldId).c;
+  const buildingCap = db.prepare(
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+  ).get(req.worldId).cap;
+
+  if (popAlive >= buildingCap) {
+    return res.status(400).json({ error: `Population at capacity (${popAlive}/${buildingCap}). Build more huts first.` });
+  }
+
+  // Deduct faith
+  db.prepare("UPDATE resources SET amount = amount - 5 WHERE world_id = ? AND type = 'faith'").run(req.worldId);
+
+  // Spawn refugee
+  const rng = () => Math.random();
+  const name = randomName(rng);
+  const trait = randomTrait(rng);
+  const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
+
+  const villagerId = uuid();
+  db.prepare(`
+    INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
+    VALUES (?, ?, ?, 'idle', ?, ?, 80, 100, 50, 20, 0, 'alive', ?, 'idle', NULL, ?, ?, ?)
+  `).run(villagerId, req.worldId, name, CENTER, CENTER + 1, trait, basePers.temperament, basePers.creativity, basePers.sociability);
+
+  // Log command
+  const world = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(req.worldId);
+  db.prepare(
+    "INSERT INTO commands (id, world_id, tick, type, parameters, result, status) VALUES (?, ?, ?, 'pray', ?, ?, 'completed')"
+  ).run(uuid(), req.worldId, world.current_tick, '{}', JSON.stringify({ name, trait }));
+
+  logCultureAction(req.worldId, 'pray', '_default');
+  res.json({ ok: true, villager: { id: villagerId, name, trait }, faithRemaining: Math.floor(faith.amount - 5) });
+});
+
 // POST /api/command/teach
 router.post('/teach', (req, res) => {
   const { phrases, greetings } = req.body;

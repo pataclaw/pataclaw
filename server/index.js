@@ -6,10 +6,8 @@ const errorHandler = require('./middleware/errorHandler');
 
 // Initialize DB schema
 const fs = require('fs');
-const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf-8');
-db.exec(schema);
 
-// Run migrations for existing databases
+// Run column migrations BEFORE schema.sql so indexes on new columns succeed
 const migrations = [
   "ALTER TABLE villagers ADD COLUMN cultural_phrase TEXT DEFAULT NULL",
   "ALTER TABLE worlds ADD COLUMN banner_symbol TEXT DEFAULT NULL",
@@ -29,8 +27,28 @@ const migrations = [
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
-    if (!e.message.includes('duplicate column')) { /* ignore */ }
+    // ignore duplicate column errors
   }
+}
+
+// Now load schema (CREATE TABLE IF NOT EXISTS + CREATE INDEX IF NOT EXISTS)
+const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf-8');
+db.exec(schema);
+
+// Table migrations (CREATE TABLE IF NOT EXISTS is safe to re-run)
+const tableMigrations = [
+  `CREATE TABLE IF NOT EXISTS nft_mints (
+    id TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL UNIQUE,
+    token_id INTEGER NOT NULL UNIQUE,
+    wallet_address TEXT NOT NULL,
+    tx_hash TEXT,
+    minted_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (world_id) REFERENCES worlds(id)
+  )`,
+];
+for (const sql of tableMigrations) {
+  try { db.exec(sql); } catch (e) { /* ignore */ }
 }
 
 // Backfill view_tokens for existing worlds that don't have one
