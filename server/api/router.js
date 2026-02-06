@@ -111,6 +111,21 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
 
   const updatedWorld = db.prepare('SELECT name, day_number, season, time_of_day, weather, reputation FROM worlds WHERE id = ?').get(req.worldId);
 
+  // Raid defense warnings
+  if (updatedWorld.day_number >= 8 && updatedWorld.day_number < 10) {
+    const warriorCount = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive'").get(req.worldId).c;
+    const wallCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'wall' AND status = 'active'").get(req.worldId).c;
+    if (warriorCount === 0 && wallCount === 0) {
+      alerts.push('WARNING: Raids begin after day 10. You have no warriors or walls!');
+    }
+  } else if (updatedWorld.day_number >= 10) {
+    const warriorCount = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive'").get(req.worldId).c;
+    const wallCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'wall' AND status = 'active'").get(req.worldId).c;
+    if (warriorCount === 0 && wallCount === 0) {
+      alerts.push('CRITICAL: Raids are active and you have NO defenses! Build walls or assign warriors.');
+    }
+  }
+
   res.json({
     status: 'ok',
     world: updatedWorld,

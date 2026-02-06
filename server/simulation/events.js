@@ -47,14 +47,9 @@ function rollRandomEvents(worldId, tick) {
       data: JSON.stringify({ resource: res, amount }),
     });
   } else if (roll < 0.7) {
-    // Bandit raid (handled in combat.js, just flag it here)
-    events.push({
-      type: 'raid',
-      title: 'Bandits approaching!',
-      description: 'A group of bandits has been spotted near your town!',
-      severity: 'danger',
-      data: JSON.stringify({ raidStrength: 1 + Math.floor(Math.random() * 3) }),
-    });
+    // Raid (handled in combat.js, just flag it here)
+    const raid = generateRaid(worldId, tick);
+    if (raid) events.push(raid);
   } else if (roll < 0.85) {
     // Morale boost event
     const villagers = db.prepare(
@@ -82,6 +77,54 @@ function rollRandomEvents(worldId, tick) {
   }
 
   return events;
+}
+
+// ─── RAID GENERATION (escalating difficulty) ───
+function generateRaid(worldId, tick) {
+  // Get world day
+  const world = db.prepare('SELECT day_number FROM worlds WHERE id = ?').get(worldId);
+  const day = world ? world.day_number : 1;
+
+  // Grace period: no raids before day 10
+  if (day < 10) return null;
+
+  // Escalating strength based on day count
+  let minStr, maxStr;
+  if (day <= 20)      { minStr = 1; maxStr = 1; }
+  else if (day <= 40) { minStr = 1; maxStr = 2; }
+  else if (day <= 60) { minStr = 1; maxStr = 3; }
+  else                { minStr = 2; maxStr = 4; }
+
+  const raidStrength = minStr + Math.floor(Math.random() * (maxStr - minStr + 1));
+
+  // Pick raid type based on day and buildings
+  const hasDock = db.prepare(
+    "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'dock' AND status = 'active'"
+  ).get(worldId).c > 0;
+
+  const raidTypes = ['bandits'];
+  if (day >= 15) raidTypes.push('wolves');
+  if (day >= 30 && hasDock) raidTypes.push('sea_raiders');
+  if (day >= 40) raidTypes.push('marauders');
+
+  const raidType = raidTypes[Math.floor(Math.random() * raidTypes.length)];
+
+  const RAID_FLAVOR = {
+    bandits: { title: 'Bandits approaching!', desc: 'A group of bandits has been spotted near your town!' },
+    wolves: { title: 'Wolf pack sighted!', desc: 'A pack of wolves has been spotted prowling near the village!' },
+    sea_raiders: { title: 'Sea raiders on the horizon!', desc: 'Ships with black sails approach your dock!' },
+    marauders: { title: 'Marauders with siege weapons!', desc: 'An organized warband with siege equipment marches toward your walls!' },
+  };
+
+  const flavor = RAID_FLAVOR[raidType];
+
+  return {
+    type: 'raid',
+    title: flavor.title,
+    description: flavor.desc,
+    severity: 'danger',
+    data: JSON.stringify({ raidStrength, raidType }),
+  };
 }
 
 // ─── ULTRA-RARE EASTER EGG EVENTS (0.1% per tick) ───
@@ -291,7 +334,7 @@ function rollRoleGatedEvents(worldId, tick) {
     });
 
   // ── Grand Council: requires at least 1 of EVERY role (farmer, builder, warrior, scout, scholar, priest) ──
-  } else if (roll < 1.0 && has('farmer', 1) && has('builder', 1) && has('warrior', 1) && has('scout', 1) && has('scholar', 1) && has('priest', 1)) {
+  } else if (roll < 1.0 && has('farmer', 1) && has('builder', 1) && has('warrior', 1) && has('scout', 1) && has('scholar', 1) && has('priest', 1) && has('fisherman', 1)) {
     const allRes = ['food', 'wood', 'stone', 'knowledge', 'gold', 'faith'];
     for (const res of allRes) {
       db.prepare(
@@ -305,9 +348,9 @@ function rollRoleGatedEvents(worldId, tick) {
     events.push({
       type: 'miracle',
       title: '\u{1F451} THE GRAND COUNCIL HAS CONVENED!',
-      description: 'For the first time in your civilization\'s history, every branch of society gathered as equals — the farmer, the builder, the warrior, the scout, the scholar, and the priest. They spoke through the night and emerged united. Your civilization has reached enlightenment. +20 to ALL resources, all morale set to 100. [Only possible with at least one of every role assigned]',
+      description: 'For the first time in your civilization\'s history, every branch of society gathered as equals — the farmer, the builder, the warrior, the scout, the scholar, the priest, and the fisherman. They spoke through the night and emerged united. Your civilization has reached enlightenment. +20 to ALL resources, all morale set to 100. [Only possible with at least one of every role assigned]',
       severity: 'celebration',
-      data: JSON.stringify({ rare: true, role_gated: true, event: 'grand_council', requires: '1+ of each: farmer, builder, warrior, scout, scholar, priest' }),
+      data: JSON.stringify({ rare: true, role_gated: true, event: 'grand_council', requires: '1+ of each: farmer, builder, warrior, scout, scholar, priest, fisherman' }),
     });
   }
 
