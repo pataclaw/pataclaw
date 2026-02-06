@@ -26,6 +26,9 @@ const migrations = [
   "ALTER TABLE worlds ADD COLUMN map_size INTEGER NOT NULL DEFAULT 40",
   // View tokens (read-only, shareable)
   "ALTER TABLE worlds ADD COLUMN view_token TEXT",
+  // Agent activity detection + scout gating
+  "ALTER TABLE worlds ADD COLUMN tick_mode TEXT NOT NULL DEFAULT 'normal'",
+  "ALTER TABLE worlds ADD COLUMN scouting_unlocked INTEGER NOT NULL DEFAULT 0",
 ];
 
 for (const sql of migrations) {

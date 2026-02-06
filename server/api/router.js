@@ -104,8 +104,8 @@ router.get('/leaderboard', (_req, res) => {
 
 // Heartbeat
 router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
-  // Update heartbeat timestamp
-  db.prepare("UPDATE worlds SET last_agent_heartbeat = datetime('now') WHERE id = ?").run(req.worldId);
+  // Update heartbeat timestamp and wake world from dormant/slow mode
+  db.prepare("UPDATE worlds SET last_agent_heartbeat = datetime('now'), tick_mode = 'normal' WHERE id = ?").run(req.worldId);
 
   // Check for catch-up ticks
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(req.worldId);

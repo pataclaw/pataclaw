@@ -24,6 +24,9 @@ const migrations = [
   "ALTER TABLE culture ADD COLUMN total_deaths_by_violence INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE worlds ADD COLUMN map_size INTEGER NOT NULL DEFAULT 40",
   "ALTER TABLE worlds ADD COLUMN view_token TEXT",
+  // Agent activity detection + scout gating
+  "ALTER TABLE worlds ADD COLUMN tick_mode TEXT NOT NULL DEFAULT 'normal'",
+  "ALTER TABLE worlds ADD COLUMN scouting_unlocked INTEGER NOT NULL DEFAULT 0",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {

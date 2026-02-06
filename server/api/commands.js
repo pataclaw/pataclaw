@@ -2,7 +2,7 @@ const { Router } = require('express');
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { startBuilding, BUILDING_DEFS } = require('../simulation/buildings');
-const { logCultureAction, applyPhraseTone } = require('../simulation/culture');
+const { logCultureAction, applyPhraseTone, getCulture } = require('../simulation/culture');
 
 const router = Router();
 
@@ -88,6 +88,21 @@ router.post('/assign', (req, res) => {
 // POST /api/command/explore
 router.post('/explore', (req, res) => {
   const { direction, scout_count, target_x, target_y } = req.body;
+
+  // Gate: scouting requires culture maturity
+  const world = db.prepare('SELECT scouting_unlocked FROM worlds WHERE id = ?').get(req.worldId);
+  if (!world.scouting_unlocked) {
+    const culture = getCulture(req.worldId);
+    if (culture.violence_level >= 100 || culture.creativity_level >= 100 || culture.cooperation_level >= 100) {
+      db.prepare('UPDATE worlds SET scouting_unlocked = 1 WHERE id = ?').run(req.worldId);
+    } else {
+      return res.status(400).json({
+        error: 'Your civilization is not yet culturally mature enough to send scouts. At least one culture bar must reach 100.',
+        current: { violence: culture.violence_level, creativity: culture.creativity_level, cooperation: culture.cooperation_level },
+        hint: 'Build culture through teaching phrases, completing projects, encouraging art, and developing your village identity.',
+      });
+    }
+  }
 
   // Find idle or scout villagers to assign as scouts
   const scouts = db.prepare(

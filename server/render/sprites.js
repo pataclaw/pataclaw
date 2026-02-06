@@ -475,6 +475,13 @@ const FEATURE_CHARS = {
   ruins: '\u2302',
   cave: '\u25d8',
   spring: '\u2234',
+  // Legendary buildings (discovered by scouts)
+  ancient_forge: '\u2692',
+  sunken_temple: '\u2625',
+  crystal_spire: '\u2662',
+  shadow_keep: '\u2694',
+  elder_library: '\u2261',
+  war_monument: '\u2720',
 };
 
 module.exports = {

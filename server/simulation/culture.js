@@ -95,21 +95,38 @@ function recalculateCulture(worldId) {
   }
   for (const key of Object.keys(avg)) avg[key] = Math.round(avg[key] / villagers.length);
 
-  // Violence level from fights + low temperament
-  const culture = db.prepare('SELECT total_fights, total_deaths_by_violence FROM culture WHERE world_id = ?').get(worldId);
-  const violenceLevel = Math.min(100, (culture ? culture.total_fights : 0) * 3 + Math.max(0, 50 - avg.temperament));
+  // Windowed culture: use recent memories (last 360 ticks) instead of cumulative counters
+  // This lets culture bars naturally decay as memories expire
+  const windowStart = Math.max(0, world.current_tick - 360);
 
-  // Creativity from avg creativity + completed projects
-  const completedProjects = db.prepare(
-    "SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND status = 'complete'"
-  ).get(worldId).c;
-  const creativityLevel = Math.min(100, avg.creativity + completedProjects * 5);
+  // Violence: recent fights + low temperament
+  const recentFights = db.prepare(
+    "SELECT COUNT(*) as c FROM villager_memories WHERE world_id = ? AND memory_type = 'fought' AND tick >= ?"
+  ).get(worldId, windowStart).c;
+  const violenceLevel = Math.min(100, recentFights * 5 + Math.max(0, 50 - avg.temperament));
 
-  // Cooperation from avg sociability + shared projects
-  const totalShared = db.prepare(
-    'SELECT COALESCE(SUM(shared_projects), 0) as s FROM villager_relationships WHERE world_id = ?'
-  ).get(worldId).s;
-  const cooperationLevel = Math.min(100, avg.sociability + totalShared * 3);
+  // Creativity: avg creativity + recent art/music + recent project completions
+  const recentArt = db.prepare(
+    "SELECT COUNT(*) as c FROM villager_memories WHERE world_id = ? AND memory_type IN ('made_art', 'heard_music') AND tick >= ?"
+  ).get(worldId, windowStart).c;
+  const recentProjects = db.prepare(
+    "SELECT COUNT(*) as c FROM villager_memories WHERE world_id = ? AND memory_type = 'project_completed' AND tick >= ?"
+  ).get(worldId, windowStart).c;
+  const creativityLevel = Math.min(100, avg.creativity + recentProjects * 8 + Math.floor(recentArt / 3));
+
+  // Cooperation: avg sociability + recent built_together + recent celebrations
+  const recentCoop = db.prepare(
+    "SELECT COUNT(*) as c FROM villager_memories WHERE world_id = ? AND memory_type = 'built_together' AND tick >= ?"
+  ).get(worldId, windowStart).c;
+  const recentCelebrated = db.prepare(
+    "SELECT COUNT(*) as c FROM villager_memories WHERE world_id = ? AND memory_type = 'celebrated' AND tick >= ?"
+  ).get(worldId, windowStart).c;
+  const cooperationLevel = Math.min(100, avg.sociability + recentCoop * 4 + Math.floor(recentCelebrated / 2));
+
+  // Auto-unlock scouting when any bar hits 100
+  if (violenceLevel >= 100 || creativityLevel >= 100 || cooperationLevel >= 100) {
+    db.prepare('UPDATE worlds SET scouting_unlocked = 1 WHERE id = ? AND scouting_unlocked = 0').run(worldId);
+  }
 
   // Village mood
   let mood = 'calm';

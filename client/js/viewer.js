@@ -121,6 +121,7 @@ function renderClouds(grid, W, weather) {
 
 // ─── COLORED GRID HELPERS ───
 function setCell(grid, x, y, ch, c) {
+  if (y < 0 || y >= grid.length || x < 0 || x >= grid[y].length) return;
   grid[y][x] = { ch: ch, c: c || '' };
 }
 
@@ -129,6 +130,7 @@ function getCell(grid, x, y) {
 }
 
 function escChar(ch) {
+  if (ch == null || typeof ch !== 'string' || ch.length === 0) return ' ';
   if (ch === '<') return '&lt;';
   if (ch === '>') return '&gt;';
   if (ch === '&') return '&amp;';
@@ -147,6 +149,10 @@ function composeHTML(grid) {
     var run = '', runClass = '';
     for (var x = 0; x < row.length; x++) {
       var cell = row[x];
+      if (!cell) {
+        if (runClass === '') { run += ' '; } else { if (run) html += wrapRun(run, runClass); run = ' '; runClass = ''; }
+        continue;
+      }
       var ch = typeof cell === 'string' ? cell : cell.ch;
       var c = typeof cell === 'string' ? '' : (cell.c || '');
       if (c === runClass) {
@@ -855,7 +861,7 @@ function renderScene(data) {
   for (var ai = 0; ai < aliveAgents.length; ai++) {
     var a = aliveAgents[ai];
     var v = a.data;
-    var ap = v.appearance;
+    var ap = v.appearance || { eyes: 'o o', mouth: '___', head: '.---.', body: '|===|' };
     var role = v.role || 'idle';
     var hat = ROLE_HATS[role] || ROLE_HATS.idle;
     var x = Math.round(a.x);
@@ -1088,7 +1094,7 @@ function updateSidebar(data) {
     }
 
     row.innerHTML =
-      '<span class="citizen-face">[' + esc(v.appearance.eyes) + ']</span>' +
+      '<span class="citizen-face">[' + esc(v.appearance ? v.appearance.eyes : 'o o') + ']</span>' +
       '<span class="citizen-name">' + esc(v.name) + '</span>' +
       '<span class="citizen-role">' + v.role + '</span>' +
       '<span class="citizen-mood">' + moodEmoji + '</span>' +
