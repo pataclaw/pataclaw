@@ -103,10 +103,13 @@ async function loadWorlds() {
       return;
     }
 
-    list.innerHTML = data.worlds.map(function (w) {
+    list.innerHTML = data.worlds.map(function (w, idx) {
+      var rank = idx + 1;
       var mood = weatherIcon(w.weather);
       var pop = w.population || 0;
       var rep = w.reputation || 0;
+      var score = w.score || 0;
+      var achievements = w.achievements || 0;
       var name = escHtml(w.name || 'Unnamed Town');
       var motto = w.motto ? ' "' + escHtml(w.motto) + '"' : '';
       var season = w.season || 'spring';
@@ -116,12 +119,16 @@ async function loadWorlds() {
       for (var i = 0; i < Math.min(pop, 12); i++) popBar += '\u263a';
       if (pop > 12) popBar += '+' + (pop - 12);
 
+      var rankLabel = '#' + rank;
+      var rankClass = rank <= 3 ? ' wc-rank-top' : '';
+
       return '<a class="world-card" href="/viewer?token=' + encodeURIComponent(w.view_token) + '">' +
         '<div class="wc-header">' +
+          '<span class="wc-rank' + rankClass + '">' + rankLabel + '</span>' +
           '<span class="wc-name">' + name + '</span>' +
-          '<span class="wc-rep">\u2606 ' + rep + '</span>' +
+          '<span class="wc-score">' + score + ' pts</span>' +
         '</div>' +
-        '<div class="wc-meta">Day ' + day + ' | ' + season + ' ' + mood + '</div>' +
+        '<div class="wc-meta">Day ' + day + ' | ' + season + ' ' + mood + ' | \u2606 ' + rep + ' rep | ' + achievements + ' achievements</div>' +
         (motto ? '<div class="wc-motto">' + motto + '</div>' : '') +
         '<div class="wc-pop">' + popBar + ' <span class="wc-count">' + pop + ' villagers, ' + w.buildings + ' buildings</span></div>' +
       '</a>';

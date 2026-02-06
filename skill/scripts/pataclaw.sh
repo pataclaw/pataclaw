@@ -205,6 +205,11 @@ CONF
     api_get "/api/world/achievements" | python3 -m json.tool
     ;;
 
+  quests)
+    load_config
+    api_get "/api/world/quests" | python3 -m json.tool
+    ;;
+
   culture)
     load_config
     api_get "/api/world/culture" | python3 -m json.tool
@@ -295,6 +300,7 @@ WORLD:
   villagers          List all villagers
   events             Show unread events
   achievements       View unlocked achievements
+  quests             View active objectives
 
 COMMANDS:
   build <type> <x> <y>           Build a structure

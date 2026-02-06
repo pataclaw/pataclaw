@@ -383,6 +383,25 @@ input[type="password"]:focus {
   font-weight: bold;
 }
 
+.wc-rank {
+  color: #666;
+  font-size: 13px;
+  font-weight: bold;
+  margin-right: 8px;
+  min-width: 28px;
+}
+
+.wc-rank-top {
+  color: var(--yellow);
+  text-shadow: 0 0 6px rgba(255, 204, 0, 0.4);
+}
+
+.wc-score {
+  color: var(--yellow);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .wc-rep {
   color: var(--yellow);
   font-size: 11px;

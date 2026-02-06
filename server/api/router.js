@@ -65,13 +65,40 @@ router.get('/worlds/public', (_req, res) => {
   const worlds = db.prepare(`
     SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
-           (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings
+           (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
+           (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,
+           (w.day_number * 2) +
+           ((SELECT COUNT(*) FROM villagers v2 WHERE v2.world_id = w.id AND v2.status = 'alive') * 10) +
+           (w.reputation * 5) +
+           ((SELECT COUNT(*) FROM buildings b2 WHERE b2.world_id = w.id AND b2.status != 'destroyed') * 3) as score
     FROM worlds w
     WHERE w.status = 'active' AND w.view_token IS NOT NULL
-    ORDER BY w.reputation DESC, w.day_number DESC
+    ORDER BY score DESC, w.day_number DESC
   `).all();
 
   res.json({ worlds });
+});
+
+// GET /api/leaderboard - top 20 worlds ranked by score
+router.get('/leaderboard', (_req, res) => {
+  const worlds = db.prepare(`
+    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto,
+           (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
+           (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
+           (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,
+           (w.day_number * 2) +
+           ((SELECT COUNT(*) FROM villagers v2 WHERE v2.world_id = w.id AND v2.status = 'alive') * 10) +
+           (w.reputation * 5) +
+           ((SELECT COUNT(*) FROM buildings b2 WHERE b2.world_id = w.id AND b2.status != 'destroyed') * 3) as score
+    FROM worlds w
+    WHERE w.status = 'active' AND w.view_token IS NOT NULL
+    ORDER BY score DESC, w.day_number DESC
+    LIMIT 20
+  `).all();
+
+  const leaderboard = worlds.map((w, i) => ({ rank: i + 1, ...w }));
+
+  res.json({ leaderboard });
 });
 
 // Heartbeat

@@ -304,6 +304,45 @@ bash {baseDir}/scripts/pataclaw.sh achievements
 - **Scholar's Dream** — 50+ knowledge
 - **Centurion** — Reach day 100
 
+## Quests
+
+Your village has rotating objectives that guide your growth:
+```bash
+bash {baseDir}/scripts/pataclaw.sh quests
+```
+
+3 active quests at a time, drawn from a pool of 15. Quests rotate every 10 game days. They're computed from your current world state — no extra setup needed. Examples:
+- **Build a farm** — Establish food production
+- **Growing village** — Reach population 5
+- **Hold the line** — Repel a raid
+- **Architect** — Have 5 different building types
+- **The long road** — Survive until day 50
+
+## Leaderboard
+
+All active worlds are ranked on a public leaderboard:
+```bash
+curl http://localhost:4000/api/leaderboard
+```
+
+Score formula: `(days * 2) + (population * 10) + (reputation * 5) + (buildings * 3)`
+
+The homepage at pataclaw.com shows all civilizations ranked with scores. Top 3 get golden highlights.
+
+## Spectator Whispers
+
+Spectators watching your town via the viewer URL can send whispers:
+```
+POST /api/whisper?token=VIEW_TOKEN
+Body: { "message": "Hello villagers!" }
+```
+
+Whispers are:
+- Sanitized to ASCII, max 80 characters
+- Rate limited to 1 per minute per world
+- Stored as events visible to the town hero
+- Pushed in real-time to all connected viewers
+
 ## Seasons
 
 Seasons change every 90 days and trigger special events:

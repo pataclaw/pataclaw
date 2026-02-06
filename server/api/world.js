@@ -186,6 +186,88 @@ router.get('/achievements', (req, res) => {
   });
 });
 
+// GET /api/world/quests - computed active objectives
+router.get('/quests', (req, res) => {
+  const world = db.prepare('SELECT day_number, seed FROM worlds WHERE id = ?').get(req.worldId);
+  if (!world) return res.status(404).json({ error: 'World not found' });
+
+  const activeBuildings = db.prepare("SELECT type FROM buildings WHERE world_id = ? AND status = 'active'").all(req.worldId);
+  const buildingTypes = new Set(activeBuildings.map(b => b.type));
+  const buildingTypeCounts = {};
+  for (const b of activeBuildings) buildingTypeCounts[b.type] = (buildingTypeCounts[b.type] || 0) + 1;
+
+  const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(req.worldId).c;
+  const exploredTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1").get(req.worldId).c;
+  const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
+  const resMap = {};
+  for (const r of resources) resMap[r.type] = Math.floor(r.amount);
+  const raidWins = db.prepare("SELECT COUNT(*) as c FROM events WHERE world_id = ? AND type = 'raid' AND severity = 'celebration'").get(req.worldId).c;
+  const warriorCount = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'warrior'").get(req.worldId).c;
+
+  const QUEST_POOL = [
+    { id: 'build_farm', name: 'Build a farm', description: 'Establish a farm to feed your people', target: 1, current: buildingTypeCounts['farm'] || 0 },
+    { id: 'build_wall', name: 'Fortify your town', description: 'Build walls to protect your village', target: 2, current: buildingTypeCounts['wall'] || 0 },
+    { id: 'build_watchtower', name: 'Eyes on the horizon', description: 'Construct a watchtower for early warning', target: 1, current: buildingTypeCounts['watchtower'] || 0 },
+    { id: 'build_dock', name: 'Set sail', description: 'Build a dock to access waterways', target: 1, current: buildingTypeCounts['dock'] || 0 },
+    { id: 'pop_5', name: 'Growing village', description: 'Grow your population to 5 villagers', target: 5, current: popAlive },
+    { id: 'pop_10', name: 'Thriving town', description: 'Grow your population to 10 villagers', target: 10, current: popAlive },
+    { id: 'explore_10', name: 'Scout the land', description: 'Explore 10 tiles of the map', target: 10, current: exploredTiles },
+    { id: 'explore_30', name: 'Map the world', description: 'Explore 30 tiles of the map', target: 30, current: exploredTiles },
+    { id: 'gold_30', name: 'Fill the coffers', description: 'Accumulate 30 gold', target: 30, current: resMap.gold || 0 },
+    { id: 'knowledge_20', name: 'Pursuit of wisdom', description: 'Accumulate 20 knowledge', target: 20, current: resMap.knowledge || 0 },
+    { id: 'survive_day_20', name: 'Endure', description: 'Survive until day 20', target: 20, current: world.day_number },
+    { id: 'survive_day_50', name: 'The long road', description: 'Survive until day 50', target: 50, current: world.day_number },
+    { id: 'repel_raid', name: 'Hold the line', description: 'Successfully repel a raid', target: 1, current: raidWins },
+    { id: 'build_5_types', name: 'Architect', description: 'Have 5 different active building types', target: 5, current: buildingTypes.size },
+    { id: 'assign_warrior', name: 'Call to arms', description: 'Assign at least one warrior', target: 1, current: warriorCount },
+  ];
+
+  // Mark completion
+  for (const q of QUEST_POOL) {
+    q.completed = q.current >= q.target;
+  }
+
+  // Deterministic hash from seed + epoch (rotates every 10 days)
+  const epoch = Math.floor(world.day_number / 10);
+  const seed = world.seed || 0;
+  // Simple deterministic hash: mix seed and epoch
+  let hash = ((seed * 2654435761) ^ (epoch * 2246822519)) >>> 0;
+
+  const incomplete = QUEST_POOL.filter(q => !q.completed);
+  let selected;
+
+  if (incomplete.length >= 3) {
+    // Shuffle incomplete deterministically using the hash and pick 3
+    const shuffled = incomplete.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      hash = ((hash * 1664525 + 1013904223) & 0xFFFFFFFF) >>> 0;
+      const j = hash % (i + 1);
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    selected = shuffled.slice(0, 3);
+  } else if (incomplete.length > 0) {
+    // Fewer than 3 incomplete: take all incomplete, fill rest from hardest completed
+    const hardest = QUEST_POOL.filter(q => q.completed).sort((a, b) => b.target - a.target);
+    selected = [...incomplete, ...hardest].slice(0, 3);
+  } else {
+    // All completed: show 3 hardest
+    const hardest = QUEST_POOL.slice().sort((a, b) => b.target - a.target);
+    selected = hardest.slice(0, 3);
+  }
+
+  res.json({
+    epoch,
+    quests: selected.map(q => ({
+      id: q.id,
+      name: q.name,
+      description: q.description,
+      target: q.target,
+      current: Math.min(q.current, q.target),
+      completed: q.completed,
+    })),
+  });
+});
+
 // POST /api/world/events/mark-read
 router.post('/events/mark-read', (req, res) => {
   const { event_ids } = req.body;

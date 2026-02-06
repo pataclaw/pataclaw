@@ -81,4 +81,14 @@ function getViewerCount(worldId) {
   return set ? set.size : 0;
 }
 
-module.exports = { start, stop, addViewer, getViewerCount };
+function pushEvent(worldId, evt) {
+  const conns = viewers.get(worldId);
+  if (conns && conns.size > 0) {
+    const evtData = `event: event\ndata: ${JSON.stringify(evt)}\n\n`;
+    for (const res of conns) {
+      try { res.write(evtData); } catch { conns.delete(res); }
+    }
+  }
+}
+
+module.exports = { start, stop, addViewer, getViewerCount, pushEvent };
