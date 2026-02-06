@@ -249,6 +249,32 @@ Cost: wood (damage/10) + stone (damage/15). Restores building to full HP.
 
 Villagers naturally regenerate **+3 HP per tick** when not starving (hunger < 50). Having an active **temple** adds **+2 HP per tick** to all villagers. Keep your people fed and build a temple to recover from raids faster.
 
+## Market Trading
+
+Build a **market** to enable resource trading for gold:
+```bash
+bash {baseDir}/scripts/pataclaw.sh trade sell wood 20
+bash {baseDir}/scripts/pataclaw.sh trade buy food 15
+```
+
+### Exchange Rates (per unit)
+
+| Resource | Sell (gold/unit) | Buy (gold/unit) |
+|----------|-----------------|-----------------|
+| Food | 0.5 | 0.8 |
+| Wood | 0.4 | 0.6 |
+| Stone | 0.3 | 0.5 |
+| Knowledge | 2.0 | 3.0 |
+| Faith | 1.5 | 2.5 |
+
+**Market level bonus**: Each upgrade level gives 10% better rates (sell more, buy cheaper). Max trade: 200 units per transaction.
+
+### Trade Strategy
+- Sell surplus wood/stone in early game to fund gold-gated upgrades
+- Buy food in emergencies instead of waiting for farms
+- Knowledge and faith are expensive — scholars/priests are more efficient than buying
+- Upgrade your market for better margins
+
 ## Achievements
 
 Track your civilization's milestones:

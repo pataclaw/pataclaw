@@ -206,6 +206,75 @@ router.post('/repair', (req, res) => {
   res.json({ ok: true, repaired: building.type, hpRestored: damage, cost: { wood: woodCost, stone: stoneCost } });
 });
 
+// POST /api/command/trade — buy/sell resources at the market
+const TRADE_RATES = {
+  // sell: how much gold you get per unit sold
+  // buy: how much gold it costs per unit bought
+  food:      { sell: 0.5, buy: 0.8 },
+  wood:      { sell: 0.4, buy: 0.6 },
+  stone:     { sell: 0.3, buy: 0.5 },
+  knowledge: { sell: 2.0, buy: 3.0 },
+  faith:     { sell: 1.5, buy: 2.5 },
+};
+
+router.post('/trade', (req, res) => {
+  const { action, resource, amount } = req.body;
+
+  if (!action || !resource || !amount) {
+    return res.status(400).json({ error: 'Missing action (buy/sell), resource, or amount' });
+  }
+  if (action !== 'buy' && action !== 'sell') {
+    return res.status(400).json({ error: 'Action must be "buy" or "sell"' });
+  }
+  if (!TRADE_RATES[resource]) {
+    return res.status(400).json({ error: `Cannot trade ${resource}. Tradeable: ${Object.keys(TRADE_RATES).join(', ')}` });
+  }
+  const qty = Math.floor(Number(amount));
+  if (qty <= 0 || qty > 200) {
+    return res.status(400).json({ error: 'Amount must be 1-200' });
+  }
+
+  // Require active market
+  const market = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'market' AND status = 'active'").get(req.worldId);
+  if (market.c === 0) {
+    return res.status(400).json({ error: 'No active market. Build a market first!' });
+  }
+
+  // Market level bonus: each level above 1 gives 10% better rates
+  const marketLevel = db.prepare("SELECT MAX(level) as lv FROM buildings WHERE world_id = ? AND type = 'market' AND status = 'active'").get(req.worldId).lv || 1;
+  const levelBonus = 1 + (marketLevel - 1) * 0.1;
+
+  const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
+  const resMap = {};
+  for (const r of resources) resMap[r.type] = r.amount;
+
+  const rate = TRADE_RATES[resource];
+
+  if (action === 'sell') {
+    // Sell resource for gold
+    if ((resMap[resource] || 0) < qty) {
+      return res.status(400).json({ error: `Not enough ${resource}. Have ${Math.floor(resMap[resource] || 0)}, need ${qty}` });
+    }
+    const goldGained = Math.floor(qty * rate.sell * levelBonus);
+    db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(qty, req.worldId, resource);
+    db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'gold'").run(goldGained, req.worldId);
+
+    logCultureAction(req.worldId, 'trade', resource);
+    return res.json({ ok: true, action: 'sell', sold: qty, resource, goldGained, rate: rate.sell, marketLevel });
+  } else {
+    // Buy resource with gold
+    const goldCost = Math.ceil(qty * rate.buy / levelBonus);
+    if ((resMap.gold || 0) < goldCost) {
+      return res.status(400).json({ error: `Not enough gold. Need ${goldCost}, have ${Math.floor(resMap.gold || 0)}` });
+    }
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(goldCost, req.worldId);
+    db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(qty, req.worldId, resource);
+
+    logCultureAction(req.worldId, 'trade', resource);
+    return res.json({ ok: true, action: 'buy', bought: qty, resource, goldCost, rate: rate.buy, marketLevel });
+  }
+});
+
 // POST /api/command/teach
 router.post('/teach', (req, res) => {
   const { phrases, greetings } = req.body;

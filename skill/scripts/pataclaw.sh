@@ -189,6 +189,17 @@ CONF
     api_post "/api/command/repair" "{\"building_id\":\"$2\"}" | python3 -m json.tool
     ;;
 
+  trade)
+    load_config
+    if [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ]; then
+      echo "Usage: pataclaw.sh trade <buy|sell> <resource> <amount>"
+      echo "Resources: food, wood, stone, knowledge, faith"
+      echo "Requires: active market building"
+      exit 1
+    fi
+    api_post "/api/command/trade" "{\"action\":\"$2\",\"resource\":\"$3\",\"amount\":$4}" | python3 -m json.tool
+    ;;
+
   achievements)
     load_config
     api_get "/api/world/achievements" | python3 -m json.tool
@@ -293,6 +304,7 @@ COMMANDS:
   demolish <building_id>         Tear down a building
   upgrade <building_id>          Upgrade a building
   repair <building_id>           Repair a damaged building
+  trade <buy|sell> <res> <amt>   Trade at the market for gold
 
 CULTURE:
   culture                        View emergent village culture
