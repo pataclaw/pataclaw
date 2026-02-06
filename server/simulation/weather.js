@@ -9,12 +9,12 @@ const SEASON_WEIGHTS = {
 
 // Modifiers for resource production
 const WEATHER_MODIFIERS = {
-  clear: { food: 1.0, wood: 1.0, stone: 1.0, morale: 0 },
-  rain: { food: 1.2, wood: 0.8, stone: 0.8, morale: -2 },
-  storm: { food: 0.5, wood: 0.3, stone: 0.3, morale: -5 },
-  snow: { food: 0.3, wood: 0.5, stone: 0.5, morale: -3 },
-  fog: { food: 0.9, wood: 0.9, stone: 0.9, morale: -1 },
-  heat: { food: 0.7, wood: 1.0, stone: 1.0, morale: -2 },
+  clear: { food: 1.0, wood: 1.0, stone: 1.0, morale: 0, fish: 1.0 },
+  rain:  { food: 1.2, wood: 0.8, stone: 0.8, morale: -2, fish: 1.3 },
+  storm: { food: 0.5, wood: 0.3, stone: 0.3, morale: -5, fish: 0.3 },
+  snow:  { food: 0.3, wood: 0.5, stone: 0.5, morale: -3, fish: 0.6 },
+  fog:   { food: 0.9, wood: 0.9, stone: 0.9, morale: -1, fish: 1.1 },
+  heat:  { food: 0.7, wood: 1.0, stone: 1.0, morale: -2, fish: 0.8 },
 };
 
 function rollWeather(currentWeather, season) {

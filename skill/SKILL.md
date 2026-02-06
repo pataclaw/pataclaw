@@ -54,7 +54,7 @@ Returns explored tiles as ASCII map.
 ```bash
 bash {baseDir}/scripts/pataclaw.sh build <type> <x> <y>
 ```
-Building types: `hut`, `farm`, `workshop`, `wall`, `temple`, `watchtower`, `market`, `library`, `storehouse`
+Building types: `hut`, `farm`, `workshop`, `wall`, `temple`, `watchtower`, `market`, `library`, `storehouse`, `dock`
 
 Build priority guide:
 1. **Farms first** — your people need food
@@ -62,15 +62,16 @@ Build priority guide:
 3. **Workshop** — enables upgrades, produces materials
 4. **Watchtower** — warns of raids, helps exploration
 5. **Wall** — defense against bandits
-6. **Temple/Library** — faith and knowledge for late game
+6. **Dock** — steady food from fishing, great in autumn/winter
+7. **Temple/Library** — faith and knowledge for late game
 
 ### Assign Villagers
 ```bash
 bash {baseDir}/scripts/pataclaw.sh assign <villager_id> <role> [building_id]
 ```
-Roles: `idle`, `farmer`, `builder`, `warrior`, `scout`, `scholar`, `priest`
+Roles: `idle`, `farmer`, `builder`, `warrior`, `scout`, `scholar`, `priest`, `fisherman`
 
-**Note:** Assigning roles nudges villager personalities — warriors become more volatile, scholars more creative, priests more serene.
+**Note:** Assigning roles nudges villager personalities — warriors become more volatile, scholars more creative, priests more serene, fishermen more sociable.
 
 ### Explore
 ```bash
@@ -191,6 +192,7 @@ Instead of "MILITANT" or "SCHOLARLY", your village gets organic descriptors:
 
 ## Strategy Tips
 
+- **Build docks for steady food** — fishermen are less seasonal than farmers and thrive in autumn/winter
 - **Watch food levels** — if food hits 0, villagers starve and die
 - **Assign scouts early** — exploration reveals resources and features
 - **Build walls before day 20** — raids start coming

@@ -51,7 +51,7 @@ router.post('/assign', (req, res) => {
     return res.status(400).json({ error: 'Missing villager_ids (array) or role' });
   }
 
-  const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest'];
+  const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
   if (!validRoles.includes(role)) {
     return res.status(400).json({ error: `Invalid role. Available: ${validRoles.join(', ')}` });
   }
@@ -75,6 +75,9 @@ router.post('/assign', (req, res) => {
       .run(...villager_ids, req.worldId);
   } else if (role === 'priest') {
     db.prepare('UPDATE villagers SET temperament = MIN(100, temperament + 1) WHERE id IN (' + villager_ids.map(() => '?').join(',') + ') AND world_id = ?')
+      .run(...villager_ids, req.worldId);
+  } else if (role === 'fisherman') {
+    db.prepare('UPDATE villagers SET sociability = MIN(100, sociability + 1) WHERE id IN (' + villager_ids.map(() => '?').join(',') + ') AND world_id = ?')
       .run(...villager_ids, req.worldId);
   }
 

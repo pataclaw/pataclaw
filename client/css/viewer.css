@@ -335,6 +335,7 @@ body {
 #world .c-b-library   { color: #6699cc; }
 #world .c-b-storehouse{ color: #aa8844; }
 #world .c-b-town_center{ color: #ddaa55; }
+#world .c-b-dock      { color: #55aacc; }
 
 /* Civilization style colors */
 #world .c-gnd-v { color: #33aa44; }

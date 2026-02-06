@@ -11,6 +11,7 @@ const BUILDING_DEFS = {
   market:     { wood: 20, stone: 15, gold: 5, ticks: 18, hp: 120 },
   library:    { wood: 15, stone: 20, gold: 10, ticks: 25, hp: 130 },
   storehouse: { wood: 25, stone: 10, gold: 0, ticks: 12, hp: 150 },
+  dock:       { wood: 12, stone: 5, gold: 0, ticks: 10, hp: 90 },
 };
 
 function processBuildings(worldId) {

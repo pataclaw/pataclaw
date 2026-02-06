@@ -30,6 +30,7 @@ var civStyle = null;
 const ROLE_HATS = {
   idle: '       ', farmer: '  ,^,  ', warrior: ' ]=+=[ ',
   builder: '  _n_  ', scout: '  />   ', scholar: '  _=_  ', priest: '  _+_  ',
+  fisherman: '  ~o~  ',
 };
 
 // ─── CLOUD SYSTEM ───

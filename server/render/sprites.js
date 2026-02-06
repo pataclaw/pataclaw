@@ -51,6 +51,10 @@ const SPEECH = {
     '*pray*', 'blessings', 'have faith', '*chant*', 'peace be',
     'spirits say', '*meditate*', 'be well', 'amen', '*incense*',
   ],
+  fisherman: [
+    '*cast line*', 'big catch!', 'tide\'s good', '*reel reel*', 'fish on!',
+    'nice haul', '*net net*', 'one more...', 'lobster!!', '<\\))><',
+  ],
 };
 
 const SLEEP_BUBBLES = ['z', 'zz', 'zzZ', 'ZZz', 'Zz'];
@@ -64,6 +68,7 @@ const ROLE_HATS = {
   scout: '  />   ',
   scholar: '  _=_  ',
   priest: '  _+_  ',
+  fisherman: '  ~o~  ',
 };
 
 const ROLE_ITEMS = {
@@ -74,6 +79,7 @@ const ROLE_ITEMS = {
   scout: '    |/ ',
   scholar: '   [B] ',
   priest: '   |+| ',
+  fisherman: '    /~ ',
 };
 
 const BUILDING_SPRITES = {
@@ -169,6 +175,15 @@ const BUILDING_SPRITES = {
     '|[o][o][o] |',
     '|==========|',
     '|____[]____|',
+  ],
+  dock: [
+    ' ~~\\|/~~  ',
+    '  _===_   ',
+    ' |~o~~o|  ',
+    ' | net |  ',
+    '/|=====|\\ ',
+    '~|_<>)_|~ ',
+    '~~~~~~~~~~',
   ],
 };
 

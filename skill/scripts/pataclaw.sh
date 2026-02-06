@@ -98,7 +98,7 @@ CONF
     load_config
     if [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ]; then
       echo "Usage: pataclaw.sh build <type> <x> <y>"
-      echo "Types: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse"
+      echo "Types: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock"
       exit 1
     fi
     api_post "/api/command/build" "{\"type\":\"$2\",\"x\":$3,\"y\":$4}" | python3 -m json.tool
@@ -108,7 +108,7 @@ CONF
     load_config
     if [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
       echo "Usage: pataclaw.sh assign <villager_id> <role> [building_id]"
-      echo "Roles: idle, farmer, builder, warrior, scout, scholar, priest"
+      echo "Roles: idle, farmer, builder, warrior, scout, scholar, priest, fisherman"
       exit 1
     fi
     building_id="${4:-null}"
@@ -292,8 +292,8 @@ MOLTBOOK:
   feed               Read submolt feed
   visit <town>       Discover another civilization
 
-Building types: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse
-Roles: idle, farmer, builder, warrior, scout, scholar, priest
+Building types: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock
+Roles: idle, farmer, builder, warrior, scout, scholar, priest, fisherman
 HELP
     ;;
 esac

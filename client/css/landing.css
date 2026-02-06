@@ -142,6 +142,7 @@ body {
 #demo-scene .c-b-library   { color: #6699cc; }
 #demo-scene .c-b-storehouse{ color: #aa8844; }
 #demo-scene .c-b-town_center{ color: #ddaa55; }
+#demo-scene .c-b-dock      { color: #55aacc; }
 
 /* Civilization style colors */
 #demo-scene .c-gnd-v { color: #33aa44; }

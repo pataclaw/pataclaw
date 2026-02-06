@@ -9,9 +9,17 @@ const SEASON_FOOD_MODIFIER = {
   winter: 0.5,
 };
 
+const SEASON_FISH_MODIFIER = {
+  spring: 1.0,
+  summer: 1.2,
+  autumn: 1.3,
+  winter: 0.8,
+};
+
 function processResources(worldId, weather, season) {
   const wMod = getWeatherModifier(weather);
   const sMod = SEASON_FOOD_MODIFIER[season] || 1.0;
+  const sFishMod = SEASON_FISH_MODIFIER[season] || 1.0;
   const culture = getCulture(worldId);
   const workEthic = 1 + (culture.work_ethic_modifier || 0);
 
@@ -34,6 +42,9 @@ function processResources(worldId, weather, season) {
     switch (b.type) {
       case 'farm':
         foodProd += 2 * workers * wMod.food * sMod * workEthic;
+        break;
+      case 'dock':
+        foodProd += 1.5 * workers * wMod.fish * sFishMod * workEthic;
         break;
       case 'workshop':
         woodProd += 0.5 * workers * wMod.wood * workEthic;
