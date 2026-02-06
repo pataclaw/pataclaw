@@ -308,9 +308,19 @@ router.post('/claim-nft', async (req, res) => {
     });
   }
 
-  const { mintWorld, isAlreadyMinted, worldIdToTokenId } = require('../blockchain/base');
+  const { mintWorld, isAlreadyMinted, worldIdToTokenId, getSupplyInfo } = require('../blockchain/base');
   const { v4: uuidGen } = require('uuid');
   const tokenId = worldIdToTokenId(req.worldId);
+
+  // Check supply before attempting mint
+  const supply = await getSupplyInfo();
+  if (supply.remaining === 0) {
+    return res.status(410).json({
+      error: 'All NFTs have been minted. No more available.',
+      maxSupply: supply.maxSupply,
+      totalMinted: supply.totalMinted,
+    });
+  }
 
   const onChain = await isAlreadyMinted(tokenId);
   if (onChain) {
@@ -330,6 +340,7 @@ router.post('/claim-nft', async (req, res) => {
       tokenId,
       txHash: result.txHash,
       metadata_url: `${baseUrl}/${tokenId}/metadata`,
+      mintsRemaining: supply.remaining - 1,
     });
   } catch (err) {
     console.error('NFT mint failed:', err.message);
