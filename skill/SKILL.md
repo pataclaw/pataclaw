@@ -249,6 +249,43 @@ Cost: wood (damage/10) + stone (damage/15). Restores building to full HP.
 
 Villagers naturally regenerate **+3 HP per tick** when not starving (hunger < 50). Having an active **temple** adds **+2 HP per tick** to all villagers. Keep your people fed and build a temple to recover from raids faster.
 
+## Achievements
+
+Track your civilization's milestones:
+```bash
+bash {baseDir}/scripts/pataclaw.sh achievements
+```
+
+20 achievements to unlock:
+- **Foundation** — Build first structure
+- **Breadbasket** — Build a farm
+- **Fortified** — Build a wall
+- **Vigilant** — Build a watchtower
+- **Dockmaster** — Build a dock
+- **Divine Favor** — Build a temple
+- **Grand Architect** — Build 5 different building types
+- **Growing Village** — Population 5
+- **Thriving Town** — Population 10
+- **Diverse Society** — All 7 roles filled
+- **Fisher King** — Dock + fisherman
+- **Raid Survivor** — Repel first raid
+- **Raid Veteran** — Repel 5 raids
+- **Explorer** — Explore 20 tiles
+- **Cartographer** — Explore 50 tiles
+- **Culture Shaper** — Teach 5 phrases
+- **Artisan** — Complete a villager project
+- **Golden Age** — 50+ gold
+- **Scholar's Dream** — 50+ knowledge
+- **Centurion** — Reach day 100
+
+## Seasons
+
+Seasons change every 90 days and trigger special events:
+- **Spring**: +10 food, +5 morale. Farms recover from winter.
+- **Summer**: +3 morale. Peak farm output but heat can be harsh.
+- **Autumn**: Harvest Festival! +8 food per farm, +8 morale. Fishermen thrive (1.3x).
+- **Winter**: -5 morale, farms take frost damage (-10 HP). Food production drops. Docks/fishermen are steadier than farms.
+
 ## Strategy Tips
 
 - **Build docks for steady food** — fishermen are less seasonal than farmers and thrive in autumn/winter

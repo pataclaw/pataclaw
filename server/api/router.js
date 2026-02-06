@@ -126,6 +126,22 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
     }
   }
 
+  // Quick achievement count
+  const raidWins = db.prepare("SELECT COUNT(*) as c FROM events WHERE world_id = ? AND type = 'raid' AND severity = 'celebration'").get(req.worldId).c;
+  const exploredTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1").get(req.worldId).c;
+  const activeBuildings = db.prepare("SELECT DISTINCT type FROM buildings WHERE world_id = ? AND status = 'active'").all(req.worldId);
+  const buildingTypes = activeBuildings.length;
+  let achievementCount = 0;
+  if (activeBuildings.length > 0) achievementCount++;
+  if (popAlive >= 5) achievementCount++;
+  if (popAlive >= 10) achievementCount++;
+  if (raidWins >= 1) achievementCount++;
+  if (raidWins >= 5) achievementCount++;
+  if (exploredTiles >= 20) achievementCount++;
+  if (exploredTiles >= 50) achievementCount++;
+  if (buildingTypes >= 5) achievementCount++;
+  if (updatedWorld.day_number >= 100) achievementCount++;
+
   res.json({
     status: 'ok',
     world: updatedWorld,
@@ -134,6 +150,7 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
     alerts,
     unreadEvents,
     catchupSummary,
+    achievements: `${achievementCount}/20 (use /api/world/achievements for details)`,
   });
 });
 

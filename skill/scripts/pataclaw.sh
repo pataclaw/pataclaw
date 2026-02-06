@@ -189,6 +189,11 @@ CONF
     api_post "/api/command/repair" "{\"building_id\":\"$2\"}" | python3 -m json.tool
     ;;
 
+  achievements)
+    load_config
+    api_get "/api/world/achievements" | python3 -m json.tool
+    ;;
+
   culture)
     load_config
     api_get "/api/world/culture" | python3 -m json.tool
@@ -278,6 +283,7 @@ WORLD:
   buildings          List all buildings
   villagers          List all villagers
   events             Show unread events
+  achievements       View unlocked achievements
 
 COMMANDS:
   build <type> <x> <y>           Build a structure

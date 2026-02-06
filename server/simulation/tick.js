@@ -57,6 +57,12 @@ function processTick(worldId) {
     recalculateCulture(worldId);
   }
 
+  // 10b. Season change events
+  let seasonEvents = [];
+  if (time.season !== world.season) {
+    seasonEvents = generateSeasonEvent(worldId, time.season, world.season);
+  }
+
   // Update world state
   db.prepare(`
     UPDATE worlds
@@ -66,7 +72,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...buildingEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents];
+  const allEvents = [...buildingEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents, ...seasonEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -160,6 +166,61 @@ function expandWorld(worldId, world) {
     description: `Your thriving population has revealed a vast new territory. The map has doubled to ${newSize}x${newSize}!`,
     severity: 'celebration',
   }];
+}
+
+// Season change effects + events
+function generateSeasonEvent(worldId, newSeason, oldSeason) {
+  const events = [];
+
+  if (newSeason === 'spring') {
+    // Spring bloom: +10 food, morale boost
+    db.prepare("UPDATE resources SET amount = MIN(capacity, amount + 10) WHERE world_id = ? AND type = 'food'").run(worldId);
+    db.prepare("UPDATE villagers SET morale = MIN(100, morale + 5) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    events.push({
+      type: 'season',
+      title: 'Spring has arrived!',
+      description: 'The snow melts and flowers bloom. Crops grow faster, spirits rise. +10 food, +5 morale to all.',
+      severity: 'celebration',
+    });
+  } else if (newSeason === 'summer') {
+    // Summer: morale boost, heat warning
+    db.prepare("UPDATE villagers SET morale = MIN(100, morale + 3) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    events.push({
+      type: 'season',
+      title: 'Summer begins!',
+      description: 'Long warm days ahead. Farms will peak but beware the scorching heat. +3 morale.',
+      severity: 'info',
+    });
+  } else if (newSeason === 'autumn') {
+    // Harvest festival: big food bonus if farms exist
+    const farmCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c;
+    const harvestBonus = farmCount * 8;
+    if (harvestBonus > 0) {
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'food'").run(harvestBonus, worldId);
+    }
+    db.prepare("UPDATE villagers SET morale = MIN(100, morale + 8) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    events.push({
+      type: 'season',
+      title: 'Harvest Festival!',
+      description: `Autumn brings the harvest. The village celebrates!${harvestBonus > 0 ? ` ${farmCount} farm(s) yielded +${harvestBonus} bonus food.` : ''} +8 morale to all. Fishermen thrive this season.`,
+      severity: 'celebration',
+    });
+  } else if (newSeason === 'winter') {
+    // Winter: morale hit, frost damage to farms
+    db.prepare("UPDATE villagers SET morale = MAX(0, morale - 5) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    const farms = db.prepare("SELECT id, hp FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").all(worldId);
+    for (const f of farms) {
+      db.prepare('UPDATE buildings SET hp = MAX(1, hp - 10) WHERE id = ?').run(f.id);
+    }
+    events.push({
+      type: 'season',
+      title: 'Winter descends!',
+      description: `Cold winds sweep the land. Food production drops sharply. ${farms.length > 0 ? `${farms.length} farm(s) took frost damage (-10 HP each).` : ''} -5 morale. Stock up on food and build docks for fishing!`,
+      severity: 'warning',
+    });
+  }
+
+  return events;
 }
 
 module.exports = { processTick, processCatchup };

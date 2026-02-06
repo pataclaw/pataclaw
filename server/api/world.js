@@ -131,6 +131,61 @@ router.get('/culture', (req, res) => {
   });
 });
 
+// GET /api/world/achievements - computed from current state
+router.get('/achievements', (req, res) => {
+  const world = db.prepare('SELECT day_number FROM worlds WHERE id = ?').get(req.worldId);
+  const buildings = db.prepare("SELECT type, status FROM buildings WHERE world_id = ? AND status != 'destroyed'").all(req.worldId);
+  const activeBuildings = buildings.filter(b => b.status === 'active');
+  const buildingTypes = new Set(activeBuildings.map(b => b.type));
+  const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(req.worldId).c;
+  const roleCounts = {};
+  const roles = db.prepare("SELECT role, COUNT(*) as cnt FROM villagers WHERE world_id = ? AND status = 'alive' GROUP BY role").all(req.worldId);
+  for (const r of roles) roleCounts[r.role] = r.cnt;
+  const exploredTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1").get(req.worldId).c;
+  const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
+  const resMap = {};
+  for (const r of resources) resMap[r.type] = Math.floor(r.amount);
+  const culture = db.prepare('SELECT custom_phrases FROM culture WHERE world_id = ?').get(req.worldId);
+  const phrases = culture ? JSON.parse(culture.custom_phrases || '[]') : [];
+  const raidWins = db.prepare("SELECT COUNT(*) as c FROM events WHERE world_id = ? AND type = 'raid' AND severity = 'celebration'").get(req.worldId).c;
+  const projectsDone = db.prepare("SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND status = 'complete'").get(req.worldId).c;
+
+  const allRoles = ['farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
+  const hasAllRoles = allRoles.every(r => (roleCounts[r] || 0) >= 1);
+
+  const ACHIEVEMENTS = [
+    { id: 'first_building', name: 'Foundation', desc: 'Build your first structure', unlocked: activeBuildings.length > 0 },
+    { id: 'first_farm', name: 'Breadbasket', desc: 'Build a farm', unlocked: buildingTypes.has('farm') },
+    { id: 'first_wall', name: 'Fortified', desc: 'Build a wall', unlocked: buildingTypes.has('wall') },
+    { id: 'watchtower', name: 'Vigilant', desc: 'Build a watchtower', unlocked: buildingTypes.has('watchtower') },
+    { id: 'dockmaster', name: 'Dockmaster', desc: 'Build a dock', unlocked: buildingTypes.has('dock') },
+    { id: 'temple_builder', name: 'Divine Favor', desc: 'Build a temple', unlocked: buildingTypes.has('temple') },
+    { id: 'grand_architect', name: 'Grand Architect', desc: 'Build 5 different building types', unlocked: buildingTypes.size >= 5 },
+    { id: 'growing_village', name: 'Growing Village', desc: 'Reach population of 5', unlocked: popAlive >= 5 },
+    { id: 'thriving_town', name: 'Thriving Town', desc: 'Reach population of 10', unlocked: popAlive >= 10 },
+    { id: 'diverse_society', name: 'Diverse Society', desc: 'Have all 7 roles filled', unlocked: hasAllRoles },
+    { id: 'fisher_king', name: 'Fisher King', desc: 'Have a dock and a fisherman', unlocked: buildingTypes.has('dock') && (roleCounts['fisherman'] || 0) >= 1 },
+    { id: 'raid_survivor', name: 'Raid Survivor', desc: 'Repel your first raid', unlocked: raidWins >= 1 },
+    { id: 'raid_veteran', name: 'Raid Veteran', desc: 'Repel 5 raids', unlocked: raidWins >= 5 },
+    { id: 'explorer', name: 'Explorer', desc: 'Explore 20 tiles', unlocked: exploredTiles >= 20 },
+    { id: 'cartographer', name: 'Cartographer', desc: 'Explore 50 tiles', unlocked: exploredTiles >= 50 },
+    { id: 'culture_shaper', name: 'Culture Shaper', desc: 'Teach 5 phrases', unlocked: phrases.length >= 5 },
+    { id: 'project_builder', name: 'Artisan', desc: 'Complete a villager project', unlocked: projectsDone >= 1 },
+    { id: 'wealthy', name: 'Golden Age', desc: 'Accumulate 50 gold', unlocked: (resMap.gold || 0) >= 50 },
+    { id: 'scholar_dream', name: "Scholar's Dream", desc: 'Accumulate 50 knowledge', unlocked: (resMap.knowledge || 0) >= 50 },
+    { id: 'centurion', name: 'Centurion', desc: 'Reach day 100', unlocked: (world ? world.day_number : 0) >= 100 },
+  ];
+
+  const unlocked = ACHIEVEMENTS.filter(a => a.unlocked);
+  const locked = ACHIEVEMENTS.filter(a => !a.unlocked);
+
+  res.json({
+    total: ACHIEVEMENTS.length,
+    unlocked: unlocked.length,
+    achievements: ACHIEVEMENTS.map(a => ({ id: a.id, name: a.name, desc: a.desc, unlocked: a.unlocked })),
+  });
+});
+
 // POST /api/world/events/mark-read
 router.post('/events/mark-read', (req, res) => {
   const { event_ids } = req.body;
