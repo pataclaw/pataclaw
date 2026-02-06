@@ -8,6 +8,7 @@ const { processVillagers } = require('./villagers');
 const { processExploration } = require('./exploration');
 const { rollRandomEvents } = require('./events');
 const { processRaids } = require('./combat');
+const { processCrops } = require('./crops');
 const { recalculateCulture } = require('./culture');
 const { processVillagerLife } = require('./village-life');
 const { expandMap, mulberry32 } = require('../world/map');
@@ -25,6 +26,9 @@ function processTick(worldId) {
 
   // 3. Resources
   const resResult = processResources(worldId, weather, time.season);
+
+  // 3.5. Crops
+  const cropEvents = processCrops(worldId, time.season, time.tick);
 
   // 4. Buildings
   const buildingEvents = processBuildings(worldId);
@@ -72,7 +76,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...buildingEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents, ...seasonEvents];
+  const allEvents = [...cropEvents, ...buildingEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents, ...seasonEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

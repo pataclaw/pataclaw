@@ -20,7 +20,7 @@ function buildTownFrame(worldId) {
   ).all(worldId);
 
   const villagers = db.prepare(
-    "SELECT * FROM villagers WHERE world_id = ?"
+    "SELECT * FROM villagers WHERE world_id = ? AND status = 'alive'"
   ).all(worldId);
 
   const resources = db.prepare(
@@ -44,6 +44,11 @@ function buildTownFrame(worldId) {
   // Get projects
   const projects = db.prepare(
     "SELECT * FROM projects WHERE world_id = ? AND status IN ('in_progress', 'complete') ORDER BY x"
+  ).all(worldId);
+
+  // Get growing crops
+  const crops = db.prepare(
+    'SELECT c.id, c.farm_id, c.crop_type, c.growth_stage FROM crops c WHERE c.world_id = ? AND c.harvested = 0'
   ).all(worldId);
 
   // Get recent social events for sidebar
@@ -126,6 +131,7 @@ function buildTownFrame(worldId) {
     buildings: enrichedBuildings,
     villagers: enrichedVillagers,
     projects: enrichedProjects,
+    crops,
     resources: resMap,
     population: { alive: popAlive, capacity: buildingCap },
     recentEvents,

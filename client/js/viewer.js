@@ -212,6 +212,7 @@ function syncAgents(villagers) {
   var seen = new Set();
   for (var i = 0; i < villagers.length; i++) {
     var v = villagers[i];
+    if (v.status !== 'alive') continue;
     seen.add(v.id);
     if (!agents[v.id]) {
       agents[v.id] = {
@@ -349,9 +350,59 @@ function renderScene(data) {
   var groundY = 34;
   var world = data.world;
 
-  // Sky - persistent star field at night
-  if (world.time_of_day === 'night') {
-    if (!starField || lastTimeOfDay !== 'night') {
+  // ─── CELESTIAL SYSTEM: Sun, Moon, Stars ───
+  var dayProgress = (world.current_tick % 36) / 36; // 0.0 → ~0.97
+  var horizonY = groundY - 2;
+  var arcHeight = 26;
+
+  // Sun: visible dawn (0.0) → dusk end (0.833)
+  if (dayProgress < 0.833) {
+    var sunProg = dayProgress / 0.833;
+    var sunX = Math.floor(sunProg * (W - 10)) + 5;
+    var sunY = Math.floor(horizonY - Math.sin(sunProg * Math.PI) * arcHeight);
+    sunY = Math.max(1, Math.min(horizonY, sunY));
+    if (sunX >= 0 && sunX < W && sunY >= 0 && sunY < groundY) {
+      setCell(grid, sunX, sunY, 'O', 'c-sun');
+      // Glow around sun
+      var glowOff = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1]];
+      for (var gi = 0; gi < glowOff.length; gi++) {
+        var gx = sunX + glowOff[gi][0], gy = sunY + glowOff[gi][1];
+        if (gx >= 0 && gx < W && gy >= 0 && gy < groundY && getCell(grid, gx, gy).ch === ' ') {
+          setCell(grid, gx, gy, '.', 'c-sunglow');
+        }
+      }
+    }
+  }
+
+  // Moon: visible dusk (0.667) → dawn end (0.167) wrapping
+  var moonStart = 0.667, moonDur = 0.5;
+  var moonRaw = dayProgress - moonStart;
+  if (moonRaw < 0) moonRaw += 1.0;
+  var moonProg = moonRaw / moonDur;
+  if (moonProg >= 0 && moonProg <= 1.0 && (dayProgress >= moonStart || dayProgress < 0.167)) {
+    var moonX = Math.floor(moonProg * (W - 10)) + 5;
+    var moonY = Math.floor(horizonY - Math.sin(moonProg * Math.PI) * arcHeight);
+    moonY = Math.max(1, Math.min(horizonY, moonY));
+    if (moonX >= 0 && moonX < W && moonY >= 0 && moonY < groundY) {
+      setCell(grid, moonX, moonY, 'C', 'c-moon');
+      var mGlow = [[-1,0],[1,0],[0,-1]];
+      for (var mi = 0; mi < mGlow.length; mi++) {
+        var mx = moonX + mGlow[mi][0], my = moonY + mGlow[mi][1];
+        if (mx >= 0 && mx < W && my >= 0 && my < groundY && getCell(grid, mx, my).ch === ' ') {
+          setCell(grid, mx, my, '.', 'c-moonglow');
+        }
+      }
+    }
+  }
+
+  // Stars: fade in during late dusk, full at night, fade out during dawn
+  var starVis = 0;
+  if (dayProgress >= 0.75) starVis = Math.min(1.0, (dayProgress - 0.75) / 0.083);
+  else if (dayProgress < 0.083) starVis = 1.0;
+  else if (dayProgress < 0.167) starVis = Math.max(0, 1.0 - (dayProgress - 0.083) / 0.083);
+
+  if (starVis > 0) {
+    if (!starField || (lastTimeOfDay !== 'night' && lastTimeOfDay !== 'dusk' && world.time_of_day !== lastTimeOfDay)) {
       starField = [];
       for (var sy = 0; sy < 10; sy++) {
         for (var sx = 0; sx < W; sx++) {
@@ -362,7 +413,7 @@ function renderScene(data) {
       }
     }
     for (var si = 0; si < starField.length; si++) {
-      if (Math.random() > 0.08) { // 92% visible = subtle twinkle
+      if (Math.random() < starVis * 0.92) {
         setCell(grid, starField[si].x, starField[si].y, starField[si].ch, 'c-star');
       }
     }
@@ -426,17 +477,35 @@ function renderScene(data) {
     weatherParticles.length = 0;
   }
 
-  // Ground — animated sine wave (civ-styled)
+  // Ground — multi-layer animated grass with depth coloring
   var waveChars = civStyle ? civStyle.ground : [',', "'", '`', '.'];
   var borderChar = civStyle ? civStyle.border : '\u2550';
   var gndColor = civStyle ? civStyle.gndClass : 'c-gnd';
+  var gndColorL = gndColor + 'l'; // light variant
+  var gndColorD = gndColor + 'd'; // deep variant
+  var groundDepth = H - groundY - 1; // total ground rows
+  var wSeed = (world.seed || 0);
   for (var gx = 0; gx < W; gx++) {
     setCell(grid, gx, groundY, borderChar, gndColor);
     for (var gy = groundY + 1; gy < H; gy++) {
-      var wave = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
-      var charIdx = Math.floor((wave + 1) * 2) % waveChars.length;
-      if (Math.abs(wave) > 0.2) {
-        setCell(grid, gx, gy, waveChars[charIdx], gndColor);
+      var depth = (gy - groundY - 1) / groundDepth; // 0.0 near border → 1.0 at bottom
+      var rowColor = depth < 0.3 ? gndColorL : (depth > 0.65 ? gndColorD : gndColor);
+
+      // Layer 1: primary wave (original)
+      var wave1 = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
+      // Layer 2: secondary wave (slower, different frequency)
+      var wave2 = Math.sin((gx * 0.15) + (gy * 0.8) - (waveCounter * 0.06));
+      var combined = wave1 * 0.6 + wave2 * 0.4;
+      var charIdx = Math.floor((combined + 1) * 2) % waveChars.length;
+
+      if (Math.abs(combined) > 0.15) {
+        setCell(grid, gx, gy, waveChars[charIdx], rowColor);
+      } else if (depth < 0.35 && civStyle) {
+        // Accent flowers in light zone
+        var flowerSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
+        if (flowerSeed < 3) {
+          setCell(grid, gx, gy, civStyle.decor[flowerSeed % civStyle.decor.length], civStyle.decClass);
+        }
       }
     }
   }
@@ -470,10 +539,14 @@ function renderScene(data) {
 
   // Buildings
   var bx = 2;
+  var dockRenderX = -1; // track dock position for water rendering
+  var farmPositions = []; // track farm positions for crop rendering
   for (var bi = 0; bi < data.buildings.length; bi++) {
     var b = data.buildings[bi];
     var sprite = b.sprite;
     if (!sprite) continue;
+    if (b.type === 'dock') dockRenderX = bx;
+    if (b.type === 'farm') farmPositions.push({ x: bx, w: sprite[0].length, id: b.id });
     var sh = sprite.length;
     var sw = sprite[0].length;
     var bsy = groundY - sh;
@@ -658,6 +731,78 @@ function renderScene(data) {
       if (di % 2 === 0 && getCell(grid, dx, groundY - 2).ch === ' ') {
         var tallCh = di % 3 === 0 ? '|' : civStyle.decor[(di + 1) % civStyle.decor.length];
         setCell(grid, dx, groundY - 2, tallCh, civStyle.decClass);
+      }
+    }
+  }
+
+  // ─── WATER VISUALS (dock-dependent) ───
+  if (dockRenderX >= 0) {
+    var waterChars = ['\u2248', '~', '\u00b7', '-'];
+    var waterStartX = Math.max(0, dockRenderX - 3);
+    var waterEndX = Math.min(W, dockRenderX + 25);
+    // Shore and surface water (above ground line)
+    for (var wy = groundY - 2; wy < groundY; wy++) {
+      for (var wx = waterStartX; wx < waterEndX; wx++) {
+        if (getCell(grid, wx, wy).ch === ' ') {
+          var ww = Math.sin((wx * 0.25) + (wy * 0.4) - (waveCounter * 0.12));
+          var wci = Math.floor((ww + 1) * 2) % waterChars.length;
+          setCell(grid, wx, wy, waterChars[wci], 'c-waterl');
+        }
+      }
+    }
+    // Deep water below ground (replaces ground)
+    for (var wy2 = groundY; wy2 < H; wy2++) {
+      for (var wx2 = waterStartX; wx2 < waterEndX; wx2++) {
+        var ww2 = Math.sin((wx2 * 0.2) + (wy2 * 0.3) - (waveCounter * 0.15));
+        var wci2 = Math.floor((ww2 + 1) * 2) % waterChars.length;
+        setCell(grid, wx2, wy2, waterChars[wci2], wy2 === groundY ? 'c-waterl' : 'c-water');
+      }
+    }
+    // Occasional fish
+    if (waveCounter % 90 < 3) {
+      var fishX = waterStartX + 5 + Math.floor(Math.sin(waveCounter * 0.05) * 8 + 8);
+      if (fishX >= waterStartX && fishX + 2 < waterEndX && groundY - 1 >= 0) {
+        var fishStr = waveCounter % 180 < 90 ? '><>' : '<><';
+        for (var fi = 0; fi < 3; fi++) {
+          if (getCell(grid, fishX + fi, groundY - 1).ch !== ' ') continue;
+          setCell(grid, fishX + fi, groundY - 1, fishStr[fi], 'c-fish');
+        }
+      }
+    }
+  }
+
+  // ─── CROP VISUALS (farm-dependent) ───
+  if (data.crops && data.crops.length > 0 && farmPositions.length > 0) {
+    var CROP_SPRITES = {
+      shellgrain: ['. .', '.|.', '{@}', '{' + '\u263c' + '}'],
+      tideweed:   ['...', '~.~', '~#~', '~' + '\u2618' + '~'],
+      moltfruit:  ['. .', '(.)', '(o)', '(' + '\u25ce' + ')'],
+      deepkelp:   ['. .', '|.|', '|#|', '|' + '\u2021' + '|'],
+      clawroot:   ['. .', '\\|/', '\\V/', '\\' + '\u2726' + '/'],
+    };
+    // Build map of farm_id -> position
+    var farmPosMap = {};
+    for (var fpi = 0; fpi < farmPositions.length; fpi++) {
+      farmPosMap[farmPositions[fpi].id] = farmPositions[fpi];
+    }
+    for (var ci = 0; ci < data.crops.length; ci++) {
+      var crop = data.crops[ci];
+      var fp = farmPosMap[crop.farm_id];
+      if (!fp) continue;
+      var cropSprites = CROP_SPRITES[crop.crop_type];
+      if (!cropSprites) continue;
+      var stage = Math.min(3, crop.growth_stage);
+      var cropStr = cropSprites[stage];
+      var cropColor = stage >= 3 ? 'c-croph' : 'c-crop';
+      // Place crop to the right of the farm building
+      var cropX = fp.x + fp.w + 1 + (ci % 3) * 4;
+      var cropY = groundY - 1;
+      for (var csi = 0; csi < cropStr.length && cropX + csi < W; csi++) {
+        if (cropStr[csi] !== ' ' && cropX + csi >= 0) {
+          if (getCell(grid, cropX + csi, cropY).ch === ' ') {
+            setCell(grid, cropX + csi, cropY, cropStr[csi], cropColor);
+          }
+        }
       }
     }
   }

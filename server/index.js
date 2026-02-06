@@ -46,6 +46,18 @@ const tableMigrations = [
     minted_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (world_id) REFERENCES worlds(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS crops (
+    id TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL,
+    farm_id TEXT NOT NULL,
+    crop_type TEXT NOT NULL,
+    growth_stage INTEGER NOT NULL DEFAULT 0,
+    planted_tick INTEGER NOT NULL,
+    last_stage_tick INTEGER NOT NULL,
+    harvested INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (world_id) REFERENCES worlds(id),
+    FOREIGN KEY (farm_id) REFERENCES buildings(id)
+  )`,
 ];
 for (const sql of tableMigrations) {
   try { db.exec(sql); } catch (e) { /* ignore */ }

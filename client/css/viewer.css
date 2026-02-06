@@ -359,6 +359,29 @@ body {
 #world .c-dec-f { color: #99ccee; }
 #world .c-dec-e { color: #ff7744; }
 
+/* Grass depth variants (light / deep per civ style) */
+#world .c-gnd-vl { color: #44cc55; }  #world .c-gnd-vd { color: #227733; }
+#world .c-gnd-sl { color: #aaaaaa; }  #world .c-gnd-sd { color: #666655; }
+#world .c-gnd-ml { color: #9955cc; }  #world .c-gnd-md { color: #553388; }
+#world .c-gnd-dl { color: #ccbb55; }  #world .c-gnd-dd { color: #886622; }
+#world .c-gnd-fl { color: #88ccee; }  #world .c-gnd-fd { color: #447799; }
+#world .c-gnd-el { color: #cc5533; }  #world .c-gnd-ed { color: #882211; }
+
+/* Celestial bodies */
+#world .c-sun     { color: #ffdd33; }
+#world .c-sunglow { color: #aa8822; }
+#world .c-moon    { color: #ccddff; }
+#world .c-moonglow{ color: #8899bb; }
+
+/* Water */
+#world .c-water  { color: #3388cc; }
+#world .c-waterl { color: #55aadd; }
+#world .c-fish   { color: #66ccaa; }
+
+/* Crops */
+#world .c-crop  { color: #66aa44; }
+#world .c-croph { color: #ddaa33; }
+
 /* Time of day */
 body.dawn #world { color: #ffaa66; text-shadow: 0 0 4px rgba(255, 170, 102, 0.15); }
 body.morning #world { color: #33ff33; }
