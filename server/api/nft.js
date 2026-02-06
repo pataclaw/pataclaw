@@ -5,6 +5,20 @@ const { generateSvg } = require('../render/nft-image');
 
 const router = Router();
 
+// Seed: token #1 was minted directly on-chain (not via API), so backfill the DB record
+const TOKEN1_WORLD_ID = '0f717bb7-14b8-4c0a-81ee-2c1113fe2386';
+const TOKEN1_WALLET = '0xe923bC825A59410071a12DD67B22731aAab8435B';
+const existing = db.prepare('SELECT * FROM nft_mints WHERE token_id = 1').get();
+if (!existing) {
+  const worldExists = db.prepare('SELECT id FROM worlds WHERE id = ?').get(TOKEN1_WORLD_ID);
+  if (worldExists) {
+    const { v4: uuid } = require('uuid');
+    db.prepare('INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash) VALUES (?, ?, 1, ?, ?)')
+      .run(uuid(), TOKEN1_WORLD_ID, TOKEN1_WALLET, '0x_direct_mint_on_chain');
+    console.log('[NFT] Backfilled token #1 mint record for Clawhold');
+  }
+}
+
 // Helper: find world by tokenId
 function findWorldByTokenId(tokenId) {
   return db.prepare('SELECT * FROM nft_mints WHERE token_id = ?').get(tokenId);
