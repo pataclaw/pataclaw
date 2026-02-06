@@ -29,14 +29,16 @@ function processVillagers(worldId, isStarving, weather) {
       const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
       const hasFarm = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c > 0;
       const survivalRole = (food && food.amount <= 5 && hasFarm) ? 'farmer' : 'idle';
+      // Refugee arrives with hunger 0 (they brought scraps) + grant 10 food to survive
       db.prepare(`
         INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
-        VALUES (?, ?, ?, ?, ?, ?, 80, 100, 50, 20, 0, 'alive', ?, ?, NULL, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, 80, 100, 50, 0, 0, 'alive', ?, ?, NULL, ?, ?, ?)
       `).run(uuid(), worldId, name, survivalRole, CENTER, CENTER + 1, trait, survivalRole, basePers.temperament, basePers.creativity, basePers.sociability);
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + 10) WHERE world_id = ? AND type = 'food'").run(worldId);
       events.push({
         type: 'birth',
         title: `${name} wanders in`,
-        description: `A lone refugee named ${name} has found your empty settlement.${survivalRole === 'farmer' ? ' They head straight for the farm.' : ' Hope is not lost.'}`,
+        description: `A lone refugee named ${name} has found your empty settlement with a small bag of food.${survivalRole === 'farmer' ? ' They head straight for the farm.' : ' Hope is not lost.'}`,
         severity: 'celebration',
       });
     }
