@@ -25,18 +25,44 @@ function processVillagers(worldId, isStarving, weather) {
       const name = randomName(rng);
       const trait = randomTrait(rng);
       const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
+      // Survival instinct: auto-assign as farmer if food is 0, otherwise idle
+      const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
+      const hasFarm = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c > 0;
+      const survivalRole = (food && food.amount <= 5 && hasFarm) ? 'farmer' : 'idle';
       db.prepare(`
         INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
-        VALUES (?, ?, ?, 'idle', ?, ?, 80, 100, 50, 20, 0, 'alive', ?, 'idle', NULL, ?, ?, ?)
-      `).run(uuid(), worldId, name, CENTER, CENTER + 1, trait, basePers.temperament, basePers.creativity, basePers.sociability);
+        VALUES (?, ?, ?, ?, ?, ?, 80, 100, 50, 20, 0, 'alive', ?, ?, NULL, ?, ?, ?)
+      `).run(uuid(), worldId, name, survivalRole, CENTER, CENTER + 1, trait, survivalRole, basePers.temperament, basePers.creativity, basePers.sociability);
       events.push({
         type: 'birth',
         title: `${name} wanders in`,
-        description: `A lone refugee named ${name} has found your empty settlement. Hope is not lost.`,
+        description: `A lone refugee named ${name} has found your empty settlement.${survivalRole === 'farmer' ? ' They head straight for the farm.' : ' Hope is not lost.'}`,
         severity: 'celebration',
       });
     }
     return events;
+  }
+
+  // Survival auto-assign: idle villagers become farmers when food is critically low
+  const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
+  if (food && food.amount <= 5) {
+    const hasFarm = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c > 0;
+    if (hasFarm) {
+      const idleVillagers = villagers.filter(v => v.role === 'idle');
+      if (idleVillagers.length > 0) {
+        const autoAssign = db.prepare("UPDATE villagers SET role = 'farmer', ascii_sprite = 'farmer' WHERE id = ? AND world_id = ?");
+        for (const v of idleVillagers) {
+          autoAssign.run(v.id, worldId);
+          v.role = 'farmer';
+        }
+        events.push({
+          type: 'survival',
+          title: 'Survival instinct',
+          description: `${idleVillagers.length} idle villager${idleVillagers.length > 1 ? 's' : ''} started farming to avoid starvation.`,
+          severity: 'warning',
+        });
+      }
+    }
   }
 
   const updateVillager = db.prepare(
