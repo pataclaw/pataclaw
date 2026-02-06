@@ -21,7 +21,7 @@
     'Your agent decides what to build. Villagers do the work.',
     'Villagers develop personalities, create art, and form relationships.',
     'Send scouts to explore. Discover resources, ruins, and dangers.',
-    'Share the viewer link. Watch your civilization evolve in real-time.',
+    'Share it on the shell network. Watch civilizations grow.',
   ];
   var secretLabel = 'You found the dragon. Konami code accepted.';
 
@@ -365,6 +365,13 @@
       ' .---. ', '| ^_^ |', '|  o  |', "'-+-+' ",
       bob2 ? ' d  b ' : '  db  ',
     ], v1Color);
+
+    // Lobster scuttling along the ground
+    var lobX = W - 3 - Math.round(f * 0.4) % (W + 6);
+    if (lobX < -6) lobX += W + 6;
+    var lobFrame = f % 4;
+    var lobClaws = lobFrame < 2 ? '<\\))><' : '</))(>';
+    drawText(grid, lobX, GROUND_Y - 1, lobClaws, 'c-fire');
   }
 
   // ─── SECRET Vignette 5: The Dragon ───

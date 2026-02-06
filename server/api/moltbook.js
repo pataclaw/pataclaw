@@ -36,16 +36,16 @@ router.post('/post-update', async (req, res) => {
     'Recent Events:',
     eventList || '  (quiet times)',
     '',
-    '   /\\      (.)     [*]',
-    '  /  \\     /|\\     /|\\',
-    ' |    |    / \\     / \\',
+    '   /\\      (.)     [*]        ',
+    '  /  \\     /|\\     /|\\   <\\))><',
+    ' |    |    / \\     / \\        ',
     ' |_[]_|',
     '',
     `Town Motto: "${world.motto || 'No motto set'}"`,
     '===================================',
     `Reputation: ${world.reputation}`,
     '',
-    '#pataclaw #civilization #ascii',
+    '#pataclaw #moltbook #civilization #ascii',
   ].join('\n');
 
   const postTitle = `[Pataclaw] ${world.name} - Day ${world.day_number} Report`;
@@ -99,7 +99,7 @@ router.post('/post-trade', (req, res) => {
     '',
     'Reply to accept! Include your Pataclaw town name.',
     '',
-    '#pataclaw #trade',
+    '#pataclaw #moltbook #trade',
   ].join('\n');
 
   res.json({ ok: true, tradeId, content: postContent });
@@ -149,7 +149,7 @@ router.post('/visit', (req, res) => {
   `).run(
     uuid(), req.worldId, world.current_tick,
     `Discovered ${town_name}!`,
-    `Your scouts learned about a civilization called "${town_name}" through the Moltbook network.${agent_name ? ` Their hero is known as ${agent_name}.` : ''}`
+    `Word arrived through the shell network of a civilization called "${town_name}".${agent_name ? ` Their hero is known as ${agent_name}.` : ''}`
   );
 
   // Reputation boost
