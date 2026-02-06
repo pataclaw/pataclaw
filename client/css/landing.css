@@ -461,3 +461,64 @@ input[type="password"]:focus {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .container { padding: 12px; }
+
+  .ascii-banner {
+    font-size: 6px;
+    margin: 15px 0 8px;
+    overflow-x: auto;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .intro {
+    font-size: 11px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding-left: 10px;
+  }
+
+  #demo-scene-wrapper {
+    padding: 4px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #demo-scene {
+    font-size: 7px;
+    line-height: 1.1;
+  }
+
+  .action-group { padding: 14px; }
+  .action-group h3 { font-size: 12px; }
+  .btn { padding: 8px 16px; font-size: 12px; }
+  input[type="text"], input[type="password"] { font-size: 12px; padding: 8px 10px; }
+
+  .key-value { font-size: 12px; padding: 8px; }
+  .key-actions { flex-direction: column; }
+  .return-group { flex-direction: column; }
+
+  .world-card { padding: 8px 10px; }
+  .wc-name { font-size: 12px; }
+  .wc-header { flex-wrap: wrap; gap: 4px; }
+
+  .how-it-works { padding: 14px; }
+  .how-it-works ol { font-size: 11px; line-height: 1.8; }
+
+  .footer { font-size: 10px; margin-top: 20px; padding: 12px; }
+}
+
+@media (max-width: 480px) {
+  .ascii-banner { font-size: 5px; }
+  #demo-scene { font-size: 5.5px; }
+  .subtitle { font-size: 10px; }
+  .wc-rank { font-size: 11px; min-width: 22px; }
+  .wc-score { font-size: 10px; }
+}
