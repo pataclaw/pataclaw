@@ -59,6 +59,11 @@ app.get('/viewer', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'viewer.html'));
 });
 
+// Pretty URL: /view/:token -> /viewer?token=:token
+app.get('/view/:token', (req, res) => {
+  res.redirect('/viewer?token=' + encodeURIComponent(req.params.token));
+});
+
 app.use(errorHandler);
 
 // Start simulation engine
