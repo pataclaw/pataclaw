@@ -408,6 +408,57 @@ const PROJECT_SPRITES = {
   },
 };
 
+const VILLAGER_SPRITES = {
+  idle: [
+    ' o ',
+    '/|\\',
+    '/ \\',
+  ],
+  farmer: [
+    ' o ',
+    '/|\\',
+    '/ \\',
+  ],
+  warrior: [
+    ' o ',
+    '/|)',
+    '/ \\',
+  ],
+  builder: [
+    ' o ',
+    '/|T',
+    '/ \\',
+  ],
+  scout: [
+    ' o ',
+    '/|/',
+    '/ \\',
+  ],
+  scholar: [
+    ' o ',
+    '/|]',
+    '/ \\',
+  ],
+  priest: [
+    ' o ',
+    '/|+',
+    '/ \\',
+  ],
+  fisherman: [
+    ' o ',
+    '/|~',
+    '/ \\',
+  ],
+};
+
+const WEATHER_OVERLAYS = {
+  rain: '/',
+  storm: '*',
+  snow: '.',
+  fog: '~',
+  clear: null,
+};
+
 const TERRAIN_CHARS = {
   plains: '\u00b7',
   forest: '\u2663',
@@ -433,6 +484,8 @@ module.exports = {
   ROLE_HATS,
   ROLE_ITEMS,
   BUILDING_SPRITES,
+  VILLAGER_SPRITES,
+  WEATHER_OVERLAYS,
   PROJECT_SPRITES,
   TERRAIN_CHARS,
   FEATURE_CHARS,
