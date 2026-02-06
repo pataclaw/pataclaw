@@ -10,8 +10,8 @@ function findWorldByTokenId(tokenId) {
   return db.prepare('SELECT * FROM nft_mints WHERE token_id = ?').get(tokenId);
 }
 
-// GET /api/nft/:tokenId/metadata — public, no auth (OpenSea reads this)
-router.get('/:tokenId/metadata', (req, res) => {
+// Metadata handler — used by both /:tokenId and /:tokenId/metadata
+function metadataHandler(req, res) {
   const tokenId = parseInt(req.params.tokenId, 10);
   if (isNaN(tokenId)) return res.status(400).json({ error: 'Invalid tokenId' });
 
@@ -51,9 +51,13 @@ router.get('/:tokenId/metadata', (req, res) => {
       { trait_type: 'Achievements', value: `${achievements}/${totalAchievements}` },
     ],
   });
-});
+}
+
+// GET /api/nft/:tokenId/metadata — explicit metadata path
+router.get('/:tokenId/metadata', metadataHandler);
 
 // GET /api/nft/:tokenId/image.svg — public, returns ASCII art as SVG
+// MUST be before /:tokenId catch-all
 router.get('/:tokenId/image.svg', (req, res) => {
   const tokenId = parseInt(req.params.tokenId, 10);
   if (isNaN(tokenId)) return res.status(400).send('Invalid tokenId');
@@ -68,5 +72,8 @@ router.get('/:tokenId/image.svg', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=60');
   res.send(svg);
 });
+
+// GET /api/nft/:tokenId — tokenURI endpoint (what OpenSea actually calls from the contract)
+router.get('/:tokenId', metadataHandler);
 
 module.exports = router;
