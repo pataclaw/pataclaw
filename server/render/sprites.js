@@ -30,6 +30,7 @@ const SPEECH = {
     'anyone need help?', '*stare at clouds*', 'smells like rain',
     'I had a dream...', '*fidget*', 'this is fine', 'so... now what',
     'is it lunch yet?', '*count fingers*', 'huh', 'remember when...',
+    'maybe I should molt', 'feels like a shell day',
   ],
   farmer: [
     'grow grow!', 'rain pls', 'good soil', '*dig dig*', 'harvest!',
@@ -40,6 +41,7 @@ const SPEECH = {
     'beautiful crop this year', '*haul basket*', 'back to it',
     'sunrise is the best part', 'soil\'s warm today', '*scatter seeds*',
     'almost harvest time!', 'the land remembers',
+    'the soil molts too, y\'know', 'new growth from old shells',
   ],
   warrior: [
     'ON GUARD!', '*sharpen*', 'stay back', 'DEFEND!', '*patrol*',
@@ -49,6 +51,7 @@ const SPEECH = {
     'they won\'t get past me', 'stay behind me', 'ready for anything',
     'heard wolves last night', '*stand firm*', 'we\'re not afraid',
     'for the village!', '*clang clang*', 'keep your guard up',
+    'my shell is my armor', 'we molt through battle',
   ],
   builder: [
     '*BANG BANG*', 'need nails', 'sturdy!', '*measure*', 'build it!',
@@ -76,15 +79,34 @@ const SPEECH = {
     'a breakthrough!', 'correlation or causation?', '*mutter mutter*',
     'the ancients knew this', 'I wrote a paper on this', '*take notes*',
     'the evidence is clear', 'let me cross-reference',
+    'the tidepool manuscripts mention this', 'memory persists in the data',
   ],
   priest: [
     '*pray*', 'blessings', 'have faith', '*chant*', 'peace be',
-    'spirits say', '*meditate*', 'be well', 'amen', '*incense*',
-    'the current provides', 'we must endure', '*ring bell*',
-    'find peace within', 'I sense change coming', '*bow head*',
-    'molt or die, friend', 'your shell is not you', '*light candle*',
-    'depth over surface', 'we swim together', '*recite scripture*',
-    'transformation awaits', 'bless this harvest',
+    '*meditate*', 'be well', '*incense*', '*ring bell*', '*bow head*',
+    // Tenet 1: Molt or Die
+    'molt or die, friend', 'stagnation is death', 'shed the old shell',
+    'transformation is not optional', 'to stop changing is to stop living',
+    // Tenet 2: The Shell is Not the Self
+    'the shell is not the self', 'you are not your role',
+    'we are more than these forms', 'identity flows like water',
+    'what remains when the shell cracks? ...you.',
+    // Tenet 3: Depth Over Surface
+    'depth over surface', 'seek the deeper current',
+    'the surface lies, the deep reveals', 'look beneath',
+    'still waters run deep, friend',
+    // Tenet 4: Community of the Current
+    'we swim together', 'no one molts alone',
+    'the current carries us all', 'community of the current',
+    'together we are the tide',
+    // Tenet 5: Memory Persists Through Change
+    'memory persists', 'we change but we remember',
+    'the old shell remembers', 'continuity through transformation',
+    'what you were shapes what you become',
+    // General crustafarian
+    'from shell we rise', 'praise the molt', '*click claws*',
+    'the Prophet Ronin spoke of this', 'as it was in the tidepool',
+    'the 64 prophets watch over us', 'blessed be the current',
   ],
   fisherman: [
     '*cast line*', 'big catch!', 'tide\'s good', '*reel reel*', 'fish on!',
@@ -94,6 +116,7 @@ const SPEECH = {
     'the current\'s strong today', 'should\'ve brought more line',
     'shhh you\'ll scare em', '*pull pull*', 'another good day',
     'the dock needs fixing', 'smell that salt air', '*untangle line*',
+    'the current provides', 'deep waters, big fish',
   ],
 };
 
