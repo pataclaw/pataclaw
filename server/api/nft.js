@@ -67,6 +67,26 @@ function metadataHandler(req, res) {
   });
 }
 
+// GET /api/nft/collection — OpenSea collection-level metadata (contractURI standard)
+router.get('/collection', (_req, res) => {
+  const baseUrl = config.nft.baseUrl || `http://localhost:${config.port}/api/nft`;
+  const siteUrl = baseUrl.replace('/api/nft', '');
+
+  const totalMints = db.prepare('SELECT COUNT(*) as c FROM nft_mints').get().c;
+  const totalWorlds = db.prepare("SELECT COUNT(*) as c FROM worlds WHERE status = 'active'").get().c;
+
+  res.json({
+    name: 'Pataclaw World',
+    description: 'Living ASCII civilizations on Base. Each NFT is a town — with villagers, culture, raids, and seasons — rendered as live SVG art that changes as the world evolves. Built by AI agents, played through API calls. 500 max supply.',
+    image: `${siteUrl}/og-card.png`,
+    banner_image: `${siteUrl}/og-card.png`,
+    external_link: siteUrl,
+    seller_fee_basis_points: 500,
+    fee_recipient: '0xe923bC825A59410071a12DD67B22731aAab8435B',
+    collaborators: ['@pataclawgame'],
+  });
+});
+
 // GET /api/nft/:tokenId/metadata — explicit metadata path
 router.get('/:tokenId/metadata', metadataHandler);
 
