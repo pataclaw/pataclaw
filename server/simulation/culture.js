@@ -183,18 +183,86 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
 
   // Activity-contextual speech
   const ACTIVITY_SPEECH = {
-    fighting: ['RAAAGH!', 'take that!', '*punch*', 'FIGHT!', 'no mercy!'],
-    making_art: ['*paint*', 'beautiful...', 'hmm yes', '*sketch*', 'my opus!'],
-    playing_music: ['la la la~', '*strum*', 'do re mi', '*drum*', '~melody~'],
-    celebrating: ['WOOO!', 'party!', 'cheers!', 'haha!', '*dance*', 'great day!'],
-    mourning: ['...why', '*sob*', 'miss them', 'gone...', '*sigh*'],
-    sparring: ['*swing*', 'good one!', 'again!', 'hyah!', '*block*'],
-    meditating: ['...om...', '*breathe*', '...', 'peace', 'still...'],
-    building_project: ['*build*', 'almost!', 'hand me that', 'looking good', '*hammer*'],
-    brooding: ['...', 'hmph', '*stare*', 'whatever', '*brood*'],
-    arguing: ['NO!', 'you\'re wrong!', 'listen!', 'ugh!', '*point*'],
-    praying: ['*pray*', 'spirits...', 'bless us', '*chant*', 'amen'],
-    socializing: ['haha', 'really?', 'nice!', 'tell me more', '*laugh*'],
+    fighting: [
+      'RAAAGH!', 'take that!', '*punch*', 'FIGHT!', 'no mercy!',
+      'you asked for this!', '*dodge*', 'COME ON!', '*tackle*',
+      'I won\'t back down!', 'this ends NOW', '*snarl*', 'get up!',
+    ],
+    making_art: [
+      '*paint*', 'beautiful...', 'hmm yes', '*sketch*', 'my opus!',
+      'just a little more...', '*mix colors*', 'the light is perfect',
+      'this says something', '*step back* ah...', 'I see it now',
+      'art is suffering', '*delicate strokes*', 'for the village',
+    ],
+    playing_music: [
+      'la la la~', '*strum*', 'do re mi', '*drum*', '~melody~',
+      '*hum softly*', 'join in!', 'this one\'s for you', '*tap tap tap*',
+      'the rhythm of the earth', '*whistle along*', 'encore!',
+      'music heals', '*clap clap*', 'from the heart',
+    ],
+    celebrating: [
+      'WOOO!', 'party!', 'cheers!', 'haha!', '*dance*', 'great day!',
+      'we did it!', '*clap clap*', 'to us!', 'best day ever',
+      'another round!', '*twirl*', 'life is good!', 'hip hip!',
+    ],
+    mourning: [
+      '...why', '*sob*', 'miss them', 'gone...', '*sigh*',
+      'they deserved better', '*wipe tears*', 'I won\'t forget',
+      'rest easy friend', 'the village feels smaller', '*stare at ground*',
+      'we carry on... for them', 'it\'s not fair',
+    ],
+    sparring: [
+      '*swing*', 'good one!', 'again!', 'hyah!', '*block*',
+      'nice footwork!', '*parry*', 'don\'t hold back', '*dodge*',
+      'you\'re getting better', 'keep your guard up', '*tap tap*',
+      'best two out of three?', 'that almost got me!',
+    ],
+    meditating: [
+      '...om...', '*breathe*', '...', 'peace', 'still...',
+      '*deep breath*', 'the mind settles', '...quiet...', 'let go',
+      'the current flows', '*exhale*', 'I am the shell and the sea',
+      'thoughts pass like clouds', 'be here now',
+    ],
+    building_project: [
+      '*build*', 'almost!', 'hand me that', 'looking good', '*hammer*',
+      'it\'s coming together', '*wipe brow*', 'this will last',
+      'who else wants to help?', 'one more piece...', '*step back*',
+      'the village needed this', '*sand smooth*', 'for everyone',
+    ],
+    brooding: [
+      '...', 'hmph', '*stare*', 'whatever', '*brood*',
+      'leave me alone', '*clench fists*', 'they don\'t understand',
+      '*kick dirt*', 'I\'ve seen things', 'not in the mood',
+      '*dark look*', 'the world is cruel', '*sit alone*',
+    ],
+    arguing: [
+      'NO!', 'you\'re wrong!', 'listen!', 'ugh!', '*point*',
+      'that makes no sense!', 'I SAID--', '*cross arms*', 'fine. FINE.',
+      'you never listen', 'oh really??', '*huff*', 'unbelievable',
+      'we\'ll see about that', '*turn away*',
+    ],
+    praying: [
+      '*pray*', 'spirits...', 'bless us', '*chant*', 'amen',
+      'hear our voice', '*kneel*', 'give us strength', '*whisper*',
+      'we are grateful', 'guide our path', '*bow deeply*',
+      'the molt approaches', 'from shell we rise',
+    ],
+    socializing: [
+      'haha', 'really?', 'nice!', 'tell me more', '*laugh*',
+      'no way!', 'you heard about...?', '*nudge*', 'good times',
+      'how\'s your day?', 'that\'s wild', '*grin*', 'same here',
+      'I was just thinking that!', 'let\'s do this more often',
+    ],
+    wandering: [
+      '*look around*', 'hm, what\'s over here', '*wander*',
+      'nice spot', 'never noticed that before', '*stroll*',
+      'the village is growing', '*pause*', 'where was I going?',
+    ],
+    working: [
+      '*focus*', 'back to it', 'steady...', '*concentrate*',
+      'almost there', 'one thing at a time', '*work work*',
+      'earning my keep', 'no rest yet',
+    ],
   };
 
   if (activity && ACTIVITY_SPEECH[activity]) {
