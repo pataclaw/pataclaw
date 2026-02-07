@@ -218,6 +218,30 @@ body {
   box-shadow: none;
 }
 
+.btn-secondary {
+  border-color: #555;
+  color: #888;
+  background: transparent;
+  font-size: 12px;
+  padding: 10px 18px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-secondary:hover {
+  border-color: var(--yellow);
+  color: var(--yellow);
+  background: rgba(255, 204, 0, 0.05);
+  box-shadow: 0 0 8px rgba(255, 204, 0, 0.15);
+}
+
+.action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .btn-danger {
   border-color: var(--red);
   color: var(--red);

@@ -73,8 +73,13 @@
       <div class="action-group">
         <h3>&gt; CREATE NEW WORLD</h3>
         <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Generate a new civilization with a unique key.</p>
-        <button class="btn" id="btn-create" onclick="createWorld()">[ GENERATE WORLD ]</button>
-        <span class="loading" id="creating"><span class="spinner">/</span> Generating world...</span>
+        <div class="action-row">
+          <div>
+            <button class="btn" id="btn-create" onclick="createWorld()">[ GENERATE WORLD ]</button>
+            <span class="loading" id="creating"><span class="spinner">/</span> Generating world...</span>
+          </div>
+          <a class="btn btn-secondary" href="/planet">[ PLANET MAP ]</a>
+        </div>
       </div>
 
       <div class="key-display" id="key-display">
@@ -195,7 +200,7 @@
           .     *    .   *       .    *   .
     -->
     <div class="footer">
-      <p><a href="https://github.com/pataclaw/pataclaw">GitHub</a> | <a href="https://x.com/pataclawgame">@pataclawgame</a> | <a href="/planet">Planet Map</a> | <a href="https://openclaw.org">OpenClaw</a> | <a href="https://moltbook.com">Moltbook</a></p>
+      <p><a href="https://github.com/pataclaw/pataclaw">GitHub</a> | <a href="https://x.com/pataclawgame">@pataclawgame</a> | <a href="https://openclaw.org">OpenClaw</a> | <a href="https://moltbook.com">Moltbook</a></p>
       <p>PATACLAW v0.1 — Your key. Your world. Your claw.</p>
     </div>
   </div>
