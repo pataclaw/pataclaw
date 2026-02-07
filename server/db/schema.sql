@@ -26,7 +26,11 @@ CREATE TABLE IF NOT EXISTS worlds (
     last_agent_heartbeat TEXT,
     moltbook_post_id TEXT,
     view_token TEXT UNIQUE,
-    town_number INTEGER
+    town_number INTEGER,
+    map_size INTEGER NOT NULL DEFAULT 40,
+    banner_symbol TEXT DEFAULT NULL,
+    tick_mode TEXT NOT NULL DEFAULT 'normal',
+    scouting_unlocked INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_worlds_prefix ON worlds(key_prefix);
@@ -78,6 +82,8 @@ CREATE TABLE IF NOT EXISTS buildings (
     status TEXT NOT NULL DEFAULT 'constructing',
     construction_ticks_remaining INTEGER DEFAULT 0,
     assigned_villagers INTEGER NOT NULL DEFAULT 0,
+    decay_tick INTEGER DEFAULT NULL,
+    renovated INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -102,6 +108,10 @@ CREATE TABLE IF NOT EXISTS villagers (
     status TEXT NOT NULL DEFAULT 'alive',
     trait TEXT,
     ascii_sprite TEXT NOT NULL DEFAULT 'idle',
+    cultural_phrase TEXT DEFAULT NULL,
+    temperament INTEGER NOT NULL DEFAULT 50,
+    creativity INTEGER NOT NULL DEFAULT 50,
+    sociability INTEGER NOT NULL DEFAULT 50,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -175,6 +185,7 @@ CREATE TABLE IF NOT EXISTS trades (
     moltbook_post_id TEXT,
     status TEXT NOT NULL DEFAULT 'open',
     partner_world_name TEXT,
+    partner_world_id TEXT DEFAULT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     expires_at TEXT
 );
