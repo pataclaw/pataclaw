@@ -3,9 +3,14 @@ const db = require('../db/connection');
 const { generateTiles, mulberry32, getCenter } = require('./map');
 const { startingVillagers, startingBuilding, STARTING_RESOURCES, FEATURES_TO_PLACE, randomTownName } = require('./templates');
 
-function createWorld(worldId, keyHash, keyPrefix) {
+function createWorld(worldId, keyHash, keyPrefix, opts = {}) {
   const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff);
   const rng = mulberry32(seed);
+
+  // Town name: use provided name (agent/human) or fall back to procedural generation
+  const townName = (opts.name && String(opts.name).trim())
+    ? String(opts.name).trim().slice(0, 50)
+    : randomTownName(rng);
 
   // Insert world record
   const viewToken = uuid();
@@ -14,7 +19,7 @@ function createWorld(worldId, keyHash, keyPrefix) {
   db.prepare(`
     INSERT INTO worlds (id, key_hash, key_prefix, name, seed, view_token, town_number)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(worldId, keyHash, keyPrefix, randomTownName(rng), seed, viewToken, townNumber);
+  `).run(worldId, keyHash, keyPrefix, townName, seed, viewToken, townNumber);
 
   // Compute seed-based center for this world
   const center = getCenter(seed);
@@ -73,7 +78,7 @@ function createWorld(worldId, keyHash, keyPrefix) {
     "INSERT INTO culture (world_id) VALUES (?)"
   ).run(worldId);
 
-  return { worldId, seed, villagersCreated: villagers.length, viewToken, townNumber };
+  return { worldId, seed, villagersCreated: villagers.length, viewToken, townNumber, townName };
 }
 
 function placeFeatures(worldId, tiles, rng, center) {

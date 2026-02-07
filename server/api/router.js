@@ -25,11 +25,16 @@ router.post('/worlds', async (req, res, next) => {
     const prefix = keyPrefix(rawKey);
     const worldId = uuid();
 
-    const result = createWorld(worldId, hash, prefix);
+    // Optional: agent or human can provide a town name at creation time
+    const opts = {};
+    if (req.body && req.body.name) opts.name = req.body.name;
+
+    const result = createWorld(worldId, hash, prefix, opts);
 
     res.status(201).json({
       key: rawKey,
       worldId,
+      name: result.townName,
       view_token: result.viewToken,
       warning: 'SAVE THIS KEY NOW. It will never be shown again. If you lose it, your world is gone forever.',
     });
