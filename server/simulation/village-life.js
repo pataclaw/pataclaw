@@ -1,5 +1,6 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
+const { getGrowthStage } = require('./buildings');
 
 // ─── ACTIVITY TYPES ───
 const ACTIVITIES = [
@@ -553,8 +554,16 @@ function processProjects(worldId, villagers, tick) {
       if ((v.creativity || 50) > 60 && v.morale > 50) {
         const act = activities[v.id];
         if (act && act.activity === 'idle' && act.duration_ticks >= 3) {
-          // Start a project
-          const typeKey = PROJECT_TYPE_KEYS[Math.floor(Math.random() * PROJECT_TYPE_KEYS.length)];
+          // Start a project — pick type, enforce shrine cap
+          let typeKey = PROJECT_TYPE_KEYS[Math.floor(Math.random() * PROJECT_TYPE_KEYS.length)];
+          if (typeKey === 'shrine') {
+            const stageInfo = getGrowthStage(worldId);
+            const existingTemples = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'temple' AND status != 'destroyed'").get(worldId).c;
+            const existingShrines = db.prepare("SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND type = 'shrine'").get(worldId).c;
+            if (existingTemples + existingShrines >= stageInfo.maxReligious) {
+              typeKey = 'bonfire'; // fallback to non-religious project
+            }
+          }
           const def = PROJECT_TYPES[typeKey];
           const projectName = generateProjectName(typeKey, v.name);
 

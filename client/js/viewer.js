@@ -18,12 +18,12 @@ var lastTimeOfDay = null;
 
 // ─── CIVILIZATION VISUAL STYLES ───
 var CIV_STYLES = [
-  { name: 'verdant', ground: ['~','*','.',"'"], border: '\u2248', decor: ['\u2663','\u273f','Y'], gndClass: 'c-gnd-v', bldClass: 'c-civ-v', decClass: 'c-dec-v' },
-  { name: 'stone',   ground: ['#','=','.',':'], border: '\u25ac', decor: ['\u25c6','\u25aa','\u25b3'], gndClass: 'c-gnd-s', bldClass: 'c-civ-s', decClass: 'c-dec-s' },
-  { name: 'mystic',  ground: ['*','\u00b7','\u00b0','~'], border: '\u2726', decor: ['\u25c7','\u2020','\u25cb'], gndClass: 'c-gnd-m', bldClass: 'c-civ-m', decClass: 'c-dec-m' },
-  { name: 'desert',  ground: ['~','.','\u00b0',','], border: '\u2261', decor: ['}','\u222b','\u25cb'], gndClass: 'c-gnd-d', bldClass: 'c-civ-d', decClass: 'c-dec-d' },
-  { name: 'frost',   ground: ['*','.','\u00b7',"'"], border: '\u2500', decor: ['\u25bd','*','\u25c7'], gndClass: 'c-gnd-f', bldClass: 'c-civ-f', decClass: 'c-dec-f' },
-  { name: 'ember',   ground: ['^','~','.','*'], border: '\u2584', decor: ['^','~','\u25cf'], gndClass: 'c-gnd-e', bldClass: 'c-civ-e', decClass: 'c-dec-e' },
+  { name: 'verdant', ground: ['~','*','.',"'"], groundAlt: [',',';','`','"'], groundSparse: [' ','.','.','`'], border: '\u2248', decor: ['\u2663','\u273f','Y','\u2740','\u2698'], gndClass: 'c-gnd-v', bldClass: 'c-civ-v', decClass: 'c-dec-v' },
+  { name: 'stone',   ground: ['#','=','.',':'], groundAlt: ['%','=','-',';'], groundSparse: ['.','.',':','`'], border: '\u25ac', decor: ['\u25c6','\u25aa','\u25b3','\u25a0','\u25c8'], gndClass: 'c-gnd-s', bldClass: 'c-civ-s', decClass: 'c-dec-s' },
+  { name: 'mystic',  ground: ['*','\u00b7','\u00b0','~'], groundAlt: ['+','\u00b7','.','\u00b0'], groundSparse: ['.','\u00b7',' ','.'], border: '\u2726', decor: ['\u25c7','\u2020','\u25cb','\u2605','\u2721'], gndClass: 'c-gnd-m', bldClass: 'c-civ-m', decClass: 'c-dec-m' },
+  { name: 'desert',  ground: ['~','.','\u00b0',','], groundAlt: ['-','.',',',';'], groundSparse: ['.',' ',',','.'], border: '\u2261', decor: ['}','\u222b','\u25cb','\u2042','\u2217'], gndClass: 'c-gnd-d', bldClass: 'c-civ-d', decClass: 'c-dec-d' },
+  { name: 'frost',   ground: ['*','.','\u00b7',"'"], groundAlt: ['+','.','\u00b7',','], groundSparse: [' ','.','\u00b7',' '], border: '\u2500', decor: ['\u25bd','*','\u25c7','\u2736','\u2746'], gndClass: 'c-gnd-f', bldClass: 'c-civ-f', decClass: 'c-dec-f' },
+  { name: 'ember',   ground: ['^','~','.','*'], groundAlt: ['v','~','-','+'], groundSparse: ['.',' ','~','.'], border: '\u2584', decor: ['^','~','\u25cf','\u2666','\u2739'], gndClass: 'c-gnd-e', bldClass: 'c-civ-e', decClass: 'c-dec-e' },
 ];
 var civStyle = null;
 
@@ -31,6 +31,12 @@ const ROLE_HATS = {
   idle: '       ', farmer: '  ,^,  ', warrior: ' ]=+=[ ',
   builder: '  _n_  ', scout: '  />   ', scholar: '  _=_  ', priest: '  _+_  ',
   fisherman: '  ~o~  ',
+};
+
+var ROLE_NAME_COLORS = {
+  idle: 'c-n-idle', farmer: 'c-n-farmer', warrior: 'c-n-warrior',
+  builder: 'c-n-builder', scout: 'c-n-scout', scholar: 'c-n-scholar',
+  priest: 'c-n-priest', fisherman: 'c-n-fisherman',
 };
 
 // ─── CLOUD SYSTEM ───
@@ -431,22 +437,45 @@ function renderScene(data) {
   // Clouds (rendered before weather particles, after stars)
   renderClouds(grid, W, world.weather);
 
-  // Hills
+  // Hills — 3 layered depth ranges
+  // Far hills (background, subtle)
   for (var hx = 0; hx < W; hx++) {
-    var h = Math.floor(Math.sin(hx * 0.07) * 2 + Math.sin(hx * 0.13 + 1) * 1.5 + Math.cos(hx * 0.03) * 1);
-    var baseY = 10;
-    for (var dy = 0; dy <= Math.max(0, h + 2); dy++) {
-      var hy = baseY - h + dy;
+    var hFar = Math.floor(Math.sin(hx * 0.04) * 2.5 + Math.sin(hx * 0.09 + 2) * 1.5 + Math.cos(hx * 0.02) * 1);
+    for (var dy = 0; dy <= Math.max(0, hFar + 2); dy++) {
+      var hy = 8 - hFar + dy;
+      if (hy >= 0 && hy < groundY - 10 && getCell(grid, hx, hy).ch === ' ') {
+        setCell(grid, hx, hy, '\u00b7', 'c-hill-far');
+      }
+    }
+  }
+  // Mid hills
+  for (var hx = 0; hx < W; hx++) {
+    var hMid = Math.floor(Math.sin(hx * 0.07) * 2 + Math.sin(hx * 0.13 + 1) * 1.5 + Math.cos(hx * 0.03) * 1);
+    for (var dy = 0; dy <= Math.max(0, hMid + 2); dy++) {
+      var hy = 10 - hMid + dy;
       if (hy >= 0 && hy < groundY - 8 && getCell(grid, hx, hy).ch === ' ') {
-        setCell(grid, hx, hy, '\u00b7', 'c-hill');
+        var isPeak = dy === 0 && hMid > 1;
+        setCell(grid, hx, hy, isPeak ? '\u25b4' : '\u25aa', 'c-hill-mid');
+      }
+    }
+  }
+  // Near hills (foreground, bold)
+  for (var hx = 0; hx < W; hx++) {
+    var hNear = Math.floor(Math.sin(hx * 0.11) * 1.5 + Math.sin(hx * 0.19 + 3) * 1 + Math.cos(hx * 0.06) * 0.8);
+    for (var dy = 0; dy <= Math.max(0, hNear + 1); dy++) {
+      var hy = 13 - hNear + dy;
+      if (hy >= 0 && hy < groundY - 6 && getCell(grid, hx, hy).ch === ' ') {
+        var isPeak = dy === 0 && hNear > 0;
+        setCell(grid, hx, hy, isPeak ? '\u25b2' : '#', 'c-hill-near');
       }
     }
   }
 
-  // Persistent weather particles
+  // Persistent weather particles — per-type colors
   var wCharMap = { rain: '.', storm: '/', snow: '*', fog: '\u2591', heat: '~' };
+  var wColorMap = { rain: 'c-w-rain', storm: 'c-w-storm', snow: 'c-w-snow', fog: 'c-w-fog', heat: 'c-w-heat' };
   var wChar = wCharMap[world.weather];
-  var wColor = (world.weather === 'heat') ? 'c-fire' : 'c-rain';
+  var wColor = wColorMap[world.weather] || 'c-w-rain';
   if (wChar) {
     var targetCount = { rain: 80, storm: 120, snow: 60, fog: 90, heat: 40 }[world.weather] || 60;
     var fallSpeed = { rain: 1.5, storm: 2.0, snow: 0.4, fog: 0.1, heat: -0.3 }[world.weather] || 1.0;
@@ -479,38 +508,91 @@ function renderScene(data) {
         setCell(grid, px, py, wChar, wColor);
       }
     }
+
+    // Storm: lightning bolt effect (4% of frames)
+    if (world.weather === 'storm' && Math.random() < 0.04) {
+      var lx = 5 + Math.floor(Math.random() * (W - 10));
+      var ly = 2 + Math.floor(Math.random() * 6);
+      var boltLen = 4 + Math.floor(Math.random() * 6);
+      for (var li = 0; li < boltLen; li++) {
+        var boltY = ly + li;
+        var boltX = lx + (li % 2 === 0 ? 0 : (Math.random() < 0.5 ? 1 : -1));
+        if (boltX >= 0 && boltX < W && boltY >= 0 && boltY < groundY) {
+          var boltCh = li % 2 === 0 ? '/' : '\\';
+          setCell(grid, boltX, boltY, boltCh, 'c-w-lightning');
+        }
+      }
+    }
+
+    // Fog: ground-level density layer
+    if (world.weather === 'fog') {
+      for (var fx = 0; fx < W; fx++) {
+        for (var fy = groundY - 3; fy < groundY; fy++) {
+          if (Math.random() < 0.25 && getCell(grid, fx, fy).ch === ' ') {
+            setCell(grid, fx, fy, '\u2592', 'c-w-fog-dense');
+          }
+        }
+      }
+    }
+
+    // Snow: accumulation dots along ground line
+    if (world.weather === 'snow') {
+      for (var sx = 0; sx < W; sx++) {
+        if (Math.random() < 0.3 && getCell(grid, sx, groundY - 1).ch === ' ') {
+          setCell(grid, sx, groundY - 1, '.', 'c-w-snow');
+        }
+      }
+    }
   } else {
     weatherParticles.length = 0;
   }
 
-  // Ground — multi-layer animated grass with depth coloring
+  // Ground — multi-layer animated grass with biome zones, 4 depth tiers, vegetation
   var waveChars = civStyle ? civStyle.ground : [',', "'", '`', '.'];
+  var waveCharsAlt = civStyle ? civStyle.groundAlt : [',', ';', '`', '"'];
+  var waveCharsSparse = civStyle ? civStyle.groundSparse : [' ', '.', '.', '`'];
   var borderChar = civStyle ? civStyle.border : '\u2550';
   var gndColor = civStyle ? civStyle.gndClass : 'c-gnd';
   var gndColorL = gndColor + 'l'; // light variant
+  var gndColorM = gndColor + 'm'; // mid-accent variant
   var gndColorD = gndColor + 'd'; // deep variant
   var groundDepth = H - groundY - 1; // total ground rows
   var wSeed = (world.seed || 0);
   for (var gx = 0; gx < W; gx++) {
     setCell(grid, gx, groundY, borderChar, gndColor);
+    // Biome zone: 3 zones based on horizontal position
+    var biomeZone = (gx + wSeed) % 3;
+    var zoneChars = biomeZone === 0 ? waveChars : (biomeZone === 1 ? waveCharsAlt : waveCharsSparse);
+
     for (var gy = groundY + 1; gy < H; gy++) {
       var depth = (gy - groundY - 1) / groundDepth; // 0.0 near border → 1.0 at bottom
-      var rowColor = depth < 0.3 ? gndColorL : (depth > 0.65 ? gndColorD : gndColor);
+      // 4 depth tiers: light (0-0.25), mid-accent (0.25-0.45), base (0.45-0.65), deep (0.65-1.0)
+      var rowColor = depth < 0.25 ? gndColorL : (depth < 0.45 ? gndColorM : (depth > 0.65 ? gndColorD : gndColor));
 
-      // Layer 1: primary wave (original)
+      // Layer 1: primary wave
       var wave1 = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
       // Layer 2: secondary wave (slower, different frequency)
       var wave2 = Math.sin((gx * 0.15) + (gy * 0.8) - (waveCounter * 0.06));
-      var combined = wave1 * 0.6 + wave2 * 0.4;
-      var charIdx = Math.floor((combined + 1) * 2) % waveChars.length;
+      // Layer 3: micro-texture wave (frequency varies by biome zone)
+      var wave3Freq = biomeZone === 0 ? 0.5 : (biomeZone === 1 ? 0.7 : 0.4);
+      var wave3 = Math.sin((gx * wave3Freq) + (gy * 0.3) - (waveCounter * 0.04));
+      var combined = wave1 * 0.45 + wave2 * 0.35 + wave3 * 0.2;
+      var charIdx = Math.floor((combined + 1) * 2) % zoneChars.length;
 
-      if (Math.abs(combined) > 0.15) {
-        setCell(grid, gx, gy, waveChars[charIdx], rowColor);
-      } else if (depth < 0.35 && civStyle) {
-        // Accent flowers in light zone
-        var flowerSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
-        if (flowerSeed < 3) {
-          setCell(grid, gx, gy, civStyle.decor[flowerSeed % civStyle.decor.length], civStyle.decClass);
+      if (Math.abs(combined) > 0.12) {
+        setCell(grid, gx, gy, zoneChars[charIdx], rowColor);
+      } else if (civStyle) {
+        // Vegetation at different depth levels
+        var vegSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
+        if (depth < 0.35 && vegSeed < 5) {
+          // Flowers in light zone (5%)
+          setCell(grid, gx, gy, civStyle.decor[vegSeed % civStyle.decor.length], civStyle.decClass);
+        } else if (depth >= 0.35 && depth < 0.65 && vegSeed < 2) {
+          // Rocks in mid zone (2%)
+          setCell(grid, gx, gy, vegSeed % 2 === 0 ? 'o' : '\u00b7', 'c-veg-rock');
+        } else if (depth >= 0.65 && vegSeed < 1) {
+          // Fungi/roots in deep zone (1%)
+          setCell(grid, gx, gy, '\u00a7', 'c-veg-root');
         }
       }
     }
@@ -708,9 +790,13 @@ function renderScene(data) {
     }
 
     var label = b.type.replace('_', ' ').toUpperCase();
+    if (b.level > 1) label += ' L' + b.level;
+    var lblClass = 'c-b-' + b.type;
+    if (b.level >= 3) lblClass += '-t3';
+    else if (b.level >= 2) lblClass += '-t2';
     var lx = bx + Math.floor((sw - Math.min(label.length, sw)) / 2);
     for (var li = 0; li < label.length && lx + li < W; li++) {
-      setCell(grid, lx + li, groundY + 1, label[li], 'c-lbl');
+      setCell(grid, lx + li, groundY + 1, label[li], lblClass);
     }
 
     bx += sw + 2;
@@ -720,23 +806,25 @@ function renderScene(data) {
   // Civilization decorations — scatter themed elements along ground
   if (civStyle && data.world.seed !== undefined) {
     var decorSeed = Math.abs(data.world.seed);
-    for (var di = 0; di < 7; di++) {
+    for (var di = 0; di < 12; di++) {
       var dx = ((decorSeed * 7 + di * 31 + di * di * 13) % (W - 6)) + 3;
-      // Check if this position overlaps any building or label
-      var occupied = false;
-      for (var obi = 0; obi < data.buildings.length && !occupied; obi++) {
-        var obs = data.buildings[obi].sprite;
-        if (!obs) continue;
-        // rough check: buildings start at x=2 and stack with sw+2 gaps
-        // just check if the cell already has content
-      }
       if (getCell(grid, dx, groundY - 1).ch !== ' ') continue;
       var decorCh = civStyle.decor[di % civStyle.decor.length];
       setCell(grid, dx, groundY - 1, decorCh, civStyle.decClass);
-      // Taller decoration every other one
+
+      // Bush clusters (2-wide) every 3rd item
+      if (di % 3 === 0 && dx + 1 < W && getCell(grid, dx + 1, groundY - 1).ch === ' ') {
+        setCell(grid, dx + 1, groundY - 1, civStyle.decor[(di + 2) % civStyle.decor.length], civStyle.decClass);
+      }
+
+      // Taller decorations (stem + top) every 2nd item
       if (di % 2 === 0 && getCell(grid, dx, groundY - 2).ch === ' ') {
-        var tallCh = di % 3 === 0 ? '|' : civStyle.decor[(di + 1) % civStyle.decor.length];
+        var tallCh = di % 4 === 0 ? '|' : civStyle.decor[(di + 1) % civStyle.decor.length];
         setCell(grid, dx, groundY - 2, tallCh, civStyle.decClass);
+        // Extra tall: add a top piece for every 4th
+        if (di % 4 === 0 && getCell(grid, dx, groundY - 3).ch === ' ') {
+          setCell(grid, dx, groundY - 3, civStyle.decor[(di + 3) % civStyle.decor.length], civStyle.decClass);
+        }
       }
     }
   }
@@ -1021,12 +1109,14 @@ function renderScene(data) {
       }
     }
 
-    // Name under ground
+    // Name under ground — colored by role, bright variant for experienced villagers
     var nameY = groundY + 1;
     var name = v.name.slice(0, 7);
     var nx = x + Math.floor((7 - name.length) / 2);
+    var nameClass = ROLE_NAME_COLORS[role] || 'c-n-idle';
+    if ((v.experience || 0) > 200) nameClass += '-hi';
     for (var ni = 0; ni < name.length && nx + ni < W; ni++) {
-      if (nx + ni >= 0) setCell(grid, nx + ni, nameY, name[ni], 'c-name');
+      if (nx + ni >= 0) setCell(grid, nx + ni, nameY, name[ni], nameClass);
     }
   }
 

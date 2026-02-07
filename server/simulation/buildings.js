@@ -1,6 +1,27 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 
+// ─── GROWTH STAGES ───
+const GROWTH_STAGES = [
+  { pop: 5, culture: 50, mapSize: 50, maxReligious: 1 },
+  { pop: 10, culture: 100, mapSize: 60, maxReligious: 2 },
+  { pop: 15, culture: 150, mapSize: 70, maxReligious: 3 },
+  { pop: 20, culture: 200, mapSize: 80, maxReligious: 4 },
+];
+
+function getGrowthStage(worldId) {
+  const pop = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
+  const culture = db.prepare('SELECT violence_level, creativity_level, cooperation_level FROM culture WHERE world_id = ?').get(worldId);
+  const totalCulture = (culture ? (culture.violence_level || 0) + (culture.creativity_level || 0) + (culture.cooperation_level || 0) : 0);
+
+  let stage = 0;
+  for (const s of GROWTH_STAGES) {
+    if (pop >= s.pop && totalCulture >= s.culture) stage++;
+    else break;
+  }
+  return { stage, pop, totalCulture, ...GROWTH_STAGES[Math.min(stage, GROWTH_STAGES.length - 1)] };
+}
+
 const BUILDING_DEFS = {
   hut:        { wood: 10, stone: 0, gold: 0, ticks: 5, hp: 100 },
   farm:       { wood: 5, stone: 3, gold: 0, ticks: 8, hp: 80 },
@@ -65,6 +86,18 @@ function canBuild(worldId, type) {
   if ((resMap.stone || 0) < def.stone) return { ok: false, reason: `Need ${def.stone} stone (have ${Math.floor(resMap.stone || 0)})` };
   if ((resMap.gold || 0) < def.gold) return { ok: false, reason: `Need ${def.gold} gold (have ${Math.floor(resMap.gold || 0)})` };
 
+  // Religious building cap (temple)
+  if (type === 'temple') {
+    const stageInfo = getGrowthStage(worldId);
+    const existingTemples = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'temple' AND status != 'destroyed'").get(worldId).c;
+    const existingShrines = db.prepare("SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND type = 'shrine'").get(worldId).c;
+    const totalReligious = existingTemples + existingShrines;
+    if (totalReligious >= stageInfo.maxReligious) {
+      const nextStage = GROWTH_STAGES[stageInfo.stage];
+      return { ok: false, reason: `Religious building cap reached (${totalReligious}/${stageInfo.maxReligious}). Grow your village to stage ${stageInfo.stage + 1} (need pop ${nextStage ? nextStage.pop : '??'}, culture ${nextStage ? nextStage.culture : '??'}).` };
+    }
+  }
+
   return { ok: true, def };
 }
 
@@ -88,4 +121,4 @@ function startBuilding(worldId, type, x, y) {
   return { ok: true, buildingId: id, ticks: def.ticks };
 }
 
-module.exports = { processBuildings, canBuild, startBuilding, BUILDING_DEFS };
+module.exports = { processBuildings, canBuild, startBuilding, BUILDING_DEFS, GROWTH_STAGES, getGrowthStage };

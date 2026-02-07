@@ -3,7 +3,7 @@ const db = require('../db/connection');
 const { advanceTime } = require('./time');
 const { rollWeather } = require('./weather');
 const { processResources } = require('./resources');
-const { processBuildings } = require('./buildings');
+const { processBuildings, getGrowthStage } = require('./buildings');
 const { processVillagers } = require('./villagers');
 const { processExploration } = require('./exploration');
 const { rollRandomEvents } = require('./events');
@@ -49,11 +49,12 @@ function processTick(worldId) {
   // 9. Village life (relationships, activities, interactions, projects, violence)
   const lifeEvents = processVillagerLife(worldId);
 
-  // 10. Map expansion check — double map when population reaches 5
+  // 10. Map expansion check — stage-based incremental expansion
   let expansionEvents = [];
-  const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
-  if (popAlive >= 5 && (world.map_size || 40) < 80) {
-    expansionEvents = expandWorld(worldId, world);
+  const stageInfo = getGrowthStage(worldId);
+  const currentMapSize = world.map_size || 40;
+  if (stageInfo.mapSize > currentMapSize) {
+    expansionEvents = expandWorld(worldId, world, stageInfo.mapSize);
   }
 
   // 11. Recalculate culture every 36 ticks (once per in-game day)
@@ -117,10 +118,10 @@ function processCatchup(worldId, missedTicks) {
   return summary;
 }
 
-// Expand the world map (double size) and place features on new tiles
-function expandWorld(worldId, world) {
+// Expand the world map to a target size and place features on new tiles
+function expandWorld(worldId, world, targetSize) {
   const oldSize = world.map_size || 40;
-  const newSize = oldSize * 2;
+  const newSize = targetSize || oldSize * 2;
 
   const newTiles = expandMap(worldId, world.seed, oldSize, newSize);
   if (newTiles.length === 0) return [];
@@ -167,7 +168,7 @@ function expandWorld(worldId, world) {
   return [{
     type: 'expansion',
     title: 'The world grows!',
-    description: `Your thriving population has revealed a vast new territory. The map has doubled to ${newSize}x${newSize}!`,
+    description: `Your thriving population has revealed new territory. The map has expanded to ${newSize}x${newSize}!`,
     severity: 'celebration',
   }];
 }

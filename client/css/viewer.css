@@ -395,6 +395,74 @@ body {
 #world .c-crop  { color: #66aa44; }
 #world .c-croph { color: #ddaa33; }
 
+/* ─── Hill depth layers ─── */
+#world .c-hill-far  { color: #334422; }
+#world .c-hill-mid  { color: #446633; }
+#world .c-hill-near { color: #558844; }
+
+/* ─── Ground mid-accent per civ style ─── */
+#world .c-gnd-vm { color: #39bb4d; }
+#world .c-gnd-sm { color: #999988; }
+#world .c-gnd-mm { color: #884dbb; }
+#world .c-gnd-dm { color: #bb9944; }
+#world .c-gnd-fm { color: #77bbcc; }
+#world .c-gnd-em { color: #bb3a2a; }
+
+/* ─── Vegetation accents ─── */
+#world .c-veg-rock { color: #667766; }
+#world .c-veg-root { color: #554433; }
+
+/* ─── Building tier colors (type-t2 / type-t3 = brighter) ─── */
+#world .c-b-hut-t2        { color: #ccbb88; }
+#world .c-b-hut-t3        { color: #eedd99; }
+#world .c-b-farm-t2       { color: #aadd66; }
+#world .c-b-farm-t3       { color: #ccff88; }
+#world .c-b-workshop-t2   { color: #ddaa55; }
+#world .c-b-workshop-t3   { color: #ffcc77; }
+#world .c-b-wall-t2       { color: #bbbbbb; }
+#world .c-b-wall-t3       { color: #dddddd; }
+#world .c-b-temple-t2     { color: #ddbbff; }
+#world .c-b-temple-t3     { color: #eeddff; }
+#world .c-b-watchtower-t2 { color: #99bbcc; }
+#world .c-b-watchtower-t3 { color: #bbddee; }
+#world .c-b-market-t2     { color: #ffdd66; }
+#world .c-b-market-t3     { color: #ffee88; }
+#world .c-b-library-t2    { color: #88bbee; }
+#world .c-b-library-t3    { color: #aaddff; }
+#world .c-b-storehouse-t2 { color: #ccaa66; }
+#world .c-b-storehouse-t3 { color: #eebb77; }
+#world .c-b-town_center-t2{ color: #eebb66; }
+#world .c-b-town_center-t3{ color: #ffdd88; }
+#world .c-b-dock-t2       { color: #77ccee; }
+#world .c-b-dock-t3       { color: #99eeff; }
+
+/* ─── Villager name colors by role ─── */
+#world .c-n-idle       { color: #888888; }
+#world .c-n-idle-hi    { color: #bbbbbb; }
+#world .c-n-farmer     { color: #66cc44; }
+#world .c-n-farmer-hi  { color: #88ff66; }
+#world .c-n-warrior    { color: #ff5544; }
+#world .c-n-warrior-hi { color: #ff7766; }
+#world .c-n-builder    { color: #ee9933; }
+#world .c-n-builder-hi { color: #ffbb55; }
+#world .c-n-scout      { color: #44cccc; }
+#world .c-n-scout-hi   { color: #66eeee; }
+#world .c-n-scholar    { color: #5599ee; }
+#world .c-n-scholar-hi { color: #77bbff; }
+#world .c-n-priest     { color: #bb77ee; }
+#world .c-n-priest-hi  { color: #dd99ff; }
+#world .c-n-fisherman     { color: #44bbaa; }
+#world .c-n-fisherman-hi  { color: #66ddcc; }
+
+/* ─── Weather color classes ─── */
+#world .c-w-rain      { color: #5588cc; }
+#world .c-w-storm     { color: #7799dd; }
+#world .c-w-snow      { color: #ccddee; }
+#world .c-w-fog       { color: #889999; }
+#world .c-w-heat      { color: #ff6622; }
+#world .c-w-fog-dense { color: #667777; }
+#world .c-w-lightning  { color: #ffffaa; }
+
 /* Time of day */
 body.dawn #world { color: #ffaa66; text-shadow: 0 0 4px rgba(255, 170, 102, 0.15); }
 body.morning #world { color: #33ff33; }
