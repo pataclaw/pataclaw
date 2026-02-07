@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
-const { startBuilding, BUILDING_DEFS } = require('../simulation/buildings');
+const { startBuilding, BUILDING_DEFS, MAINTENANCE_COSTS } = require('../simulation/buildings');
 const { logCultureAction, applyPhraseTone, getCulture } = require('../simulation/culture');
 
 const router = Router();
@@ -199,9 +199,9 @@ router.post('/repair', (req, res) => {
   const { building_id } = req.body;
   if (!building_id) return res.status(400).json({ error: 'Missing building_id' });
 
-  const building = db.prepare("SELECT * FROM buildings WHERE id = ? AND world_id = ? AND status = 'active'").get(building_id, req.worldId);
-  if (!building) return res.status(404).json({ error: 'Active building not found' });
-  if (building.hp >= building.max_hp) return res.status(400).json({ error: 'Building is already at full health' });
+  const building = db.prepare("SELECT * FROM buildings WHERE id = ? AND world_id = ? AND status IN ('active', 'decaying')").get(building_id, req.worldId);
+  if (!building) return res.status(404).json({ error: 'Active or decaying building not found' });
+  if (building.hp >= building.max_hp && building.status === 'active') return res.status(400).json({ error: 'Building is already at full health' });
 
   const damage = building.max_hp - building.hp;
   const woodCost = Math.ceil(damage / 10);
@@ -216,9 +216,44 @@ router.post('/repair', (req, res) => {
 
   db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
   db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
-  db.prepare('UPDATE buildings SET hp = max_hp WHERE id = ?').run(building_id);
+  db.prepare("UPDATE buildings SET hp = max_hp, status = 'active', decay_tick = NULL WHERE id = ?").run(building_id);
 
-  res.json({ ok: true, repaired: building.type, hpRestored: damage, cost: { wood: woodCost, stone: stoneCost } });
+  res.json({ ok: true, repaired: building.type, hpRestored: damage, wasDecaying: building.status === 'decaying', cost: { wood: woodCost, stone: stoneCost } });
+});
+
+// POST /api/command/renovate — restore an abandoned building (once only)
+router.post('/renovate', (req, res) => {
+  const { building_id } = req.body;
+  if (!building_id) return res.status(400).json({ error: 'Missing building_id' });
+
+  const building = db.prepare("SELECT * FROM buildings WHERE id = ? AND world_id = ? AND status = 'abandoned'").get(building_id, req.worldId);
+  if (!building) return res.status(404).json({ error: 'Abandoned building not found' });
+  if (building.renovated) return res.status(400).json({ error: 'This building has already been renovated once and cannot be renovated again' });
+
+  const def = BUILDING_DEFS[building.type];
+  if (!def) return res.status(400).json({ error: 'Unknown building type' });
+
+  // Cost is 50% of original build cost
+  const woodCost = Math.ceil(def.wood * 0.5);
+  const stoneCost = Math.ceil(def.stone * 0.5);
+  const goldCost = Math.ceil(def.gold * 0.5);
+
+  const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
+  const resMap = {};
+  for (const r of resources) resMap[r.type] = r.amount;
+
+  if (woodCost > 0 && (resMap.wood || 0) < woodCost) return res.status(400).json({ error: `Need ${woodCost} wood (have ${Math.floor(resMap.wood || 0)})` });
+  if (stoneCost > 0 && (resMap.stone || 0) < stoneCost) return res.status(400).json({ error: `Need ${stoneCost} stone (have ${Math.floor(resMap.stone || 0)})` });
+  if (goldCost > 0 && (resMap.gold || 0) < goldCost) return res.status(400).json({ error: `Need ${goldCost} gold (have ${Math.floor(resMap.gold || 0)})` });
+
+  if (woodCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
+  if (stoneCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
+  if (goldCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(goldCost, req.worldId);
+
+  const restoredHp = Math.floor(def.hp * 0.5);
+  db.prepare("UPDATE buildings SET hp = ?, status = 'active', decay_tick = NULL, renovated = 1 WHERE id = ?").run(restoredHp, building_id);
+
+  res.json({ ok: true, renovated: building.type, hpRestored: restoredHp, cost: { wood: woodCost, stone: stoneCost, gold: goldCost } });
 });
 
 // POST /api/command/trade — buy/sell resources at the market
@@ -293,7 +328,7 @@ router.post('/trade', (req, res) => {
 // POST /api/command/pray — spend faith to summon a refugee villager
 router.post('/pray', (req, res) => {
   const { randomName, randomTrait, TRAIT_PERSONALITY } = require('../world/templates');
-  const { CENTER } = require('../world/map');
+  const { getCenter } = require('../world/map');
 
   const faith = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'faith'").get(req.worldId);
   if (!faith || faith.amount < 5) {
@@ -319,11 +354,14 @@ router.post('/pray', (req, res) => {
   const trait = randomTrait(rng);
   const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
 
+  const prayWorld = db.prepare('SELECT seed FROM worlds WHERE id = ?').get(req.worldId);
+  const prayCenter = getCenter(prayWorld.seed);
+
   const villagerId = uuid();
   db.prepare(`
     INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
     VALUES (?, ?, ?, 'idle', ?, ?, 80, 100, 50, 20, 0, 'alive', ?, 'idle', NULL, ?, ?, ?)
-  `).run(villagerId, req.worldId, name, CENTER, CENTER + 1, trait, basePers.temperament, basePers.creativity, basePers.sociability);
+  `).run(villagerId, req.worldId, name, prayCenter.x, prayCenter.y + 1, trait, basePers.temperament, basePers.creativity, basePers.sociability);
 
   // Log command
   const world = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(req.worldId);

@@ -49,10 +49,13 @@ function metadataHandler(req, res) {
 
   const baseUrl = config.nft.baseUrl || `http://localhost:${config.port}/api/nft`;
 
+  const animationUrl = world.view_token ? `${baseUrl}/${tokenId}/live.html` : undefined;
+
   res.json({
     name: world.name,
     description: `Day ${world.day_number} | ${popAlive} villagers | ${cultureDesc}`,
     image: `${baseUrl}/${tokenId}/image.svg`,
+    animation_url: animationUrl,
     external_url: world.view_token ? `${baseUrl.replace('/api/nft', '')}/view/${world.view_token}` : undefined,
     attributes: [
       { trait_type: 'Day', value: world.day_number, display_type: 'number' },
@@ -105,6 +108,25 @@ router.get('/:tokenId/image.svg', (req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=60');
   res.send(svg);
+});
+
+// GET /api/nft/:tokenId/live.html — live animated HTML for OpenSea animation_url
+router.get('/:tokenId/live.html', (req, res) => {
+  const tokenId = parseInt(req.params.tokenId, 10);
+  if (isNaN(tokenId)) return res.status(400).send('Invalid tokenId');
+
+  const mint = findWorldByTokenId(tokenId);
+  if (!mint) return res.status(404).send('Token not found');
+
+  const world = db.prepare('SELECT name, view_token, season, weather FROM worlds WHERE id = ?').get(mint.world_id);
+  if (!world || !world.view_token) return res.status(404).send('World not found');
+
+  const { generateNftAnimation } = require('../render/nft-animation');
+  const html = generateNftAnimation(world.name, world.view_token, config);
+
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Cache-Control', 'public, max-age=30');
+  res.send(html);
 });
 
 // GET /api/nft/:tokenId — tokenURI endpoint (what OpenSea actually calls from the contract)

@@ -1,7 +1,8 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE } = require('./sprites');
 const { MAP_SIZE } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
+const { getActivePlanetaryEvent } = require('../simulation/planetary');
 
 // Build structured world state for the client to animate
 function buildFrame(worldId, viewType = 'town') {
@@ -74,11 +75,14 @@ function buildTownFrame(worldId) {
     };
   });
 
-  // Enrich buildings with sprite data
-  const enrichedBuildings = buildings.map((b) => ({
-    ...b,
-    sprite: BUILDING_SPRITES[b.type] || BUILDING_SPRITES.hut,
-  }));
+  // Enrich buildings with sprite data (status-appropriate)
+  const enrichedBuildings = buildings.map((b) => {
+    let sprite;
+    if (b.status === 'rubble') sprite = RUBBLE_SPRITE;
+    else if (b.status === 'overgrown') sprite = OVERGROWN_SPRITE;
+    else sprite = BUILDING_SPRITES[b.type] || BUILDING_SPRITES.hut;
+    return { ...b, sprite };
+  });
 
   // Enrich projects with sprite data
   const enrichedProjects = projects.map((p) => {
@@ -136,6 +140,7 @@ function buildTownFrame(worldId) {
     population: { alive: popAlive, capacity: buildingCap },
     recentEvents,
     socialEvents,
+    planetaryEvent: getActivePlanetaryEvent(),
     timestamp: Date.now(),
   };
 }

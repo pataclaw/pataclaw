@@ -1,0 +1,143 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #050510;
+  color: #33ff33;
+  font-family: 'Courier New', Courier, monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#header {
+  text-align: center;
+  padding: 16px 12px 8px;
+  border-bottom: 1px solid #222;
+}
+
+.header-title {
+  color: #ffcc00;
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 4px;
+}
+
+.header-sub {
+  color: #557755;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+#stats-bar {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #888;
+}
+
+#stats-bar span { margin: 0 4px; }
+.stat-sep { color: #333; }
+
+#stat-worlds { color: #33ff33; }
+#stat-pop { color: #ffcc00; }
+#stat-minted { color: #ff66ff; }
+
+#planet-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+#planet-grid pre {
+  font-size: 14px;
+  line-height: 1.3;
+  text-shadow: 0 0 4px rgba(51, 255, 51, 0.1);
+}
+
+/* Terrain colors */
+.terrain-plains  { color: #224422; }
+.terrain-water   { color: #1a3355; }
+.terrain-mountain{ color: #333322; }
+.terrain-forest  { color: #1a3a1a; }
+
+/* World markers */
+.world-normal {
+  color: #33ff33;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s, text-shadow 0.2s;
+}
+
+.world-normal:hover {
+  color: #88ff88;
+  text-shadow: 0 0 8px rgba(51, 255, 51, 0.5);
+}
+
+.world-minted {
+  color: #ffcc00;
+  text-decoration: none;
+  cursor: pointer;
+  animation: mintGlow 2s ease-in-out infinite;
+  transition: color 0.2s;
+}
+
+.world-minted:hover {
+  color: #ffee66;
+  text-shadow: 0 0 12px rgba(255, 204, 0, 0.7);
+}
+
+@keyframes mintGlow {
+  0%, 100% { text-shadow: 0 0 4px rgba(255, 204, 0, 0.3); }
+  50% { text-shadow: 0 0 10px rgba(255, 204, 0, 0.6); }
+}
+
+.planet-legend {
+  margin-top: 12px;
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 1px;
+}
+
+.planet-legend .world-minted,
+.planet-legend .world-normal,
+.planet-legend .terrain-plains,
+.planet-legend .terrain-water,
+.planet-legend .terrain-mountain,
+.planet-legend .terrain-forest {
+  animation: none;
+  cursor: default;
+}
+
+#footer {
+  text-align: center;
+  padding: 12px;
+  border-top: 1px solid #222;
+  font-size: 11px;
+}
+
+.footer-link {
+  color: #33ff33;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.footer-link:hover { opacity: 1; }
+.footer-sep { color: #333; margin: 0 8px; }
+
+@media (max-width: 768px) {
+  #planet-grid pre {
+    font-size: 8px;
+    line-height: 1.1;
+  }
+  .header-title { font-size: 16px; }
+}
+
+@media (max-width: 480px) {
+  #planet-grid pre {
+    font-size: 6px;
+    line-height: 1.05;
+  }
+}

@@ -1,4 +1,4 @@
-const { CENTER } = require('./map');
+const { CENTER, getCenter } = require('./map');
 
 const TRAITS = ['brave', 'lazy', 'clever', 'strong', 'timid', 'kind', 'curious', 'stubborn'];
 
@@ -29,7 +29,9 @@ function randomTrait(rng) {
   return TRAITS[Math.floor(rng() * TRAITS.length)];
 }
 
-function startingVillagers(rng) {
+function startingVillagers(rng, center) {
+  const cx = center ? center.x : CENTER;
+  const cy = center ? center.y : CENTER;
   const names = new Set();
   const villagers = [];
   for (let i = 0; i < 3; i++) {
@@ -45,8 +47,8 @@ function startingVillagers(rng) {
     villagers.push({
       name,
       role: 'idle',
-      x: CENTER + (i - 1),
-      y: CENTER + 1,
+      x: cx + (i - 1),
+      y: cy + 1,
       hp: 100,
       max_hp: 100,
       morale: 60,
@@ -72,17 +74,24 @@ const STARTING_RESOURCES = [
   { type: 'faith', amount: 0, capacity: 100, production_rate: 0, consumption_rate: 0 },
 ];
 
-const STARTING_BUILDING = {
-  type: 'town_center',
-  x: CENTER,
-  y: CENTER,
-  level: 1,
-  hp: 200,
-  max_hp: 200,
-  status: 'active',
-  construction_ticks_remaining: 0,
-  assigned_villagers: 0,
-};
+function startingBuilding(center) {
+  const cx = center ? center.x : CENTER;
+  const cy = center ? center.y : CENTER;
+  return {
+    type: 'town_center',
+    x: cx,
+    y: cy,
+    level: 1,
+    hp: 200,
+    max_hp: 200,
+    status: 'active',
+    construction_ticks_remaining: 0,
+    assigned_villagers: 0,
+  };
+}
+
+// Backwards-compatible constant for existing code
+const STARTING_BUILDING = startingBuilding();
 
 const FEATURES_TO_PLACE = [
   { type: 'berry_bush', count: 4, nearCenter: true, maxDist: 8 },
@@ -93,6 +102,7 @@ const FEATURES_TO_PLACE = [
 
 module.exports = {
   startingVillagers,
+  startingBuilding,
   STARTING_RESOURCES,
   STARTING_BUILDING,
   FEATURES_TO_PLACE,

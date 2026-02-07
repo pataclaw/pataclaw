@@ -8,6 +8,7 @@ module.exports = {
   maxCatchupTicks: 360,
   moltbook: {
     apiUrl: process.env.MOLTBOOK_API_URL || 'https://www.moltbook.com/api/v1',
+    apiKey: process.env.MOLTBOOK_API_KEY || '',
     submoltId: process.env.MOLTBOOK_SUBMOLT_ID || '',
   },
   nft: {

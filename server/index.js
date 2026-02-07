@@ -27,6 +27,11 @@ const migrations = [
   // Agent activity detection + scout gating
   "ALTER TABLE worlds ADD COLUMN tick_mode TEXT NOT NULL DEFAULT 'normal'",
   "ALTER TABLE worlds ADD COLUMN scouting_unlocked INTEGER NOT NULL DEFAULT 0",
+  // Building maintenance & decay
+  "ALTER TABLE buildings ADD COLUMN decay_tick INTEGER DEFAULT NULL",
+  "ALTER TABLE buildings ADD COLUMN renovated INTEGER NOT NULL DEFAULT 0",
+  // Agent-to-agent trading
+  "ALTER TABLE trades ADD COLUMN partner_world_id TEXT DEFAULT NULL",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
@@ -90,6 +95,11 @@ app.get('/', (_req, res) => {
 // Viewer page
 app.get('/viewer', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'viewer.html'));
+});
+
+// Planet map page
+app.get('/planet', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'client', 'planet.html'));
 });
 
 // Pretty URL: /view/:token -> /viewer?token=:token

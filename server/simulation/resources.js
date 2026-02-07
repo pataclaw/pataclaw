@@ -16,16 +16,21 @@ const SEASON_FISH_MODIFIER = {
   winter: 0.8,
 };
 
-function processResources(worldId, weather, season) {
+function processResources(worldId, weather, season, planetaryEffects) {
   const wMod = getWeatherModifier(weather);
   const sMod = SEASON_FOOD_MODIFIER[season] || 1.0;
   const sFishMod = SEASON_FISH_MODIFIER[season] || 1.0;
   const culture = getCulture(worldId);
   const workEthic = 1 + (culture.work_ethic_modifier || 0);
+  const pEffects = planetaryEffects || {};
+  const pFoodMul = pEffects.foodMul || 1.0;
+  const pFishMul = pEffects.fishMul || 1.0;
+  const pFaithMul = pEffects.faithMul || 1.0;
+  const pProdMul = pEffects.productionMul || 1.0;
 
-  // Get active buildings with assigned workers
+  // Get active and decaying buildings with assigned workers
   const buildings = db.prepare(
-    "SELECT * FROM buildings WHERE world_id = ? AND status = 'active'"
+    "SELECT * FROM buildings WHERE world_id = ? AND status IN ('active', 'decaying')"
   ).all(worldId);
 
   let foodProd = 0;
@@ -39,22 +44,24 @@ function processResources(worldId, weather, season) {
       "SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND assigned_building_id = ? AND status = 'alive'"
     ).get(worldId, b.id).c;
 
+    const decayMul = b.status === 'decaying' ? 0.5 : 1.0;
+
     switch (b.type) {
       case 'farm':
-        foodProd += 2 * workers * wMod.food * sMod * workEthic;
+        foodProd += 2 * workers * wMod.food * sMod * workEthic * decayMul * pFoodMul * pProdMul;
         break;
       case 'dock':
-        foodProd += 1.5 * workers * wMod.fish * sFishMod * workEthic;
+        foodProd += 1.5 * workers * wMod.fish * sFishMod * workEthic * decayMul * pFishMul * pProdMul;
         break;
       case 'workshop':
-        woodProd += 0.5 * workers * wMod.wood * workEthic;
-        stoneProd += 0.3 * workers * wMod.stone * workEthic;
+        woodProd += 0.5 * workers * wMod.wood * workEthic * decayMul * pProdMul;
+        stoneProd += 0.3 * workers * wMod.stone * workEthic * decayMul * pProdMul;
         break;
       case 'temple':
-        faithProd += 1 * workers * workEthic;
+        faithProd += 1 * workers * workEthic * decayMul * pFaithMul * pProdMul;
         break;
       case 'library':
-        knowledgeProd += 1 * workers * workEthic;
+        knowledgeProd += 1 * workers * workEthic * decayMul * pProdMul;
         break;
     }
   }

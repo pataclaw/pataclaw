@@ -147,10 +147,13 @@ function processRaids(worldId, raidEvents) {
       let bldgMsg = '';
       if (targetBuilding) {
         const bldgDmg = Math.ceil(20 * raidStrength * config.bldgDamageMul * lossMul);
-        db.prepare("UPDATE buildings SET hp = MAX(0, hp - ?), status = CASE WHEN hp - ? <= 0 THEN 'destroyed' ELSE status END WHERE id = ?")
-          .run(bldgDmg, bldgDmg, targetBuilding.id);
+        const world = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(worldId);
+        db.prepare("UPDATE buildings SET hp = MAX(0, hp - ?), status = CASE WHEN hp - ? <= 0 THEN 'abandoned' ELSE status END, decay_tick = CASE WHEN hp - ? <= 0 THEN ? ELSE decay_tick END WHERE id = ?")
+          .run(bldgDmg, bldgDmg, bldgDmg, world.current_tick, targetBuilding.id);
         if (targetBuilding.hp - bldgDmg <= 0) {
-          bldgMsg = ` The ${targetBuilding.type} was destroyed!`;
+          // Unassign villagers from collapsed building
+          db.prepare("UPDATE villagers SET role = 'idle', assigned_building_id = NULL, ascii_sprite = 'idle' WHERE assigned_building_id = ? AND world_id = ?").run(targetBuilding.id, worldId);
+          bldgMsg = ` The ${targetBuilding.type} has collapsed!`;
         } else {
           bldgMsg = ` The ${targetBuilding.type} took ${bldgDmg} damage.`;
         }

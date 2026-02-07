@@ -197,6 +197,7 @@ function connect() {
       civStyle = CIV_STYLES[Math.abs(data.world.seed) % CIV_STYLES.length];
     }
     updateSidebar(data);
+    updatePlanetaryBanner(data.planetaryEvent);
     syncAgents(data.villagers);
     document.body.className = data.world.time_of_day || 'morning';
     document.getElementById('weather-display').textContent = weatherIcon(data.world.weather) + ' ' + data.world.weather;
@@ -777,6 +778,78 @@ function renderScene(data) {
         setCell(grid, bx + bri, groundY + 2, bar[bri], 'c-bar');
       }
 
+    } else if (b.status === 'decaying') {
+      // Decaying building — full sprite with procedural damage overlay
+      var hpPct = b.max_hp > 0 ? b.hp / b.max_hp : 0;
+      var damageRate = 0.2 + (1 - hpPct) * 0.2; // 20-40% chars replaced
+      var DECAY_CHARS = ['.', ',', "'", '`', ':', ';'];
+      for (var r = 0; r < sh; r++) {
+        for (var c = 0; c < sw; c++) {
+          var fx = bx + c, fy = bsy + r;
+          if (fx < W && fy >= 0 && fy < H && sprite[r][c] !== ' ') {
+            if (seededRand(b.id, r, c) < damageRate) {
+              var dch = DECAY_CHARS[(r * 7 + c * 3 + waveCounter) % DECAY_CHARS.length];
+              setCell(grid, fx, fy, dch, 'c-decay-bld');
+            } else {
+              setCell(grid, fx, fy, sprite[r][c], bColor);
+            }
+          }
+        }
+      }
+      // HP bar below sprite
+      var hpBarW = Math.min(sw, 10);
+      var hpFilled = Math.round(hpPct * hpBarW);
+      var hpBar = '[' + '\u2588'.repeat(hpFilled) + '\u2591'.repeat(hpBarW - hpFilled) + ']';
+      var hpColor = hpPct < 0.3 ? 'c-fight' : hpPct < 0.6 ? 'c-decay' : 'c-bar';
+      for (var hi = 0; hi < hpBar.length && bx + hi < W; hi++) {
+        setCell(grid, bx + hi, groundY + 2, hpBar[hi], hpColor);
+      }
+
+    } else if (b.status === 'abandoned') {
+      // Abandoned building — heavily degraded (50% chars replaced with ruin markers)
+      var RUIN_CHARS = ['#', '.', ',', '/', '\\', '|', '_'];
+      for (var r = 0; r < sh; r++) {
+        for (var c = 0; c < sw; c++) {
+          var fx = bx + c, fy = bsy + r;
+          if (fx < W && fy >= 0 && fy < H && sprite[r][c] !== ' ') {
+            if (seededRand(b.id, r, c) < 0.5) {
+              var rch = RUIN_CHARS[(r * 5 + c * 11) % RUIN_CHARS.length];
+              setCell(grid, fx, fy, rch, 'c-abandoned');
+            } else {
+              setCell(grid, fx, fy, sprite[r][c], 'c-abandoned');
+            }
+          }
+        }
+      }
+
+    } else if (b.status === 'rubble') {
+      // Rubble — small 2-row debris pile
+      var rubbleChars = ['#', '.', '=', ',', '/', '\\'];
+      var rw = Math.min(sw, 7);
+      for (var r = 0; r < 2; r++) {
+        for (var c = 0; c < rw; c++) {
+          var fx = bx + c, fy = groundY - 2 + r;
+          if (fx < W && fy >= 0 && fy < H) {
+            var rc = rubbleChars[(r * 3 + c * 7 + hashBuildingId(b.id || '')) % rubbleChars.length];
+            setCell(grid, fx, fy, rc, 'c-rubble');
+          }
+        }
+      }
+
+    } else if (b.status === 'overgrown') {
+      // Overgrown — nature reclaims
+      var overChars = ['~', '*', ',', '.', '^', '`'];
+      var ow = Math.min(sw, 7);
+      for (var r = 0; r < 2; r++) {
+        for (var c = 0; c < ow; c++) {
+          var fx = bx + c, fy = groundY - 2 + r;
+          if (fx < W && fy >= 0 && fy < H) {
+            var oc = overChars[(r * 5 + c * 3 + hashBuildingId(b.id || '')) % overChars.length];
+            setCell(grid, fx, fy, oc, 'c-overgrown');
+          }
+        }
+      }
+
     } else {
       // Completed building — render with type-specific color
       for (var r = 0; r < sh; r++) {
@@ -789,11 +862,25 @@ function renderScene(data) {
       }
     }
 
+    // Building label with status indicators
     var label = b.type.replace('_', ' ').toUpperCase();
     if (b.level > 1) label += ' L' + b.level;
     var lblClass = 'c-b-' + b.type;
-    if (b.level >= 3) lblClass += '-t3';
-    else if (b.level >= 2) lblClass += '-t2';
+    if (b.status === 'decaying') {
+      label += ' [!]';
+      lblClass = 'c-decay';
+    } else if (b.status === 'abandoned') {
+      label += ' [X]';
+      lblClass = 'c-abandoned';
+    } else if (b.status === 'rubble') {
+      label = 'RUBBLE';
+      lblClass = 'c-rubble';
+    } else if (b.status === 'overgrown') {
+      label = '';
+    } else {
+      if (b.level >= 3) lblClass += '-t3';
+      else if (b.level >= 2) lblClass += '-t2';
+    }
     var lx = bx + Math.floor((sw - Math.min(label.length, sw)) / 2);
     for (var li = 0; li < label.length && lx + li < W; li++) {
       setCell(grid, lx + li, groundY + 1, label[li], lblClass);
@@ -1199,11 +1286,19 @@ function updateSidebar(data) {
     var b = data.buildings[bbi];
     var brow = document.createElement('div');
     var isConstructing = b.status === 'constructing';
+    var isDecaying = b.status === 'decaying';
+    var isAbandoned = b.status === 'abandoned';
+    var isRubble = b.status === 'rubble';
+    var statusClass = isConstructing ? 'building-constructing' : isDecaying ? 'building-decaying' : isAbandoned ? 'building-abandoned' : isRubble ? 'building-rubble' : '';
+    var statusText = isConstructing ? 'building...' : isDecaying ? 'decaying' : b.status;
+    var hpPct = b.max_hp > 0 ? Math.round((b.hp / b.max_hp) * 100) : 100;
+    var hpClass = hpPct < 30 ? ' hp-critical' : hpPct < 60 ? ' hp-warning' : '';
+    var showHp = (b.status === 'active' || b.status === 'decaying') && hpPct < 100;
     brow.innerHTML =
       '<div class="building-row"><span class="building-name">' + esc(b.type.replace('_', ' ')) + ' Lv' + b.level + '</span>' +
-      '<span class="building-status ' + (isConstructing ? 'building-constructing' : '') + '">' +
-      (isConstructing ? 'building...' : b.status) + '</span></div>' +
-      (isConstructing ? '<div class="building-bar"><div class="building-bar-fill" style="width:' + Math.max(0, 100 - b.construction_ticks_remaining * 10) + '%"></div></div>' : '');
+      '<span class="building-status ' + statusClass + '">' + statusText + '</span></div>' +
+      (isConstructing ? '<div class="building-bar"><div class="building-bar-fill" style="width:' + Math.max(0, 100 - b.construction_ticks_remaining * 10) + '%"></div></div>' : '') +
+      (showHp ? '<div class="building-hp"><div class="building-hp-fill' + hpClass + '" style="width:' + hpPct + '%"></div></div>' : '');
     buildingList.appendChild(brow);
   }
 
@@ -1239,6 +1334,29 @@ function updateSidebar(data) {
       (cu.total_projects > 0 ? '<div class="culture-count">Projects: ' + cu.total_projects + '</div>' : '') +
       (cu.total_fights > 0 ? '<div class="culture-count fights">Fights: ' + cu.total_fights + '</div>' : '');
   }
+}
+
+// ─── PLANETARY EVENT BANNER ───
+var PLANETARY_ICONS = {
+  solar_eclipse: '\u25d1', meteor_shower: '\u2604', tidal_surge: '\u224b',
+  shell_migration: '\u2727', blood_moon: '\u25cf', golden_age: '\u2605',
+};
+var PLANETARY_CLASSES = {
+  solar_eclipse: 'pe-eclipse', meteor_shower: 'pe-meteor', tidal_surge: 'pe-tidal',
+  shell_migration: 'pe-shell', blood_moon: 'pe-blood', golden_age: 'pe-golden',
+};
+
+function updatePlanetaryBanner(evt) {
+  var el = document.getElementById('planetary-banner');
+  if (!el) return;
+  if (!evt) {
+    el.classList.add('hidden');
+    return;
+  }
+  var icon = PLANETARY_ICONS[evt.type] || '\u2731';
+  var cls = PLANETARY_CLASSES[evt.type] || 'pe-golden';
+  el.className = 'planetary-banner ' + cls;
+  el.innerHTML = '<span class="pe-icon">' + icon + '</span> ' + esc(evt.title) + ' <span class="pe-desc">' + esc(evt.description || '') + '</span>';
 }
 
 // ─── HELPERS ───

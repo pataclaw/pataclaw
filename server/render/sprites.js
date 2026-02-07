@@ -484,6 +484,20 @@ const FEATURE_CHARS = {
   war_monument: '\u2720',
 };
 
+const RUBBLE_SPRITE = [
+  ' ./#\\. ',
+  ' /###\\ ',
+  '#.=.#.#',
+  '##.=.##',
+];
+
+const OVERGROWN_SPRITE = [
+  ' ~,*,~ ',
+  ' *~.~* ',
+  '~.,#,.~',
+  '*~.=.~*',
+];
+
 module.exports = {
   villagerAppearance,
   SPEECH,
@@ -496,4 +510,6 @@ module.exports = {
   PROJECT_SPRITES,
   TERRAIN_CHARS,
   FEATURE_CHARS,
+  RUBBLE_SPRITE,
+  OVERGROWN_SPRITE,
 };

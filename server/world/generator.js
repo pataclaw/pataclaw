@@ -1,7 +1,7 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
-const { generateTiles, mulberry32, CENTER } = require('./map');
-const { startingVillagers, STARTING_RESOURCES, STARTING_BUILDING, FEATURES_TO_PLACE } = require('./templates');
+const { generateTiles, mulberry32, getCenter } = require('./map');
+const { startingVillagers, startingBuilding, STARTING_RESOURCES, FEATURES_TO_PLACE } = require('./templates');
 
 function createWorld(worldId, keyHash, keyPrefix) {
   const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff);
@@ -14,8 +14,11 @@ function createWorld(worldId, keyHash, keyPrefix) {
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(worldId, keyHash, keyPrefix, 'Unnamed Town', seed, viewToken);
 
+  // Compute seed-based center for this world
+  const center = getCenter(seed);
+
   // Generate and insert tiles
-  const tiles = generateTiles(seed);
+  const tiles = generateTiles(seed, center);
   const insertTile = db.prepare(`
     INSERT INTO tiles (world_id, x, y, terrain, elevation, explored, feature, feature_depleted)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -29,7 +32,7 @@ function createWorld(worldId, keyHash, keyPrefix) {
   insertTiles(worldId, tiles);
 
   // Place features on tiles
-  placeFeatures(worldId, tiles, rng);
+  placeFeatures(worldId, tiles, rng, center);
 
   // Insert starting resources
   const insertResource = db.prepare(`
@@ -42,14 +45,14 @@ function createWorld(worldId, keyHash, keyPrefix) {
 
   // Insert town center building
   const buildingId = uuid();
-  const b = STARTING_BUILDING;
+  const b = startingBuilding(center);
   db.prepare(`
     INSERT INTO buildings (id, world_id, type, x, y, level, hp, max_hp, status, construction_ticks_remaining, assigned_villagers)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(buildingId, worldId, b.type, b.x, b.y, b.level, b.hp, b.max_hp, b.status, b.construction_ticks_remaining, b.assigned_villagers);
 
   // Insert starting villagers
-  const villagers = startingVillagers(rng);
+  const villagers = startingVillagers(rng, center);
   const insertVillager = db.prepare(`
     INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, temperament, creativity, sociability)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -71,7 +74,9 @@ function createWorld(worldId, keyHash, keyPrefix) {
   return { worldId, seed, villagersCreated: villagers.length, viewToken };
 }
 
-function placeFeatures(worldId, tiles, rng) {
+function placeFeatures(worldId, tiles, rng, center) {
+  const cx = center ? center.x : 20;
+  const cy = center ? center.y : 20;
   const updateTile = db.prepare(`
     UPDATE tiles SET feature = ? WHERE world_id = ? AND x = ? AND y = ?
   `);
@@ -79,8 +84,8 @@ function placeFeatures(worldId, tiles, rng) {
   for (const spec of FEATURES_TO_PLACE) {
     let placed = 0;
     const candidates = tiles.filter((t) => {
-      const dx = t.x - CENTER;
-      const dy = t.y - CENTER;
+      const dx = t.x - cx;
+      const dy = t.y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (spec.nearCenter && dist > (spec.maxDist || 10)) return false;

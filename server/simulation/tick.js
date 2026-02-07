@@ -3,7 +3,7 @@ const db = require('../db/connection');
 const { advanceTime } = require('./time');
 const { rollWeather } = require('./weather');
 const { processResources } = require('./resources');
-const { processBuildings, getGrowthStage } = require('./buildings');
+const { processBuildings, processMaintenance, getGrowthStage } = require('./buildings');
 const { processVillagers } = require('./villagers');
 const { processExploration } = require('./exploration');
 const { rollRandomEvents } = require('./events');
@@ -13,6 +13,7 @@ const { recalculateCulture } = require('./culture');
 const { processVillagerLife } = require('./village-life');
 const { expandMap, mulberry32 } = require('../world/map');
 const { FEATURES_TO_PLACE } = require('../world/templates');
+const { getActivePlanetaryEvent } = require('./planetary');
 
 function processTick(worldId) {
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
@@ -21,17 +22,54 @@ function processTick(worldId) {
   // 1. Advance time
   const time = advanceTime(world);
 
+  // 1.5. Planetary events (global effects)
+  const planetaryEvent = getActivePlanetaryEvent();
+  const pEffects = planetaryEvent ? planetaryEvent.effects : {};
+
   // 2. Weather
   const weather = rollWeather(world.weather, time.season);
 
-  // 3. Resources
-  const resResult = processResources(worldId, weather, time.season);
+  // 3. Resources (pass planetary modifiers)
+  const resResult = processResources(worldId, weather, time.season, pEffects);
+
+  // 3.25. Planetary effects: stone bonus, building damage, morale
+  let planetaryEvents = [];
+  if (planetaryEvent) {
+    if (pEffects.stoneBonus) {
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'stone'").run(pEffects.stoneBonus, worldId);
+    }
+    if (pEffects.moraleDelta) {
+      if (pEffects.moraleDelta > 0) {
+        db.prepare("UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'").run(pEffects.moraleDelta, worldId);
+      } else {
+        db.prepare("UPDATE villagers SET morale = MAX(0, morale + ?) WHERE world_id = ? AND status = 'alive'").run(pEffects.moraleDelta, worldId);
+      }
+    }
+    if (pEffects.buildingDamageChance && Math.random() < pEffects.buildingDamageChance) {
+      const target = db.prepare("SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type != 'town_center' ORDER BY RANDOM() LIMIT 1").get(worldId);
+      if (target) {
+        db.prepare('UPDATE buildings SET hp = MAX(0, hp - ?) WHERE id = ?').run(pEffects.buildingDamage || 10, target.id);
+        planetaryEvents.push({
+          type: 'planetary',
+          title: `Meteor strikes ${target.type}!`,
+          description: `A meteorite fragment hit the ${target.type}, dealing ${pEffects.buildingDamage || 10} damage.`,
+          severity: 'warning',
+        });
+      }
+    }
+    if (pEffects.warriorXpMul) {
+      db.prepare("UPDATE villagers SET experience = experience + ? WHERE world_id = ? AND role = 'warrior' AND status = 'alive'").run(Math.floor(2 * pEffects.warriorXpMul), worldId);
+    }
+  }
 
   // 3.5. Crops
   const cropEvents = processCrops(worldId, time.season, time.tick);
 
   // 4. Buildings
   const buildingEvents = processBuildings(worldId);
+
+  // 4.5. Building maintenance & decay
+  const maintenanceEvents = processMaintenance(worldId, time.tick);
 
   // 5. Villagers
   const villagerEvents = processVillagers(worldId, resResult.isStarving, weather);
@@ -77,7 +115,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...cropEvents, ...buildingEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents, ...seasonEvents];
+  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents, ...seasonEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

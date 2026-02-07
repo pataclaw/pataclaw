@@ -2,6 +2,8 @@ const db = require('../db/connection');
 const { processTick } = require('./tick');
 const { buildFrame } = require('../render/ascii');
 const config = require('../config');
+const { refreshMoltbookFeed } = require('./moltbook-feed');
+const { checkPlanetaryEvent, expirePlanetaryEvents } = require('./planetary');
 
 // SSE viewer connections: worldId -> Set<res>
 const viewers = new Map();
@@ -61,6 +63,9 @@ function determineTickMode(worldId, lastAgentHeartbeat) {
 function tickAllWorlds() {
   tickCount++;
 
+  // Refresh Moltbook feed periodically (global, not per-world)
+  refreshMoltbookFeed(tickCount).catch(() => {});
+
   const worlds = db.prepare(
     "SELECT id, last_agent_heartbeat, tick_mode FROM worlds WHERE status = 'active'"
   ).all();
@@ -106,6 +111,10 @@ function tickAllWorlds() {
       }
     }
   }
+
+  // Planetary events — global, affects all worlds
+  expirePlanetaryEvents(tickCount);
+  checkPlanetaryEvent(tickCount);
 }
 
 function addViewer(worldId, res) {

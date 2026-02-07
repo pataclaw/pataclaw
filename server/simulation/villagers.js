@@ -1,7 +1,7 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { randomName, randomTrait, TRAIT_PERSONALITY } = require('../world/templates');
-const { CENTER } = require('../world/map');
+const { getCenter } = require('../world/map');
 const { getCulture } = require('./culture');
 
 function processVillagers(worldId, isStarving, weather) {
@@ -19,8 +19,9 @@ function processVillagers(worldId, isStarving, weather) {
 
   // Auto-refugee: when population is 0, a wanderer arrives every 10 ticks
   if (villagers.length === 0) {
-    const world = db.prepare('SELECT current_tick, day_number FROM worlds WHERE id = ?').get(worldId);
+    const world = db.prepare('SELECT current_tick, day_number, seed FROM worlds WHERE id = ?').get(worldId);
     if (world && world.current_tick % 10 === 0) {
+      const center = getCenter(world.seed);
       const rng = () => Math.random();
       const name = randomName(rng);
       const trait = randomTrait(rng);
@@ -33,7 +34,7 @@ function processVillagers(worldId, isStarving, weather) {
       db.prepare(`
         INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
         VALUES (?, ?, ?, ?, ?, ?, 80, 100, 50, 0, 0, 'alive', ?, ?, NULL, ?, ?, ?)
-      `).run(uuid(), worldId, name, survivalRole, CENTER, CENTER + 1, trait, survivalRole, basePers.temperament, basePers.creativity, basePers.sociability);
+      `).run(uuid(), worldId, name, survivalRole, center.x, center.y + 1, trait, survivalRole, basePers.temperament, basePers.creativity, basePers.sociability);
       db.prepare("UPDATE resources SET amount = MIN(capacity, amount + 10) WHERE world_id = ? AND type = 'food'").run(worldId);
       events.push({
         type: 'birth',
@@ -166,10 +167,13 @@ function processVillagers(worldId, isStarving, weather) {
       culturalPhrase = culture.custom_phrases[Math.floor(Math.random() * culture.custom_phrases.length)];
     }
 
+    const worldForBirth = db.prepare('SELECT seed FROM worlds WHERE id = ?').get(worldId);
+    const birthCenter = getCenter(worldForBirth.seed);
+
     db.prepare(`
       INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
       VALUES (?, ?, ?, 'idle', ?, ?, 100, 100, 70, 0, 0, 'alive', ?, 'idle', ?, ?, ?, ?)
-    `).run(uuid(), worldId, name, CENTER, CENTER + 1, trait, culturalPhrase, temperament, creativity, sociability);
+    `).run(uuid(), worldId, name, birthCenter.x, birthCenter.y + 1, trait, culturalPhrase, temperament, creativity, sociability);
 
     events.push({
       type: 'birth',

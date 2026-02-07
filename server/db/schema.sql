@@ -281,3 +281,17 @@ CREATE TABLE IF NOT EXISTS culture_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_culture_log_world ON culture_log(world_id, tick DESC);
+
+-- ============================================================
+-- PLANETARY EVENTS: Global events affecting all worlds
+-- ============================================================
+CREATE TABLE IF NOT EXISTS planetary_events (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    started_tick INTEGER NOT NULL,
+    duration_ticks INTEGER NOT NULL,
+    effects TEXT NOT NULL DEFAULT '{}',
+    active INTEGER NOT NULL DEFAULT 1
+);

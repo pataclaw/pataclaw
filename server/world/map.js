@@ -1,6 +1,15 @@
 const MAP_SIZE = 40;
 const CENTER = Math.floor(MAP_SIZE / 2);
 
+// Seed-based center offset: town spawns at different positions per world
+function getCenter(seed, mapSize) {
+  mapSize = mapSize || MAP_SIZE;
+  const half = Math.floor(mapSize / 2);
+  const cx = half + ((seed % 11) - 5);
+  const cy = half + (((seed >> 4) % 11) - 5);
+  return { x: cx, y: cy };
+}
+
 // Simple seeded pseudo-random number generator
 function mulberry32(seed) {
   let s = seed | 0;
@@ -64,15 +73,17 @@ function terrainFromNoise(value, distFromCenter) {
   return 'desert';
 }
 
-function generateTiles(seed) {
+function generateTiles(seed, center) {
   const noise = createNoiseGenerator(seed);
+  const cx = center ? center.x : CENTER;
+  const cy = center ? center.y : CENTER;
   const tiles = [];
 
   for (let y = 0; y < MAP_SIZE; y++) {
     for (let x = 0; x < MAP_SIZE; x++) {
       const value = noise(x, y);
-      const dx = x - CENTER;
-      const dy = y - CENTER;
+      const dx = x - cx;
+      const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const explored = dist < 5 ? 1 : 0;
 
@@ -123,4 +134,4 @@ function expandMap(worldId, seed, oldSize, newSize) {
   return tiles;
 }
 
-module.exports = { MAP_SIZE, CENTER, generateTiles, expandMap, mulberry32 };
+module.exports = { MAP_SIZE, CENTER, getCenter, generateTiles, expandMap, mulberry32 };

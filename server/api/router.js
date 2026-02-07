@@ -102,6 +102,62 @@ router.get('/leaderboard', (_req, res) => {
   res.json({ leaderboard });
 });
 
+// GET /api/planet - all worlds for planet map (public)
+router.get('/planet', (_req, res) => {
+  const worlds = db.prepare(`
+    SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed,
+           (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
+           (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
+           (w.day_number * 2) +
+           ((SELECT COUNT(*) FROM villagers v2 WHERE v2.world_id = w.id AND v2.status = 'alive') * 10) +
+           (w.reputation * 5) +
+           ((SELECT COUNT(*) FROM buildings b2 WHERE b2.world_id = w.id AND b2.status != 'destroyed') * 3) as score
+    FROM worlds w
+    WHERE w.status = 'active' AND w.view_token IS NOT NULL
+    ORDER BY score DESC
+  `).all();
+
+  // Check mint status for each world
+  const mintStmt = db.prepare('SELECT token_id FROM nft_mints WHERE world_id = ?');
+  const result = worlds.map(w => {
+    const mint = mintStmt.get(w.id);
+    return {
+      name: w.name,
+      day_number: w.day_number,
+      season: w.season,
+      weather: w.weather,
+      reputation: w.reputation,
+      view_token: w.view_token,
+      seed: w.seed,
+      population: w.population,
+      buildings: w.buildings,
+      score: w.score,
+      is_minted: !!mint,
+      token_id: mint ? mint.token_id : null,
+    };
+  });
+
+  const totalMinted = result.filter(w => w.is_minted).length;
+  const totalPop = result.reduce((s, w) => s + w.population, 0);
+
+  res.json({ worlds: result, stats: { total_worlds: result.length, total_population: totalPop, total_minted: totalMinted } });
+});
+
+// GET /api/trades/open - public listing of all open inter-world trades
+router.get('/trades/open', (_req, res) => {
+  const trades = db.prepare(`
+    SELECT t.id, t.offer_resource, t.offer_amount, t.request_resource, t.request_amount,
+           t.created_at, w.name as world_name
+    FROM trades t
+    JOIN worlds w ON w.id = t.world_id
+    WHERE t.status = 'open'
+    ORDER BY t.created_at DESC
+    LIMIT 50
+  `).all();
+
+  res.json({ trades });
+});
+
 // Heartbeat
 router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
   // Update heartbeat timestamp and wake world from dormant/slow mode

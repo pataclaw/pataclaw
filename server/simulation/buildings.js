@@ -35,6 +35,136 @@ const BUILDING_DEFS = {
   dock:       { wood: 12, stone: 5, gold: 0, ticks: 10, hp: 90 },
 };
 
+// ─── MAINTENANCE COSTS (charged every MAINTENANCE_INTERVAL ticks) ───
+const MAINTENANCE_COSTS = {
+  hut:        { wood: 0, stone: 0, gold: 0 },
+  town_center:{ wood: 0, stone: 0, gold: 0 },
+  farm:       { wood: 1, stone: 0, gold: 0 },
+  watchtower: { wood: 1, stone: 0, gold: 0 },
+  storehouse: { wood: 1, stone: 0, gold: 0 },
+  dock:       { wood: 1, stone: 0, gold: 0 },
+  workshop:   { wood: 1, stone: 1, gold: 0 },
+  wall:       { wood: 0, stone: 1, gold: 0 },
+  temple:     { wood: 0, stone: 0, gold: 1 },
+  market:     { wood: 1, stone: 0, gold: 1 },
+  library:    { wood: 0, stone: 1, gold: 1 },
+};
+
+const DECAY_HP_PER_TICK = 3;
+const ABANDONED_TO_RUBBLE = 36;
+const RUBBLE_TO_OVERGROWN = 72;
+const OVERGROWN_TO_REMOVED = 36;
+const MAINTENANCE_INTERVAL = 6;
+
+function processMaintenance(worldId, currentTick) {
+  const events = [];
+
+  // Phase 1: Charge maintenance on active buildings every MAINTENANCE_INTERVAL ticks
+  if (currentTick % MAINTENANCE_INTERVAL === 0) {
+    const activeBuildings = db.prepare(
+      "SELECT * FROM buildings WHERE world_id = ? AND status = 'active'"
+    ).all(worldId);
+
+    const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
+    const resMap = {};
+    for (const r of resources) resMap[r.type] = r.amount;
+
+    for (const b of activeBuildings) {
+      const cost = MAINTENANCE_COSTS[b.type];
+      if (!cost || (cost.wood === 0 && cost.stone === 0 && cost.gold === 0)) continue;
+
+      const canAfford = (resMap.wood || 0) >= cost.wood &&
+                        (resMap.stone || 0) >= cost.stone &&
+                        (resMap.gold || 0) >= cost.gold;
+
+      if (canAfford) {
+        if (cost.wood > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(cost.wood, worldId); resMap.wood -= cost.wood; }
+        if (cost.stone > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(cost.stone, worldId); resMap.stone -= cost.stone; }
+        if (cost.gold > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(cost.gold, worldId); resMap.gold -= cost.gold; }
+      } else {
+        // Can't pay — start decaying
+        db.prepare("UPDATE buildings SET status = 'decaying', decay_tick = ? WHERE id = ?").run(currentTick, b.id);
+        events.push({
+          type: 'maintenance',
+          title: `${b.type} is decaying!`,
+          description: `The ${b.type} at (${b.x}, ${b.y}) cannot be maintained — resources depleted. It will deteriorate without repair.`,
+          severity: 'warning',
+        });
+      }
+    }
+  }
+
+  // Phase 2: Decaying buildings lose HP each tick
+  const decayingBuildings = db.prepare(
+    "SELECT * FROM buildings WHERE world_id = ? AND status = 'decaying'"
+  ).all(worldId);
+
+  for (const b of decayingBuildings) {
+    // Check if resources are now available to auto-recover
+    const cost = MAINTENANCE_COSTS[b.type];
+    if (cost && (cost.wood > 0 || cost.stone > 0 || cost.gold > 0)) {
+      const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
+      const resMap = {};
+      for (const r of resources) resMap[r.type] = r.amount;
+
+      const canAfford = (resMap.wood || 0) >= cost.wood &&
+                        (resMap.stone || 0) >= cost.stone &&
+                        (resMap.gold || 0) >= cost.gold;
+
+      if (canAfford) {
+        // Pay and recover
+        if (cost.wood > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(cost.wood, worldId);
+        if (cost.stone > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(cost.stone, worldId);
+        if (cost.gold > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(cost.gold, worldId);
+        db.prepare("UPDATE buildings SET status = 'active', decay_tick = NULL WHERE id = ?").run(b.id);
+        events.push({
+          type: 'maintenance',
+          title: `${b.type} stabilized`,
+          description: `The ${b.type} at (${b.x}, ${b.y}) has been maintained and is no longer decaying.`,
+          severity: 'info',
+        });
+        continue;
+      }
+    }
+
+    // Lose HP
+    const newHp = Math.max(0, b.hp - DECAY_HP_PER_TICK);
+    if (newHp <= 0) {
+      // Transition to abandoned
+      db.prepare("UPDATE buildings SET hp = 0, status = 'abandoned', decay_tick = ? WHERE id = ?").run(currentTick, b.id);
+      // Unassign villagers
+      db.prepare("UPDATE villagers SET role = 'idle', assigned_building_id = NULL, ascii_sprite = 'idle' WHERE assigned_building_id = ? AND world_id = ?").run(b.id, worldId);
+      events.push({
+        type: 'maintenance',
+        title: `${b.type} abandoned!`,
+        description: `The ${b.type} at (${b.x}, ${b.y}) has fallen into ruin. Workers have been displaced.`,
+        severity: 'danger',
+      });
+    } else {
+      db.prepare("UPDATE buildings SET hp = ? WHERE id = ?").run(newHp, b.id);
+    }
+  }
+
+  // Phase 3: Lifecycle transitions — abandoned → rubble → overgrown → removed
+  const lifecycleBuildings = db.prepare(
+    "SELECT * FROM buildings WHERE world_id = ? AND status IN ('abandoned', 'rubble', 'overgrown')"
+  ).all(worldId);
+
+  for (const b of lifecycleBuildings) {
+    const ticksSinceDecay = currentTick - (b.decay_tick || currentTick);
+
+    if (b.status === 'abandoned' && ticksSinceDecay >= ABANDONED_TO_RUBBLE) {
+      db.prepare("UPDATE buildings SET status = 'rubble', decay_tick = ? WHERE id = ?").run(currentTick, b.id);
+    } else if (b.status === 'rubble' && ticksSinceDecay >= RUBBLE_TO_OVERGROWN) {
+      db.prepare("UPDATE buildings SET status = 'overgrown', decay_tick = ? WHERE id = ?").run(currentTick, b.id);
+    } else if (b.status === 'overgrown' && ticksSinceDecay >= OVERGROWN_TO_REMOVED) {
+      db.prepare("DELETE FROM buildings WHERE id = ?").run(b.id);
+    }
+  }
+
+  return events;
+}
+
 function processBuildings(worldId) {
   const events = [];
 
@@ -121,4 +251,4 @@ function startBuilding(worldId, type, x, y) {
   return { ok: true, buildingId: id, ticks: def.ticks };
 }
 
-module.exports = { processBuildings, canBuild, startBuilding, BUILDING_DEFS, GROWTH_STAGES, getGrowthStage };
+module.exports = { processBuildings, processMaintenance, canBuild, startBuilding, BUILDING_DEFS, MAINTENANCE_COSTS, GROWTH_STAGES, getGrowthStage };

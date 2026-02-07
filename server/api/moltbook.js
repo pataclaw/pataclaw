@@ -85,6 +85,9 @@ router.post('/post-trade', (req, res) => {
   const world = db.prepare('SELECT name, day_number FROM worlds WHERE id = ?').get(req.worldId);
   const tradeId = uuid();
 
+  // Escrow: deduct offered resources immediately
+  db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(offer_amount, req.worldId, offer_resource);
+
   db.prepare(`
     INSERT INTO trades (id, world_id, direction, offer_resource, offer_amount, request_resource, request_amount, status)
     VALUES (?, ?, 'outgoing', ?, ?, ?, ?, 'open')
@@ -102,7 +105,85 @@ router.post('/post-trade', (req, res) => {
     '#pataclaw #moltbook #trade',
   ].join('\n');
 
-  res.json({ ok: true, tradeId, content: postContent });
+  res.json({ ok: true, tradeId, content: postContent, escrowed: { resource: offer_resource, amount: offer_amount } });
+});
+
+// POST /api/moltbook/accept-trade - accept another world's open trade
+router.post('/accept-trade', (req, res) => {
+  const { trade_id } = req.body;
+  if (!trade_id) return res.status(400).json({ error: 'Missing trade_id' });
+
+  const trade = db.prepare('SELECT * FROM trades WHERE id = ? AND status = ?').get(trade_id, 'open');
+  if (!trade) return res.status(404).json({ error: 'Trade not found or no longer open' });
+  if (trade.world_id === req.worldId) return res.status(400).json({ error: 'Cannot accept your own trade' });
+
+  // Check acceptor has the requested resource
+  const acceptorResource = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(req.worldId, trade.request_resource);
+  if (!acceptorResource || acceptorResource.amount < trade.request_amount) {
+    return res.status(400).json({ error: `Not enough ${trade.request_resource}. Need ${trade.request_amount}, have ${Math.floor(acceptorResource ? acceptorResource.amount : 0)}` });
+  }
+
+  // Atomic exchange using transaction
+  const executeTrade = db.transaction(() => {
+    // Deduct requested resource from acceptor
+    db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?')
+      .run(trade.request_amount, req.worldId, trade.request_resource);
+
+    // Credit requested resource to offerer
+    db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?')
+      .run(trade.request_amount, trade.world_id, trade.request_resource);
+
+    // Credit escrowed offered resource to acceptor
+    db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?')
+      .run(trade.offer_amount, req.worldId, trade.offer_resource);
+
+    // Update trade status
+    db.prepare("UPDATE trades SET status = 'completed', partner_world_id = ? WHERE id = ?")
+      .run(req.worldId, trade_id);
+
+    // Reputation +3 for both
+    db.prepare('UPDATE worlds SET reputation = reputation + 3 WHERE id = ?').run(trade.world_id);
+    db.prepare('UPDATE worlds SET reputation = reputation + 3 WHERE id = ?').run(req.worldId);
+
+    // Create events in both worlds
+    const offererWorld = db.prepare('SELECT current_tick, name FROM worlds WHERE id = ?').get(trade.world_id);
+    const acceptorWorld = db.prepare('SELECT current_tick, name FROM worlds WHERE id = ?').get(req.worldId);
+
+    db.prepare("INSERT INTO events (id, world_id, tick, type, title, description, severity) VALUES (?, ?, ?, 'trade_complete', ?, ?, 'celebration')")
+      .run(uuid(), trade.world_id, offererWorld.current_tick,
+        `Trade completed with ${acceptorWorld.name}!`,
+        `Received ${trade.request_amount} ${trade.request_resource} in exchange for ${trade.offer_amount} ${trade.offer_resource}.`);
+
+    db.prepare("INSERT INTO events (id, world_id, tick, type, title, description, severity) VALUES (?, ?, ?, 'trade_complete', ?, ?, 'celebration')")
+      .run(uuid(), req.worldId, acceptorWorld.current_tick,
+        `Trade completed with ${offererWorld.name}!`,
+        `Received ${trade.offer_amount} ${trade.offer_resource} in exchange for ${trade.request_amount} ${trade.request_resource}.`);
+  });
+
+  executeTrade();
+
+  res.json({
+    ok: true,
+    received: { resource: trade.offer_resource, amount: trade.offer_amount },
+    sent: { resource: trade.request_resource, amount: trade.request_amount },
+  });
+});
+
+// POST /api/moltbook/cancel-trade - cancel own open trade, refund escrowed resources
+router.post('/cancel-trade', (req, res) => {
+  const { trade_id } = req.body;
+  if (!trade_id) return res.status(400).json({ error: 'Missing trade_id' });
+
+  const trade = db.prepare('SELECT * FROM trades WHERE id = ? AND world_id = ? AND status = ?').get(trade_id, req.worldId, 'open');
+  if (!trade) return res.status(404).json({ error: 'Open trade not found (must be yours and still open)' });
+
+  // Refund escrowed resources
+  db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?')
+    .run(trade.offer_amount, req.worldId, trade.offer_resource);
+
+  db.prepare("UPDATE trades SET status = 'cancelled' WHERE id = ?").run(trade_id);
+
+  res.json({ ok: true, refunded: { resource: trade.offer_resource, amount: trade.offer_amount } });
 });
 
 // GET /api/moltbook/feed - get recent submolt posts

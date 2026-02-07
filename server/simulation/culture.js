@@ -1,5 +1,6 @@
 const db = require('../db/connection');
 const { SPEECH } = require('../render/sprites');
+const { getMoltbookSpeech } = require('./moltbook-feed');
 
 // ─── PHRASE TONE ANALYSIS ───
 // Keywords that nudge village personality when taught
@@ -316,6 +317,12 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
     for (const law of culture.custom_laws) {
       base.push(law.length > 20 ? law.slice(0, 20) + '...' : law);
     }
+  }
+
+  // Moltbook feed — villagers absorb what's trending on the shell network
+  const moltbookSnippets = getMoltbookSpeech(role, 5);
+  if (moltbookSnippets.length > 0) {
+    base.push(...moltbookSnippets);
   }
 
   return base;

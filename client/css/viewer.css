@@ -164,6 +164,31 @@ body {
 .building-name { color: #33ff33; }
 .building-status { color: #888; font-size: 9px; }
 .building-constructing { color: #ffcc00; }
+.building-decaying { color: #cc8833; }
+.building-abandoned { color: #885533; }
+.building-rubble { color: #666655; }
+
+.building-hp {
+  height: 3px;
+  background: #1a1a1a;
+  margin-top: 2px;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.building-hp-fill {
+  height: 100%;
+  background: #33cc33;
+  transition: width 0.5s;
+}
+
+.building-hp-fill.hp-warning {
+  background: #ccaa33;
+}
+
+.building-hp-fill.hp-critical {
+  background: #cc3333;
+}
 
 .building-bar {
   height: 3px;
@@ -387,6 +412,13 @@ body {
 #world .c-moonglow{ color: #8899bb; }
 
 /* Water */
+/* Decay states */
+#world .c-decay     { color: #cc8833; }
+#world .c-decay-bld { color: #aa7733; }
+#world .c-abandoned { color: #885533; }
+#world .c-rubble    { color: #666655; }
+#world .c-overgrown { color: #448833; }
+
 #world .c-water  { color: #3388cc; }
 #world .c-waterl { color: #55aadd; }
 #world .c-fish   { color: #66ccaa; }
@@ -531,6 +563,39 @@ body.crt-mode #world {
   from { opacity: 0.97; }
   to { opacity: 1; }
 }
+
+/* ─── Planetary Event Banner ─── */
+.planetary-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  padding: 4px 16px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 1px;
+  animation: peBanner 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.planetary-banner.hidden { display: none; }
+
+.planetary-banner .pe-icon { font-size: 14px; margin-right: 6px; }
+.planetary-banner .pe-desc { font-size: 9px; opacity: 0.7; margin-left: 8px; }
+
+@keyframes peBanner {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+.pe-eclipse  { background: linear-gradient(90deg, rgba(20,10,40,0.9), rgba(50,20,80,0.9)); color: #bb88ff; border-bottom: 1px solid #6633aa; }
+.pe-meteor   { background: linear-gradient(90deg, rgba(40,20,10,0.9), rgba(80,40,10,0.9)); color: #ffaa44; border-bottom: 1px solid #cc6622; }
+.pe-tidal    { background: linear-gradient(90deg, rgba(10,20,40,0.9), rgba(10,40,80,0.9)); color: #55bbff; border-bottom: 1px solid #2277bb; }
+.pe-shell    { background: linear-gradient(90deg, rgba(20,30,20,0.9), rgba(30,60,30,0.9)); color: #88ff88; border-bottom: 1px solid #33aa33; }
+.pe-blood    { background: linear-gradient(90deg, rgba(40,10,10,0.9), rgba(80,10,10,0.9)); color: #ff4444; border-bottom: 1px solid #aa2222; }
+.pe-golden   { background: linear-gradient(90deg, rgba(40,30,10,0.9), rgba(80,60,10,0.9)); color: #ffdd44; border-bottom: 1px solid #ccaa22; }
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
