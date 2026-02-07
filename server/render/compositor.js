@@ -252,7 +252,7 @@ function renderStatusBar(worldId) {
   return `\u2502 Day ${world.day_number} \u2502 ${world.season} \u2502 ${world.weather} \u2502 ` +
     `Pop: ${popAlive.c}/${buildingCap.cap} \u2502 ` +
     `\u2617 ${resMap.food || 0}  \u2692 ${resMap.wood || 0}  \u25a8 ${resMap.stone || 0}  ` +
-    `\u2606 ${resMap.knowledge || 0}  \u25c9 ${resMap.gold || 0}  \u271e ${resMap.faith || 0} \u2502`;
+    `\u2606 ${resMap.knowledge || 0}  \u25c9 ${resMap.crypto || 0}  \u271e ${resMap.faith || 0} \u2502`;
 }
 
 module.exports = { renderMapView, renderTownView, renderStatusBar };

@@ -222,7 +222,7 @@ body {
                   ' \\u2692' + ((res.wood || {}).amount || 0) +
                   ' \\u25a8' + ((res.stone || {}).amount || 0) +
                   ' \\u2606' + ((res.knowledge || {}).amount || 0) +
-                  ' \\u25c9' + ((res.gold || res.crypto || {}).amount || 0) +
+                  ' \\u25c9' + ((res.crypto || {}).amount || 0) +
                   '  Pop:' + (pop.alive || 0) + '/' + (pop.capacity || 0);
     lines.push('<span class="t">' + rep('\\u2500', W) + '</span>');
     lines.push('<span class="t">' + esc(resLine.slice(0, W)) + '</span>');

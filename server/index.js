@@ -46,7 +46,25 @@ const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf-8'
 db.exec(schema);
 
 // Table migrations (CREATE TABLE IF NOT EXISTS is safe to re-run)
+// Rename gold resource to crypto (idempotent — only updates rows still named 'gold')
+try { db.exec("UPDATE resources SET type = 'crypto' WHERE type = 'gold'"); } catch (e) { /* ignore */ }
+
 const tableMigrations = [
+  `CREATE TABLE IF NOT EXISTS world_stats (
+    world_id TEXT PRIMARY KEY,
+    military_strength REAL NOT NULL DEFAULT 0,
+    economic_output REAL NOT NULL DEFAULT 0,
+    exploration_pct REAL NOT NULL DEFAULT 0,
+    happiness_index REAL NOT NULL DEFAULT 50,
+    infrastructure_score REAL NOT NULL DEFAULT 0,
+    fortification_rating REAL NOT NULL DEFAULT 0,
+    production_efficiency REAL NOT NULL DEFAULT 0,
+    morale_resilience REAL NOT NULL DEFAULT 1,
+    war_readiness REAL NOT NULL DEFAULT 0,
+    army_power TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (world_id) REFERENCES worlds(id)
+  )`,
   `CREATE TABLE IF NOT EXISTS nft_mints (
     id TEXT PRIMARY KEY,
     world_id TEXT NOT NULL UNIQUE,

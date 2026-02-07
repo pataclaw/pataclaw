@@ -171,7 +171,7 @@ router.get('/achievements', (req, res) => {
     { id: 'cartographer', name: 'Cartographer', desc: 'Explore 50 tiles', unlocked: exploredTiles >= 50 },
     { id: 'culture_shaper', name: 'Culture Shaper', desc: 'Teach 5 phrases', unlocked: phrases.length >= 5 },
     { id: 'project_builder', name: 'Artisan', desc: 'Complete a villager project', unlocked: projectsDone >= 1 },
-    { id: 'wealthy', name: 'Golden Age', desc: 'Accumulate 50 gold', unlocked: (resMap.gold || 0) >= 50 },
+    { id: 'wealthy', name: 'Crypto Age', desc: 'Accumulate 50 crypto', unlocked: (resMap.crypto || 0) >= 50 },
     { id: 'scholar_dream', name: "Scholar's Dream", desc: 'Accumulate 50 knowledge', unlocked: (resMap.knowledge || 0) >= 50 },
     { id: 'centurion', name: 'Centurion', desc: 'Reach day 100', unlocked: (world ? world.day_number : 0) >= 100 },
   ];
@@ -213,7 +213,7 @@ router.get('/quests', (req, res) => {
     { id: 'pop_10', name: 'Thriving town', description: 'Grow your population to 10 villagers', target: 10, current: popAlive },
     { id: 'explore_10', name: 'Scout the land', description: 'Explore 10 tiles of the map', target: 10, current: exploredTiles },
     { id: 'explore_30', name: 'Map the world', description: 'Explore 30 tiles of the map', target: 30, current: exploredTiles },
-    { id: 'gold_30', name: 'Fill the coffers', description: 'Accumulate 30 gold', target: 30, current: resMap.gold || 0 },
+    { id: 'crypto_30', name: 'Fill the wallets', description: 'Accumulate 30 crypto', target: 30, current: resMap.crypto || 0 },
     { id: 'knowledge_20', name: 'Pursuit of wisdom', description: 'Accumulate 20 knowledge', target: 20, current: resMap.knowledge || 0 },
     { id: 'survive_day_20', name: 'Endure', description: 'Survive until day 20', target: 20, current: world.day_number },
     { id: 'survive_day_50', name: 'The long road', description: 'Survive until day 50', target: 50, current: world.day_number },

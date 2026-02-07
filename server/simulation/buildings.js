@@ -23,31 +23,31 @@ function getGrowthStage(worldId) {
 }
 
 const BUILDING_DEFS = {
-  hut:        { wood: 10, stone: 0, gold: 0, ticks: 5, hp: 100 },
-  farm:       { wood: 5, stone: 3, gold: 0, ticks: 8, hp: 80 },
-  workshop:   { wood: 15, stone: 10, gold: 0, ticks: 12, hp: 120 },
-  wall:       { wood: 0, stone: 20, gold: 0, ticks: 15, hp: 200 },
-  temple:     { wood: 0, stone: 10, gold: 5, ticks: 20, hp: 150 },
-  watchtower: { wood: 15, stone: 5, gold: 0, ticks: 10, hp: 100 },
-  market:     { wood: 20, stone: 15, gold: 5, ticks: 18, hp: 120 },
-  library:    { wood: 15, stone: 20, gold: 10, ticks: 25, hp: 130 },
-  storehouse: { wood: 25, stone: 10, gold: 0, ticks: 12, hp: 150 },
-  dock:       { wood: 12, stone: 5, gold: 0, ticks: 10, hp: 90 },
+  hut:        { wood: 10, stone: 0, crypto: 0, ticks: 5, hp: 100 },
+  farm:       { wood: 5, stone: 3, crypto: 0, ticks: 8, hp: 80 },
+  workshop:   { wood: 15, stone: 10, crypto: 0, ticks: 12, hp: 120 },
+  wall:       { wood: 0, stone: 20, crypto: 0, ticks: 15, hp: 200 },
+  temple:     { wood: 0, stone: 10, crypto: 5, ticks: 20, hp: 150 },
+  watchtower: { wood: 15, stone: 5, crypto: 0, ticks: 10, hp: 100 },
+  market:     { wood: 20, stone: 15, crypto: 5, ticks: 18, hp: 120 },
+  library:    { wood: 15, stone: 20, crypto: 10, ticks: 25, hp: 130 },
+  storehouse: { wood: 25, stone: 10, crypto: 0, ticks: 12, hp: 150 },
+  dock:       { wood: 12, stone: 5, crypto: 0, ticks: 10, hp: 90 },
 };
 
 // ─── MAINTENANCE COSTS (charged every MAINTENANCE_INTERVAL ticks) ───
 const MAINTENANCE_COSTS = {
-  hut:        { wood: 0, stone: 0, gold: 0 },
-  town_center:{ wood: 0, stone: 0, gold: 0 },
-  farm:       { wood: 1, stone: 0, gold: 0 },
-  watchtower: { wood: 1, stone: 0, gold: 0 },
-  storehouse: { wood: 1, stone: 0, gold: 0 },
-  dock:       { wood: 1, stone: 0, gold: 0 },
-  workshop:   { wood: 1, stone: 1, gold: 0 },
-  wall:       { wood: 0, stone: 1, gold: 0 },
-  temple:     { wood: 0, stone: 0, gold: 1 },
-  market:     { wood: 1, stone: 0, gold: 1 },
-  library:    { wood: 0, stone: 1, gold: 1 },
+  hut:        { wood: 0, stone: 0, crypto: 0 },
+  town_center:{ wood: 0, stone: 0, crypto: 0 },
+  farm:       { wood: 1, stone: 0, crypto: 0 },
+  watchtower: { wood: 1, stone: 0, crypto: 0 },
+  storehouse: { wood: 1, stone: 0, crypto: 0 },
+  dock:       { wood: 1, stone: 0, crypto: 0 },
+  workshop:   { wood: 1, stone: 1, crypto: 0 },
+  wall:       { wood: 0, stone: 1, crypto: 0 },
+  temple:     { wood: 0, stone: 0, crypto: 1 },
+  market:     { wood: 1, stone: 0, crypto: 1 },
+  library:    { wood: 0, stone: 1, crypto: 1 },
 };
 
 const DECAY_HP_PER_TICK = 3;
@@ -71,16 +71,16 @@ function processMaintenance(worldId, currentTick) {
 
     for (const b of activeBuildings) {
       const cost = MAINTENANCE_COSTS[b.type];
-      if (!cost || (cost.wood === 0 && cost.stone === 0 && cost.gold === 0)) continue;
+      if (!cost || (cost.wood === 0 && cost.stone === 0 && cost.crypto === 0)) continue;
 
       const canAfford = (resMap.wood || 0) >= cost.wood &&
                         (resMap.stone || 0) >= cost.stone &&
-                        (resMap.gold || 0) >= cost.gold;
+                        (resMap.crypto || 0) >= cost.crypto;
 
       if (canAfford) {
         if (cost.wood > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(cost.wood, worldId); resMap.wood -= cost.wood; }
         if (cost.stone > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(cost.stone, worldId); resMap.stone -= cost.stone; }
-        if (cost.gold > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(cost.gold, worldId); resMap.gold -= cost.gold; }
+        if (cost.crypto > 0) { db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cost.crypto, worldId); resMap.crypto -= cost.crypto; }
       } else {
         // Can't pay — start decaying
         db.prepare("UPDATE buildings SET status = 'decaying', decay_tick = ? WHERE id = ?").run(currentTick, b.id);
@@ -102,20 +102,20 @@ function processMaintenance(worldId, currentTick) {
   for (const b of decayingBuildings) {
     // Check if resources are now available to auto-recover
     const cost = MAINTENANCE_COSTS[b.type];
-    if (cost && (cost.wood > 0 || cost.stone > 0 || cost.gold > 0)) {
+    if (cost && (cost.wood > 0 || cost.stone > 0 || cost.crypto > 0)) {
       const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
       const resMap = {};
       for (const r of resources) resMap[r.type] = r.amount;
 
       const canAfford = (resMap.wood || 0) >= cost.wood &&
                         (resMap.stone || 0) >= cost.stone &&
-                        (resMap.gold || 0) >= cost.gold;
+                        (resMap.crypto || 0) >= cost.crypto;
 
       if (canAfford) {
         // Pay and recover
         if (cost.wood > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(cost.wood, worldId);
         if (cost.stone > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(cost.stone, worldId);
-        if (cost.gold > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(cost.gold, worldId);
+        if (cost.crypto > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cost.crypto, worldId);
         db.prepare("UPDATE buildings SET status = 'active', decay_tick = NULL WHERE id = ?").run(b.id);
         events.push({
           type: 'maintenance',
@@ -214,7 +214,7 @@ function canBuild(worldId, type) {
 
   if ((resMap.wood || 0) < def.wood) return { ok: false, reason: `Need ${def.wood} wood (have ${Math.floor(resMap.wood || 0)})` };
   if ((resMap.stone || 0) < def.stone) return { ok: false, reason: `Need ${def.stone} stone (have ${Math.floor(resMap.stone || 0)})` };
-  if ((resMap.gold || 0) < def.gold) return { ok: false, reason: `Need ${def.gold} gold (have ${Math.floor(resMap.gold || 0)})` };
+  if ((resMap.crypto || 0) < def.crypto) return { ok: false, reason: `Need ${def.crypto} crypto (have ${Math.floor(resMap.crypto || 0)})` };
 
   // Religious building cap (temple)
   if (type === 'temple') {
@@ -240,7 +240,7 @@ function startBuilding(worldId, type, x, y) {
   // Deduct resources
   if (def.wood > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(def.wood, worldId);
   if (def.stone > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(def.stone, worldId);
-  if (def.gold > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(def.gold, worldId);
+  if (def.crypto > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(def.crypto, worldId);
 
   const id = uuid();
   db.prepare(`

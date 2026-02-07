@@ -1238,7 +1238,7 @@ function updateSidebar(data) {
     cultureEl.textContent = '';
   }
 
-  var resTypes = ['food', 'wood', 'stone', 'knowledge', 'gold', 'faith'];
+  var resTypes = ['food', 'wood', 'stone', 'knowledge', 'crypto', 'faith'];
   for (var ri = 0; ri < resTypes.length; ri++) {
     var type = resTypes[ri];
     var r = data.resources[type] || { amount: 0, capacity: 100 };

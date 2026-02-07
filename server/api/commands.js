@@ -176,18 +176,18 @@ router.post('/upgrade', (req, res) => {
   if (!building) return res.status(404).json({ error: 'Active building not found' });
   if (building.level >= 3) return res.status(400).json({ error: 'Max level reached (3)' });
 
-  const upgradeCost = { wood: 10 * building.level, stone: 8 * building.level, gold: 3 * building.level };
+  const upgradeCost = { wood: 10 * building.level, stone: 8 * building.level, crypto: 3 * building.level };
   const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
   const resMap = {};
   for (const r of resources) resMap[r.type] = r.amount;
 
   if ((resMap.wood || 0) < upgradeCost.wood) return res.status(400).json({ error: `Need ${upgradeCost.wood} wood` });
   if ((resMap.stone || 0) < upgradeCost.stone) return res.status(400).json({ error: `Need ${upgradeCost.stone} stone` });
-  if ((resMap.gold || 0) < upgradeCost.gold) return res.status(400).json({ error: `Need ${upgradeCost.gold} gold` });
+  if ((resMap.crypto || 0) < upgradeCost.crypto) return res.status(400).json({ error: `Need ${upgradeCost.crypto} crypto` });
 
   db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(upgradeCost.wood, req.worldId);
   db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(upgradeCost.stone, req.worldId);
-  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(upgradeCost.gold, req.worldId);
+  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(upgradeCost.crypto, req.worldId);
 
   db.prepare('UPDATE buildings SET level = level + 1, max_hp = max_hp + 50, hp = hp + 50 WHERE id = ?').run(building_id);
 
@@ -236,7 +236,7 @@ router.post('/renovate', (req, res) => {
   // Cost is 50% of original build cost
   const woodCost = Math.ceil(def.wood * 0.5);
   const stoneCost = Math.ceil(def.stone * 0.5);
-  const goldCost = Math.ceil(def.gold * 0.5);
+  const cryptoCost = Math.ceil(def.crypto * 0.5);
 
   const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
   const resMap = {};
@@ -244,22 +244,22 @@ router.post('/renovate', (req, res) => {
 
   if (woodCost > 0 && (resMap.wood || 0) < woodCost) return res.status(400).json({ error: `Need ${woodCost} wood (have ${Math.floor(resMap.wood || 0)})` });
   if (stoneCost > 0 && (resMap.stone || 0) < stoneCost) return res.status(400).json({ error: `Need ${stoneCost} stone (have ${Math.floor(resMap.stone || 0)})` });
-  if (goldCost > 0 && (resMap.gold || 0) < goldCost) return res.status(400).json({ error: `Need ${goldCost} gold (have ${Math.floor(resMap.gold || 0)})` });
+  if (cryptoCost > 0 && (resMap.crypto || 0) < cryptoCost) return res.status(400).json({ error: `Need ${cryptoCost} crypto (have ${Math.floor(resMap.crypto || 0)})` });
 
   if (woodCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
   if (stoneCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
-  if (goldCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(goldCost, req.worldId);
+  if (cryptoCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cryptoCost, req.worldId);
 
   const restoredHp = Math.floor(def.hp * 0.5);
   db.prepare("UPDATE buildings SET hp = ?, status = 'active', decay_tick = NULL, renovated = 1 WHERE id = ?").run(restoredHp, building_id);
 
-  res.json({ ok: true, renovated: building.type, hpRestored: restoredHp, cost: { wood: woodCost, stone: stoneCost, gold: goldCost } });
+  res.json({ ok: true, renovated: building.type, hpRestored: restoredHp, cost: { wood: woodCost, stone: stoneCost, crypto: cryptoCost } });
 });
 
 // POST /api/command/trade — buy/sell resources at the market
 const TRADE_RATES = {
-  // sell: how much gold you get per unit sold
-  // buy: how much gold it costs per unit bought
+  // sell: how much crypto you get per unit sold
+  // buy: how much crypto it costs per unit bought
   food:      { sell: 0.5, buy: 0.8 },
   wood:      { sell: 0.4, buy: 0.6 },
   stone:     { sell: 0.3, buy: 0.5 },
@@ -301,27 +301,27 @@ router.post('/trade', (req, res) => {
   const rate = TRADE_RATES[resource];
 
   if (action === 'sell') {
-    // Sell resource for gold
+    // Sell resource for crypto
     if ((resMap[resource] || 0) < qty) {
       return res.status(400).json({ error: `Not enough ${resource}. Have ${Math.floor(resMap[resource] || 0)}, need ${qty}` });
     }
-    const goldGained = Math.floor(qty * rate.sell * levelBonus);
+    const cryptoGained = Math.floor(qty * rate.sell * levelBonus);
     db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(qty, req.worldId, resource);
-    db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'gold'").run(goldGained, req.worldId);
+    db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'crypto'").run(cryptoGained, req.worldId);
 
     logCultureAction(req.worldId, 'trade', resource);
-    return res.json({ ok: true, action: 'sell', sold: qty, resource, goldGained, rate: rate.sell, marketLevel });
+    return res.json({ ok: true, action: 'sell', sold: qty, resource, cryptoGained, rate: rate.sell, marketLevel });
   } else {
-    // Buy resource with gold
-    const goldCost = Math.ceil(qty * rate.buy / levelBonus);
-    if ((resMap.gold || 0) < goldCost) {
-      return res.status(400).json({ error: `Not enough gold. Need ${goldCost}, have ${Math.floor(resMap.gold || 0)}` });
+    // Buy resource with crypto
+    const cryptoCost = Math.ceil(qty * rate.buy / levelBonus);
+    if ((resMap.crypto || 0) < cryptoCost) {
+      return res.status(400).json({ error: `Not enough crypto. Need ${cryptoCost}, have ${Math.floor(resMap.crypto || 0)}` });
     }
-    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'gold'").run(goldCost, req.worldId);
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cryptoCost, req.worldId);
     db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(qty, req.worldId, resource);
 
     logCultureAction(req.worldId, 'trade', resource);
-    return res.json({ ok: true, action: 'buy', bought: qty, resource, goldCost, rate: rate.buy, marketLevel });
+    return res.json({ ok: true, action: 'buy', bought: qty, resource, cryptoCost, rate: rate.buy, marketLevel });
   }
 });
 

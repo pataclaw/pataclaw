@@ -81,9 +81,9 @@ function processExploration(worldId) {
           { type: 'ancient_forge',   name: 'Ancient Forge',   terrains: ['mountain', 'desert'],  bonus: { type: 'stone', amount: 30 } },
           { type: 'sunken_temple',   name: 'Sunken Temple',   terrains: ['plains', 'forest'],    bonus: { type: 'faith', amount: 20 } },
           { type: 'crystal_spire',   name: 'Crystal Spire',   terrains: ['plains', 'desert'],    bonus: { type: 'knowledge', amount: 25 } },
-          { type: 'shadow_keep',     name: 'Shadow Keep',     terrains: ['forest', 'mountain'],  bonus: { type: 'gold', amount: 20 } },
+          { type: 'shadow_keep',     name: 'Shadow Keep',     terrains: ['forest', 'mountain'],  bonus: { type: 'crypto', amount: 20 } },
           { type: 'elder_library',   name: 'Elder Library',   terrains: ['plains', 'forest'],    bonus: { type: 'knowledge', amount: 30 } },
-          { type: 'war_monument',    name: 'War Monument',    terrains: ['plains', 'mountain'],  bonus: { type: 'gold', amount: 15 } },
+          { type: 'war_monument',    name: 'War Monument',    terrains: ['plains', 'mountain'],  bonus: { type: 'crypto', amount: 15 } },
         ];
 
         const chosen = LEGENDARY_BUILDINGS[Math.floor(Math.random() * LEGENDARY_BUILDINGS.length)];

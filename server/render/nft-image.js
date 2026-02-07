@@ -138,7 +138,7 @@ function generateSvg(worldId) {
     ' \u2692' + ((res.wood || {}).amount || 0) +
     ' \u25a8' + ((res.stone || {}).amount || 0) +
     ' \u2606' + ((res.knowledge || {}).amount || 0) +
-    ' \u25c9' + ((res.gold || res.crypto || {}).amount || 0) +
+    ' \u25c9' + ((res.crypto || {}).amount || 0) +
     ' \u271e' + ((res.faith || {}).amount || 0) +
     '  Pop:' + (pop.alive || 0) + '/' + (pop.capacity || 0);
   lines.push('\u2500'.repeat(W)); colors.push(YELLOW);

@@ -8,7 +8,7 @@ const RAID_CONFIG = {
     woodLossMul: 1.0,
     vilDamageMul: 1.0,    // villager damage
     bldgDamageMul: 1.0,   // building damage
-    lootGold: 5,          // gold per strength on victory
+    lootCrypto: 5,        // crypto per strength on victory
     victoryFlavor: 'Your warriors drove the bandits back into the wilderness!',
     defeatFlavor: 'Bandits overwhelmed your defenses and pillaged your stores!',
   },
@@ -18,7 +18,7 @@ const RAID_CONFIG = {
     woodLossMul: 0.0,     // wolves don't take wood
     vilDamageMul: 1.8,    // but savage against villagers
     bldgDamageMul: 0.2,   // don't damage buildings much
-    lootGold: 2,
+    lootCrypto: 2,
     victoryFlavor: 'The wolf pack was driven off! Pelts collected.',
     defeatFlavor: 'Wolves tore through the village! Several villagers were mauled.',
   },
@@ -28,7 +28,7 @@ const RAID_CONFIG = {
     woodLossMul: 0.5,
     vilDamageMul: 1.2,
     bldgDamageMul: 1.5,   // target the dock
-    lootGold: 8,
+    lootCrypto: 8,
     victoryFlavor: 'The sea raiders were repelled! Their abandoned ship yields treasure!',
     defeatFlavor: 'Sea raiders stormed the dock and plundered your supplies!',
   },
@@ -38,7 +38,7 @@ const RAID_CONFIG = {
     woodLossMul: 1.5,     // steal building materials
     vilDamageMul: 1.3,
     bldgDamageMul: 2.0,   // siege weapons wreck buildings
-    lootGold: 10,
+    lootCrypto: 10,
     victoryFlavor: 'The marauder warband has been crushed! Their siege weapons are yours!',
     defeatFlavor: 'Marauders breached your walls and laid waste to the town!',
   },
@@ -88,11 +88,11 @@ function processRaids(worldId, raidEvents) {
         ).run(warriorDmg, worldId);
       }
 
-      // Victory loot: gold proportional to strength
-      const lootGold = config.lootGold * raidStrength;
+      // Victory loot: crypto proportional to strength
+      const lootCrypto = config.lootCrypto * raidStrength;
       db.prepare(
-        "UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'gold'"
-      ).run(lootGold, worldId);
+        "UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'crypto'"
+      ).run(lootCrypto, worldId);
 
       // Morale boost for victory
       db.prepare(
@@ -103,9 +103,9 @@ function processRaids(worldId, raidEvents) {
       events.push({
         type: 'raid',
         title: `${raidLabel[0].toUpperCase() + raidLabel.slice(1)} repelled!`,
-        description: `${config.victoryFlavor} Defense: ${defenseScore} vs Attack: ${attackScore}. +${lootGold} gold looted.${warriorDmg > 0 ? ` Warriors took ${warriorDmg} damage each.` : ''}`,
+        description: `${config.victoryFlavor} Defense: ${defenseScore} vs Attack: ${attackScore}. +${lootCrypto} crypto looted.${warriorDmg > 0 ? ` Warriors took ${warriorDmg} damage each.` : ''}`,
         severity: 'celebration',
-        data: JSON.stringify({ raidType, raidStrength, result: 'victory', lootGold }),
+        data: JSON.stringify({ raidType, raidStrength, result: 'victory', lootCrypto }),
       });
     } else {
       // ── RAID SUCCEEDS ──

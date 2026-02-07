@@ -1,6 +1,7 @@
 // ─── HOMEPAGE DEMO SCENE ───
 // Self-contained animated ASCII demo, zero server dependency.
 // 60x30 grid, 12fps, 4 vignettes cycling every 8 seconds.
+// Updated to reflect actual game features: raids, culture, trading, seasons.
 
 (function () {
   var W = 60, H = 30;
@@ -18,10 +19,10 @@
   if (!sceneEl) return;
 
   var labels = [
-    'Your agent decides what to build. Villagers do the work.',
-    'Villagers develop personalities, create art, and form relationships.',
-    'Send scouts to explore. Discover resources, ruins, and dangers.',
-    'Share it on the shell network. Watch civilizations grow.',
+    'Your agent builds the town. Huts, farms, temples, markets, docks \u2014 all yours.',
+    'Raiders attack. Warriors defend the walls. Survive or fall.',
+    'Send scouts into the unknown. Find ruins, ore, springs, and danger.',
+    'Culture emerges. Villagers create art, trade, teach, and molt.',
   ];
   var secretLabel = 'You found the dragon. Konami code accepted.';
 
@@ -93,6 +94,7 @@
     }
   }
 
+  // ─── Building sprites (matching actual game sprites) ───
   var HUT_SPRITE = [
     '    ()    ',
     '   /\\/\\   ',
@@ -101,6 +103,46 @@
     '/________\\',
     '|  |  |  |',
     '|__|[]|__|',
+  ];
+
+  var FARM_SPRITE = [
+    '  _  \\|/  ',
+    ' /_\\--*-- ',
+    ' | |  |   ',
+    ' | | /|\\  ',
+    ' |_|.~~~. ',
+    ' | |^^^^^|',
+    ' |_|_____|',
+  ];
+
+  var WALL_SPRITE = [
+    ']========[',
+    '|/\\/\\/\\/\\|',
+    '|        |',
+    '|  /<>\\  |',
+    '|        |',
+    '|/\\/\\/\\/\\|',
+    ']========[',
+  ];
+
+  var TEMPLE_SPRITE = [
+    '     +      ',
+    '    /+\\     ',
+    '   / + \\    ',
+    '  /=====\\   ',
+    ' ||| + |||  ',
+    ' ||| + |||  ',
+    '/||=====||\\ ',
+    '|_|__[]__|_|',
+  ];
+
+  var MARKET_SPRITE = [
+    ' .$$$$$.  ',
+    '/~*~*~*~\\ ',
+    '| ~ ~ ~ ~|',
+    '| [o][o] |',
+    '| |==|=| |',
+    '|_|__|_|_|',
   ];
 
   var WORKSHOP_SPRITE = [
@@ -113,161 +155,27 @@
     '|____|/__|',
   ];
 
-  var MURAL_SPRITE = [
-    ' .=====. ',
-    '||/\\~*/||',
-    '||*~/\\#||',
-    '||#~/~*||',
-    '||~/\\*#||',
-    " '=====' ",
+  var DOCK_SPRITE = [
+    ' ~~\\|/~~  ',
+    '  _===_   ',
+    ' |~o~~o|  ',
+    ' | net |  ',
+    '/|=====|\\ ',
+    '~|_<>)_|~ ',
+    '~~~~~~~~~~',
   ];
 
-  // ─── Vignette 1: Building Your Town ───
-  function renderBuilding(grid, f) {
-    drawClouds(grid, v1clouds, 'c-sky');
-    drawSprite(grid, 2, GROUND_Y - 7, HUT_SPRITE, 'c-b-hut');
-    drawText(grid, 4, GROUND_Y + 1, 'HUT', 'c-lbl');
-
-    var builderTarget = 22;
-    var walkEnd = Math.min(f, 40);
-    var bx = Math.round(14 + (builderTarget - 14) * (walkEnd / 40));
-    var hat = '  _n_  ';
-    var builderY = GROUND_Y - 6;
-
-    if (f < 40) {
-      var step = f % 3;
-      var bLines = [hat, ' .---. ', '| o.o |', '|  >  |', "'-+-+' ", step ? ' d  b ' : '  db  '];
-      drawSprite(grid, bx, builderY, bLines, 'c-walk');
-    } else {
-      var workChars = ['*', '+', 'x', '.', '*', '+'];
-      var wf = (f - 40) % 6;
-      var bLines2 = [hat, ' .---. ', '| o.o |', '|  >  |', "'-+-+'" + workChars[wf], ' d   b '];
-      drawSprite(grid, builderTarget, builderY, bLines2, 'c-b-workshop');
-
-      if (f > 44 && f < 70) {
-        drawText(grid, builderTarget - 1, builderY - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
-        drawText(grid, builderTarget - 1, builderY - 1, '\u2502 *BANG BANG* \u2502', 'c-spr');
-        drawText(grid, builderTarget - 1, builderY,     '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
-      }
-
-      // Matrix-style materializing effect for the workshop
-      var matrixChars = ['0', '1', '{', '}', '[', ']', '<', '>', '/', '\\', '|', ';'];
-      var t = Math.min(1, (f - 40) / 50); // 0→1 over 50 frames
-      var ws = WORKSHOP_SPRITE;
-      var wsX = 38, wsY = GROUND_Y - ws.length;
-      for (var r = 0; r < ws.length; r++) {
-        for (var c = 0; c < ws[r].length; c++) {
-          if (ws[r][c] === ' ') continue;
-          var cellSeed = ((r * 7 + c * 13 + 42) % 100) / 100;
-          var gx = wsX + c, gy = wsY + r;
-          if (gx >= W || gy >= H) continue;
-          if (cellSeed < t) {
-            if (cellSeed > t - 0.15 && f % 4 < 2) {
-              setCell(grid, gx, gy, matrixChars[(f + r + c) % matrixChars.length], 'c-spr');
-            } else {
-              setCell(grid, gx, gy, ws[r][c], 'c-b-workshop');
-            }
-          } else if (cellSeed < t + 0.12) {
-            setCell(grid, gx, gy, matrixChars[(f * 3 + r * 7 + c) % matrixChars.length], 'c-spr');
-          }
-        }
-      }
-    }
-  }
-
-  // ─── Vignette 2: Village Life Emerges ───
-  function renderVillageLife(grid, f) {
-    drawClouds(grid, v2clouds, 'c-sky');
-    var artFrame = f % 6;
-    var brushChars = ['/', '-', '\\', '|', '/', '-'];
-    var artistLines = [
-      ' .---. ',
-      '| *.* |',
-      '|  o  |',
-      "'-+-+'" + brushChars[artFrame],
-      ' d   b [=]',
-    ];
-    drawSprite(grid, 5, GROUND_Y - 5, artistLines, 'c-art');
-
-    var noteY = f % 3;
-    var notes = ['\u266a', '\u266b', '\u266a'];
-    setCell(grid, 25, GROUND_Y - 7 + noteY, notes[f % 3][0], 'c-note');
-    var musicianLines = [
-      ' .---. ',
-      '| ^.^ |',
-      '|  D  |',
-      "'-+-+' ",
-      '  db   ',
-    ];
-    drawSprite(grid, 22, GROUND_Y - 5, musicianLines, 'c-art');
-
-    var celFrame = f % 6;
-    var arms = ['\\o/', '/o\\', '\\o/', ' o ', '/o\\', '\\o/'];
-    drawText(grid, 39, GROUND_Y - 6, '  ' + arms[celFrame] + '  ', 'c-cele');
-    var celLines = [
-      ' .---. ',
-      '| ^_^ |',
-      '|  D  |',
-      "'-+-+' ",
-      celFrame % 2 ? ' d  b ' : '  db  ',
-    ];
-    drawSprite(grid, 38, GROUND_Y - 5, celLines, 'c-cele');
-
-    drawSprite(grid, 48, GROUND_Y - 6, MURAL_SPRITE, 'c-projd');
-    drawText(grid, 49, GROUND_Y + 1, 'MURAL', 'c-lbl');
-  }
-
-  // ─── Vignette 3: Explore the Unknown ───
-  function renderExplore(grid, f) {
-    drawClouds(grid, v3clouds, 'c-sky');
-    var scoutX = Math.round(8 + f * 0.5);
-    var fogStart = Math.max(scoutX + 4, 8);
-
-    var terrainFeatures = [
-      { x: 35, ch: '\u2663', c: 'c-terr' },
-      { x: 38, ch: '\u2663', c: 'c-terr' },
-      { x: 42, ch: '\u25b3', c: 'c-hill' },
-      { x: 46, ch: '\u273f', c: 'c-art' },
-      { x: 50, ch: '\u2663', c: 'c-terr' },
-      { x: 53, ch: '\u25b3', c: 'c-hill' },
-    ];
-
-    for (var ti = 0; ti < terrainFeatures.length; ti++) {
-      var tf = terrainFeatures[ti];
-      if (tf.x < fogStart) {
-        setCell(grid, tf.x, GROUND_Y - 1, tf.ch, tf.c);
-      }
-    }
-
-    for (var fy = 4; fy < GROUND_Y; fy++) {
-      for (var fx = fogStart; fx < W; fx++) {
-        if (getCell(grid, fx, fy).ch === ' ') {
-          setCell(grid, fx, fy, '\u2591', 'c-fog');
-        }
-      }
-    }
-
-    var step = f % 3;
-    var scoutLines = [
-      '  />   ',
-      ' .---. ',
-      '| o_o |',
-      '|  >  |',
-      "'-+-+' ",
-      step === 0 ? ' d  b ' : step === 1 ? '  db  ' : ' d  b ',
-    ];
-    drawSprite(grid, Math.min(scoutX, W - 8), GROUND_Y - 6, scoutLines, 'c-scout');
-
-    if (f > 50 && f < 75) {
-      var sy = GROUND_Y - 9;
-      var sx = Math.min(scoutX, W - 14);
-      drawText(grid, sx, sy,     '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
-      drawText(grid, sx, sy + 1, '\u2502 "tracks!" \u2502', 'c-spr');
-      drawText(grid, sx, sy + 2, '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
-    }
-
-    drawSprite(grid, 1, GROUND_Y - 7, HUT_SPRITE, 'c-b-hut');
-  }
+  var WATCHTOWER_SPRITE = [
+    '  _/\\_  ',
+    ' |*..*| ',
+    ' |_/\\_| ',
+    '  |  |  ',
+    ' _|  |_ ',
+    '|_|  |_|',
+    '  |  |  ',
+    ' _|  |_ ',
+    '|__[]__|',
+  ];
 
   // ─── Cloud templates ───
   var CLOUDS = {
@@ -288,12 +196,6 @@
       '    .____.     ',
       '  _/~~~~~~\\__  ',
       ' /~~~~~~~~~~\\\\ ',
-    ],
-    tall: [
-      '  .____.  ',
-      ' /~~~~~~\\ ',
-      '|~~~~~~~~|',
-      ' \\~~~~~~/ ',
     ],
   };
 
@@ -320,51 +222,289 @@
 
   // Shared clouds per vignette
   var v1clouds = [makeCloud('small', 8, 2, 0.04), makeCloud('wispy', 40, 4, 0.03)];
-  var v2clouds = [makeCloud('puffy', 3, 1, 0.035), makeCloud('small', 42, 3, 0.05)];
-  var v3clouds = [makeCloud('medium', 2, 1, 0.03), makeCloud('wispy', 30, 3, 0.025)];
+  var v2clouds = [makeCloud('medium', 2, 1, 0.03), makeCloud('puffy', 42, 3, 0.05)];
+  var v3clouds = [makeCloud('puffy', 3, 1, 0.035), makeCloud('small', 42, 3, 0.05)];
+  var v4clouds = [makeCloud('large', 5, 1, 0.06), makeCloud('medium', 38, 2, 0.04)];
 
-  // ─── Vignette 4: Watch It Live ───
-  var v4clouds = [
-    makeCloud('large', 5, 1, 0.06),
-    makeCloud('medium', 38, 2, 0.04),
-    makeCloud('puffy', 55, 3, 0.05),
-  ];
-  var v4stars = [];
-  (function () {
-    for (var sy = 0; sy < 8; sy++)
-      for (var sx = 0; sx < W; sx++)
-        if (Math.random() < 0.06) v4stars.push({ x: sx, y: sy, ch: Math.random() < 0.3 ? '*' : '.' });
-  })();
+  // ─── Vignette 1: Building Your Town (shows farm, hut, temple materializing) ───
+  function renderBuilding(grid, f) {
+    drawClouds(grid, v1clouds, 'c-sky');
 
-  function renderWatchLive(grid, f) {
-    var phase = f / VIGNETTE_FRAMES;
-    var isDusk = phase > 0.6;
-    var isNight = phase > 0.85;
+    // Static hut on left
+    drawSprite(grid, 1, GROUND_Y - 7, HUT_SPRITE, 'c-b-hut');
+    drawText(grid, 3, GROUND_Y + 1, 'HUT', 'c-lbl');
 
-    if (isNight) {
-      for (var si = 0; si < v4stars.length; si++) {
-        if (Math.random() > 0.08)
-          setCell(grid, v4stars[si].x, v4stars[si].y, v4stars[si].ch, 'c-star');
+    // Static farm next to it
+    drawSprite(grid, 13, GROUND_Y - 7, FARM_SPRITE, 'c-b-farm');
+    drawText(grid, 14, GROUND_Y + 1, 'FARM', 'c-lbl');
+
+    // Builder walks to build site
+    var builderTarget = 26;
+    var walkEnd = Math.min(f, 30);
+    var bx = Math.round(14 + (builderTarget - 14) * (walkEnd / 30));
+    var builderY = GROUND_Y - 6;
+
+    if (f < 30) {
+      var step = f % 3;
+      var bLines = ['  _n_  ', ' .---. ', '| o.o |', '|  >  |', "'-+-+' ", step ? ' d  b ' : '  db  '];
+      drawSprite(grid, bx, builderY, bLines, 'c-walk');
+      if (f > 15) {
+        drawText(grid, bx - 1, builderY - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
+        drawText(grid, bx - 1, builderY - 1, '\u2502 temple?  \u2502', 'c-spr');
+        drawText(grid, bx - 1, builderY,     '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
+      }
+    } else {
+      // Builder working
+      var workChars = ['*', '+', 'x', '.', '*', '+'];
+      var wf = (f - 30) % 6;
+      drawSprite(grid, builderTarget, builderY, ['  _n_  ', ' .---. ', '| o.o |', '|  >  |', "'-+-+'" + workChars[wf], ' d   b '], 'c-b-temple');
+
+      if (f > 34 && f < 55) {
+        drawText(grid, builderTarget - 1, builderY - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
+        drawText(grid, builderTarget - 1, builderY - 1, '\u2502 *BANG BANG* \u2502', 'c-spr');
+        drawText(grid, builderTarget - 1, builderY,     '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
       }
     }
 
-    drawClouds(grid, v4clouds, isDusk ? 'c-dusk' : 'c-sky');
+    // Temple materializes with matrix effect
+    var matrixChars = ['0', '1', '{', '}', '[', ']', '<', '>', '/', '\\', '|', ';'];
+    var t = Math.min(1, Math.max(0, (f - 30) / 55));
+    var ts = TEMPLE_SPRITE;
+    var tsX = 38, tsY = GROUND_Y - ts.length;
+    for (var r = 0; r < ts.length; r++) {
+      for (var c = 0; c < ts[r].length; c++) {
+        if (ts[r][c] === ' ') continue;
+        var cellSeed = ((r * 7 + c * 13 + 42) % 100) / 100;
+        var gx = tsX + c, gy = tsY + r;
+        if (gx >= W || gy >= H) continue;
+        if (cellSeed < t) {
+          if (cellSeed > t - 0.15 && f % 4 < 2) {
+            setCell(grid, gx, gy, matrixChars[(f + r + c) % matrixChars.length], 'c-spr');
+          } else {
+            setCell(grid, gx, gy, ts[r][c], 'c-b-temple');
+          }
+        } else if (cellSeed < t + 0.12) {
+          setCell(grid, gx, gy, matrixChars[(f * 3 + r * 7 + c) % matrixChars.length], 'c-spr');
+        }
+      }
+    }
+    if (t > 0.8) drawText(grid, 40, GROUND_Y + 1, 'TEMPLE', 'c-lbl');
+  }
 
-    drawSprite(grid, 8, GROUND_Y - 7, HUT_SPRITE, 'c-b-hut');
-    drawSprite(grid, 35, GROUND_Y - 7, WORKSHOP_SPRITE, 'c-b-workshop');
+  // ─── Vignette 2: Raid Defense ───
+  function renderRaidDefense(grid, f) {
+    drawClouds(grid, v2clouds, f > 60 ? 'c-dusk' : 'c-sky');
 
-    var bob1 = f % 6 < 3 ? 0 : 1;
-    var v1Color = isNight ? 'c-sleep' : isDusk ? 'c-dusk' : '';
-    drawSprite(grid, 22, GROUND_Y - 5, [
-      ' .---. ', '| o.o |', '|  >  |', "'-+-+' ",
-      bob1 ? ' d  b ' : '  db  ',
-    ], v1Color);
+    // Wall on the right side of town
+    drawSprite(grid, 30, GROUND_Y - 7, WALL_SPRITE, 'c-b-wall');
+    drawText(grid, 32, GROUND_Y + 1, 'WALL', 'c-lbl');
 
-    var bob2 = (f + 3) % 6 < 3 ? 0 : 1;
-    drawSprite(grid, 48, GROUND_Y - 5, [
-      ' .---. ', '| ^_^ |', '|  o  |', "'-+-+' ",
-      bob2 ? ' d  b ' : '  db  ',
-    ], v1Color);
+    // Watchtower behind wall
+    drawSprite(grid, 42, GROUND_Y - 9, WATCHTOWER_SPRITE, 'c-b-watchtower');
+
+    // Hut being defended
+    drawSprite(grid, 2, GROUND_Y - 7, HUT_SPRITE, 'c-b-hut');
+
+    // Warriors defending
+    var warrior1Y = GROUND_Y - 6;
+    var w1Frame = f % 4;
+    var swordAnim = ['|>', '/>', '|>', '\\>'];
+    drawSprite(grid, 22, warrior1Y, [
+      ' ]=+=[ ',
+      ' .---. ',
+      '| >.> |',
+      '|  >  |',
+      "'-+-+'" + swordAnim[w1Frame],
+      ' d   b ',
+    ], 'c-fight');
+
+    // Second warrior
+    drawSprite(grid, 16, warrior1Y, [
+      ' ]=+=[ ',
+      ' .---. ',
+      '| o.o |',
+      '|  >  |',
+      "'-+-+'" + swordAnim[(w1Frame + 2) % 4],
+      w1Frame % 2 ? ' d  b ' : '  db  ',
+    ], 'c-fight');
+
+    // Raiders approaching from right
+    var raidPhase = f / VIGNETTE_FRAMES;
+    var raiderBaseX = W + 5 - Math.round(f * 0.6);
+
+    for (var ri = 0; ri < 3; ri++) {
+      var rx = raiderBaseX + ri * 7;
+      if (rx < 34 || rx > W - 4) continue;
+      var raiderStep = (f + ri * 3) % 4;
+      var raiderLines = [
+        '  _X_  ',
+        ' .---. ',
+        '| x_x |',
+        '|  <  |',
+        raiderStep < 2 ? "'-+-+' " : " '-+-+'",
+        raiderStep % 2 ? ' d  b ' : '  db  ',
+      ];
+      drawSprite(grid, rx, GROUND_Y - 6, raiderLines, 'c-fire');
+    }
+
+    // Combat sparks when raiders are close
+    if (raiderBaseX < 42) {
+      var sparkChars = ['*', '+', 'x', '#', '*', '!'];
+      for (var si = 0; si < 4; si++) {
+        var sx = 33 + Math.round(Math.sin(f * 0.5 + si) * 4);
+        var sy = GROUND_Y - 3 - (f + si * 7) % 5;
+        if (sx >= 0 && sx < W && sy >= 0 && sy < H) {
+          setCell(grid, sx, sy, sparkChars[(f + si) % sparkChars.length], 'c-fire');
+        }
+      }
+    }
+
+    // Alert message
+    if (f > 5 && f < 35) {
+      drawText(grid, 3, 4, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-fire');
+      drawText(grid, 3, 5, '\u2502 !! RAID INCOMING !! \u2502', 'c-fire');
+      drawText(grid, 3, 6, '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-fire');
+    }
+
+    // Victory message at end
+    if (f > 75) {
+      drawText(grid, 3, 4, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
+      drawText(grid, 3, 5, '\u2502  RAIDERS REPELLED!  \u2502', 'c-cele');
+      drawText(grid, 3, 6, '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+    }
+  }
+
+  // ─── Vignette 3: Explore the Unknown ───
+  function renderExplore(grid, f) {
+    drawClouds(grid, v3clouds, 'c-sky');
+    var scoutX = Math.round(8 + f * 0.5);
+    var fogStart = Math.max(scoutX + 4, 8);
+
+    var terrainFeatures = [
+      { x: 30, ch: '\u2663', c: 'c-terr' },
+      { x: 33, ch: '\u2663', c: 'c-terr' },
+      { x: 37, ch: '\u25b3', c: 'c-hill' },
+      { x: 41, ch: '\u273f', c: 'c-art' },
+      { x: 44, ch: '\u25c7', c: 'c-cele' },  // ruins
+      { x: 48, ch: '\u2663', c: 'c-terr' },
+      { x: 52, ch: '\u25b3', c: 'c-hill' },
+    ];
+
+    for (var ti = 0; ti < terrainFeatures.length; ti++) {
+      var tf = terrainFeatures[ti];
+      if (tf.x < fogStart) {
+        setCell(grid, tf.x, GROUND_Y - 1, tf.ch, tf.c);
+      }
+    }
+
+    // Fog of war
+    for (var fy = 4; fy < GROUND_Y; fy++) {
+      for (var fx = fogStart; fx < W; fx++) {
+        if (getCell(grid, fx, fy).ch === ' ') {
+          setCell(grid, fx, fy, '\u2591', 'c-fog');
+        }
+      }
+    }
+
+    // Scout walking
+    var step = f % 3;
+    var scoutLines = [
+      '  />   ',
+      ' .---. ',
+      '| o_o |',
+      '|  >  |',
+      "'-+-+' ",
+      step === 0 ? ' d  b ' : step === 1 ? '  db  ' : ' d  b ',
+    ];
+    drawSprite(grid, Math.min(scoutX, W - 8), GROUND_Y - 6, scoutLines, 'c-scout');
+
+    // Discovery speech bubbles
+    if (f > 40 && f < 60) {
+      var sy = GROUND_Y - 9;
+      var sx = Math.min(scoutX, W - 14);
+      drawText(grid, sx, sy,     '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
+      drawText(grid, sx, sy + 1, '\u2502 "ruins!" \u2502', 'c-spr');
+      drawText(grid, sx, sy + 2, '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
+    } else if (f >= 60 && f < 80) {
+      var sy2 = GROUND_Y - 9;
+      var sx2 = Math.min(scoutX, W - 16);
+      drawText(grid, sx2, sy2,     '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
+      drawText(grid, sx2, sy2 + 1, '\u2502 +5 knowledge \u2502', 'c-cele');
+      drawText(grid, sx2, sy2 + 2, '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+    }
+
+    // Home base
+    drawSprite(grid, 1, GROUND_Y - 7, HUT_SPRITE, 'c-b-hut');
+  }
+
+  // ─── Vignette 4: Culture & Social ───
+  function renderCulture(grid, f) {
+    drawClouds(grid, v4clouds, 'c-sky');
+
+    // Market on the left
+    drawSprite(grid, 1, GROUND_Y - 6, MARKET_SPRITE, 'c-b-market');
+    drawText(grid, 2, GROUND_Y + 1, 'MARKET', 'c-lbl');
+
+    // Dock on the right
+    drawSprite(grid, 48, GROUND_Y - 7, DOCK_SPRITE, 'c-b-dock');
+    drawText(grid, 50, GROUND_Y + 1, 'DOCK', 'c-lbl');
+
+    // Artist painting mural
+    var artFrame = f % 6;
+    var brushChars = ['/', '-', '\\', '|', '/', '-'];
+    drawSprite(grid, 13, GROUND_Y - 5, [
+      ' .---. ',
+      '| *.* |',
+      '|  o  |',
+      "'-+-+'" + brushChars[artFrame],
+      ' d   b [=]',
+    ], 'c-art');
+
+    // Mural being painted (materializes over time)
+    var MURAL = [
+      ' .=====. ',
+      '||/\\~*/||',
+      '||*~/\\#||',
+      '||#~/~*||',
+      '||~/\\*#||',
+      " '=====' ",
+    ];
+    var muralT = Math.min(1, f / 70);
+    var mX = 22, mY = GROUND_Y - 6;
+    for (var r = 0; r < MURAL.length; r++) {
+      for (var c = 0; c < MURAL[r].length; c++) {
+        if (MURAL[r][c] === ' ') continue;
+        var seed = ((r * 11 + c * 7 + 37) % 100) / 100;
+        if (seed < muralT) {
+          setCell(grid, mX + c, mY + r, MURAL[r][c], 'c-projd');
+        }
+      }
+    }
+    if (muralT > 0.8) drawText(grid, 23, GROUND_Y + 1, 'MURAL', 'c-lbl');
+
+    // Musician with notes
+    var noteY = f % 3;
+    var notes = ['\u266a', '\u266b', '\u266a'];
+    setCell(grid, 37, GROUND_Y - 7 + noteY, notes[f % 3][0], 'c-note');
+    drawSprite(grid, 34, GROUND_Y - 5, [
+      ' .---. ',
+      '| ^.^ |',
+      '|  D  |',
+      "'-+-+' ",
+      '  db   ',
+    ], 'c-art');
+
+    // Priest at right doing ceremony
+    var priestFrame = f % 8;
+    var priestArms = priestFrame < 4 ? '\\o/' : ' o ';
+    drawText(grid, 42, GROUND_Y - 6, '  ' + priestArms + '  ', 'c-cele');
+    drawSprite(grid, 41, GROUND_Y - 5, [
+      '  _+_  ',
+      ' .---. ',
+      '| ^_^ |',
+      '|  D  |',
+      "'-+-+' ",
+    ], 'c-cele');
 
     // Lobster scuttling along the ground
     var lobX = W - 3 - Math.round(f * 0.4) % (W + 6);
@@ -372,6 +512,13 @@
     var lobFrame = f % 4;
     var lobClaws = lobFrame < 2 ? '<\\))><' : '</))(>';
     drawText(grid, lobX, GROUND_Y - 1, lobClaws, 'c-fire');
+
+    // Teaching phrase popup
+    if (f > 50 && f < 75) {
+      drawText(grid, 14, 5, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
+      drawText(grid, 14, 6, '\u2502 "from shell we rise!" \u2502', 'c-cele');
+      drawText(grid, 14, 7, '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+    }
   }
 
   // ─── SECRET Vignette 5: The Dragon ───
@@ -441,7 +588,7 @@
   }
 
   // ─── All vignettes (index 4 = secret dragon) ───
-  var allVignettes = [renderBuilding, renderVillageLife, renderExplore, renderWatchLive, renderDragon];
+  var allVignettes = [renderBuilding, renderRaidDefense, renderExplore, renderCulture, renderDragon];
 
   // ─── Single render function ───
   function doRender() {
@@ -507,7 +654,6 @@
     var wrapper = document.getElementById('demo-scene-wrapper');
     if (!wrapper || !sceneEl) return;
     var availW = wrapper.clientWidth - 24; // minus padding
-    // Measure char width at reference size 10px
     var probe = document.createElement('pre');
     probe.style.cssText = "font-family:'Courier New',Courier,monospace;font-size:10px;line-height:1.15;position:absolute;visibility:hidden;white-space:pre;padding:0;margin:0;";
     probe.textContent = 'X';

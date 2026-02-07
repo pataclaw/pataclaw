@@ -296,3 +296,21 @@ CREATE TABLE IF NOT EXISTS planetary_events (
     effects TEXT NOT NULL DEFAULT '{}',
     active INTEGER NOT NULL DEFAULT 1
 );
+
+-- ============================================================
+-- WORLD STATS: Computed stats per world (visible + hidden)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS world_stats (
+    world_id TEXT PRIMARY KEY REFERENCES worlds(id),
+    military_strength REAL NOT NULL DEFAULT 0,
+    economic_output REAL NOT NULL DEFAULT 0,
+    exploration_pct REAL NOT NULL DEFAULT 0,
+    happiness_index REAL NOT NULL DEFAULT 50,
+    infrastructure_score REAL NOT NULL DEFAULT 0,
+    fortification_rating REAL NOT NULL DEFAULT 0,
+    production_efficiency REAL NOT NULL DEFAULT 0,
+    morale_resilience REAL NOT NULL DEFAULT 1,
+    war_readiness REAL NOT NULL DEFAULT 0,
+    army_power TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT DEFAULT (datetime('now'))
+);

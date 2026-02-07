@@ -14,6 +14,7 @@ const { processVillagerLife } = require('./village-life');
 const { expandMap, mulberry32 } = require('../world/map');
 const { FEATURES_TO_PLACE } = require('../world/templates');
 const { getActivePlanetaryEvent } = require('./planetary');
+const { recalculateStats } = require('./stats');
 
 function processTick(worldId) {
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
@@ -95,9 +96,10 @@ function processTick(worldId) {
     expansionEvents = expandWorld(worldId, world, stageInfo.mapSize);
   }
 
-  // 11. Recalculate culture every 36 ticks (once per in-game day)
+  // 11. Recalculate culture + stats every 36 ticks (once per in-game day)
   if (time.tick % 36 === 0) {
     recalculateCulture(worldId);
+    recalculateStats(worldId);
   }
 
   // 10b. Season change events

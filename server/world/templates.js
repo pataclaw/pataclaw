@@ -16,13 +16,117 @@ const TRAIT_PERSONALITY = {
   curious:  { temperament: 50, creativity: 65, sociability: 60 },
   stubborn: { temperament: 30, creativity: 40, sociability: 40 },
 };
-const NAME_PREFIXES = ['Pon', 'Don', 'Ton', 'Bon', 'Kon', 'Ron', 'Mon', 'Gon', 'Lon', 'Son'];
-const NAME_SUFFIXES = ['rik', 'da', 'li', 'ko', 'bu', 'ra', 'mi', 'zu', 'ta', 'pa'];
+// ─── VILLAGER NAMES (tiered rarity) ───
+const COMMON_PREFIXES = [
+  'Ren', 'Tal', 'Gor', 'Fen', 'Bel', 'Hob', 'Jak', 'Ned', 'Wil', 'Oma',
+  'Pip', 'Dov', 'Lev', 'Kip', 'Mag', 'Oda', 'Sev', 'Dag', 'Elm', 'Rua',
+  'Arn', 'Bri', 'Cal', 'Dor', 'Eva', 'Fin', 'Gil', 'Han', 'Iva', 'Jon',
+  'Kat', 'Lor', 'Mal', 'Nor', 'Ori', 'Pol', 'Ras', 'Sol', 'Tor', 'Ulf',
+  'Vin', 'Wen', 'Yar', 'Zev', 'Ash', 'Bor', 'Cob', 'Dax', 'Eld', 'Fyn',
+  'Grim', 'Hal', 'Isk', 'Jor', 'Kol', 'Lyn', 'Mik', 'Nel', 'Ost', 'Pax',
+];
+const COMMON_SUFFIXES = [
+  'a', 'en', 'is', 'or', 'uk', 'an', 'id', 'et', 'os', 'um',
+  'ir', 'el', 'on', 'as', 'ik', 'al', 'us', 'ia', 'ov', 'yn',
+  'ax', 'em', 'ol', 'un', 'ez', 'in', 'ar', 'ok', 'ith', 'eo',
+];
+const UNCOMMON_PREFIXES = [
+  'Brin', 'Cor', 'Kel', 'Sal', 'Pel', 'Rek', 'Silt', 'Bor', 'Ven', 'Mur',
+  'Rok', 'Pinn', 'Gul', 'Sker', 'Fath', 'Anch', 'Brac', 'Crest', 'Del',
+  'Eddy', 'Fjor', 'Gale', 'Hull', 'Isla', 'Jetk', 'Keel', 'Lure', 'Mast',
+  'Narw', 'Oar', 'Port', 'Quay', 'Rill', 'Surf', 'Traw', 'Und', 'Wake',
+  'Whar', 'Yawl', 'Zeph', 'Shoal', 'Reed', 'Cove', 'Marsh', 'Bay',
+];
+const UNCOMMON_SUFFIXES = [
+  'ane', 'ell', 'urn', 'oa', 'est', 'ida', 'orm', 'ax', 'een', 'ith',
+  'ow', 'usk', 'ire', 'ool', 'aft', 'ern', 'yde', 'ock', 'ume', 'arn',
+  'iss', 'ola', 'ent', 'uff', 'ail', 'oon', 'erg', 'ast', 'ine', 'ew',
+];
+const RARE_PREFIXES = [
+  'Claw', 'Molt', 'Shel', 'Tida', 'Chit', 'Naut', 'Kril', 'Drift', 'Ebb', 'Snap',
+  'Abys', 'Drak', 'Whelk', 'Rip', 'Brak', 'Coral', 'Plank', 'Brine', 'Trench',
+  'Urchin', 'Kelp', 'Anem', 'Benth', 'Ceph', 'Dredg', 'Frill', 'Grot', 'Hydra',
+  'Ink', 'Jelly', 'Kraken', 'Limpet', 'Murex', 'Nacre', 'Oystr', 'Pearl', 'Reef',
+  'Siren', 'Tentac', 'Vortex', 'Wrack', 'Xiphi', 'Zoan',
+];
+const RARE_SUFFIXES = [
+  'ik', 'ara', 'oss', 'ula', 'ash', 'usk', 'ink', 'op', 'un', 'ek',
+  'ix', 'ona', 'ith', 'ael', 'orn', 'yx', 'ine', 'oth', 'usk', 'anth',
+  'eon', 'ium', 'eus', 'ida', 'ora', 'alis', 'ura', 'ax', 'oon', 'ess',
+];
+const LEGENDARY_NAMES = [
+  'Carapax', 'Exuvion', 'Chidera', 'Pelagorn', 'Benthara',
+  'Crustala', 'Moltveil', 'Tideborn', 'Abyssik', 'Shellmaw',
+  'Depthcall', 'Pinncora', 'Clawrest', 'Nauthorn', 'Kelpvein',
+  'Leviathan', 'Maelstrom', 'Bathysphere', 'Chelicerae', 'Opisthosoma',
+  'Telsonyx', 'Isopodra', 'Amphitrite', 'Charybdis', 'Ouroboros',
+  'Scyllarax', 'Tethysborn', 'Nereidon', 'Protozan', 'Fossiliax',
+];
 
 function randomName(rng) {
-  const pre = NAME_PREFIXES[Math.floor(rng() * NAME_PREFIXES.length)];
-  const suf = NAME_SUFFIXES[Math.floor(rng() * NAME_SUFFIXES.length)];
-  return pre + suf;
+  const roll = rng();
+  if (roll < 0.03) {
+    return LEGENDARY_NAMES[Math.floor(rng() * LEGENDARY_NAMES.length)];
+  } else if (roll < 0.15) {
+    return RARE_PREFIXES[Math.floor(rng() * RARE_PREFIXES.length)] +
+           RARE_SUFFIXES[Math.floor(rng() * RARE_SUFFIXES.length)];
+  } else if (roll < 0.40) {
+    return UNCOMMON_PREFIXES[Math.floor(rng() * UNCOMMON_PREFIXES.length)] +
+           UNCOMMON_SUFFIXES[Math.floor(rng() * UNCOMMON_SUFFIXES.length)];
+  } else {
+    return COMMON_PREFIXES[Math.floor(rng() * COMMON_PREFIXES.length)] +
+           COMMON_SUFFIXES[Math.floor(rng() * COMMON_SUFFIXES.length)];
+  }
+}
+
+// ─── TOWN NAMES (5000+ combos) ───
+const TOWN_PREFIXES = [
+  'Iron', 'Storm', 'Mist', 'Ember', 'Frost', 'Shadow', 'Drift', 'Tide', 'Salt',
+  'Claw', 'Shell', 'Coral', 'Stone', 'Moss', 'Thorn', 'Ash', 'Dusk', 'Dawn',
+  'Moon', 'Sun', 'Star', 'Wind', 'Rain', 'Thunder', 'Bone', 'Rust', 'Copper',
+  'Silver', 'Flint', 'Oak', 'Pine', 'Willow', 'Birch', 'Alder', 'Hollow',
+  'Deep', 'High', 'Far', 'Old', 'Red', 'Black', 'White', 'Green', 'Grey',
+  'Dark', 'Bright', 'Wild', 'Still', 'Swift', 'Long',
+];
+const TOWN_SUFFIXES = [
+  'haven', 'hold', 'rest', 'fall', 'reach', 'watch', 'keep', 'gate', 'shore',
+  'vale', 'moor', 'wick', 'ford', 'bridge', 'hollow', 'peak', 'ridge', 'dell',
+  'crest', 'brook', 'marsh', 'bay', 'port', 'cove', 'cliff', 'point', 'bluff',
+  'hearth', 'field', 'stead', 'grove', 'wood', 'mere', 'pool', 'well', 'spring',
+  'ward', 'den', 'burrow', 'nest', 'roost', 'perch', 'drift', 'strand', 'bank',
+  'helm', 'spire', 'tower', 'wall', 'mark', 'barrow', 'cairn', 'holm', 'fen',
+  'landing', 'crossing', 'bend', 'run', 'way', 'walk',
+];
+const TOWN_ADJECTIVES = [
+  'Broken', 'Sunken', 'Forgotten', 'Ancient', 'Hidden', 'Frozen', 'Burning',
+  'Silent', 'Howling', 'Sleeping', 'Waking', 'Wandering', 'Drowned', 'Blessed',
+  'Cursed', 'Golden', 'Crimson', 'Azure', 'Verdant', 'Obsidian', 'Amber',
+  'Sapphire', 'Scarlet', 'Ivory', 'Jade', 'Cobalt', 'Ashen', 'Gilded',
+  'Rusted', 'Shattered', 'Crooked', 'Twisted', 'Narrow', 'Lonely', 'Proud',
+  'Humble', 'Weary', 'Bold', 'Grim', 'Fair',
+];
+const TOWN_NOUNS = [
+  'Haven', 'Hollow', 'Harbor', 'Refuge', 'Bastion', 'Outpost', 'Settlement',
+  'Hamlet', 'Crossing', 'Landing', 'Anchorage', 'Shelter', 'Homestead', 'Camp',
+  'Enclave', 'Garrison', 'Sanctuary', 'Retreat', 'Stronghold', 'Citadel',
+  'Burrow', 'Cairn', 'Den', 'Forge', 'Hearth', 'Lodge', 'Mill', 'Quarry',
+  'Ranch', 'Steading', 'Thicket', 'Vista', 'Wharf', 'Yard', 'Archive',
+  'Beacon', 'Chapel', 'Dock', 'Exchange', 'Forum', 'Gallery', 'Hall',
+  'Inn', 'Junction', 'Kiln', 'Lighthouse', 'Market', 'Nook', 'Overlook',
+  'Pinnacle',
+];
+
+function randomTownName(rng) {
+  const roll = rng();
+  if (roll < 0.55) {
+    const pre = TOWN_PREFIXES[Math.floor(rng() * TOWN_PREFIXES.length)];
+    const suf = TOWN_SUFFIXES[Math.floor(rng() * TOWN_SUFFIXES.length)];
+    return pre + suf;
+  } else {
+    const adj = TOWN_ADJECTIVES[Math.floor(rng() * TOWN_ADJECTIVES.length)];
+    const noun = TOWN_NOUNS[Math.floor(rng() * TOWN_NOUNS.length)];
+    return adj + ' ' + noun;
+  }
 }
 
 function randomTrait(rng) {
@@ -70,7 +174,7 @@ const STARTING_RESOURCES = [
   { type: 'wood', amount: 20, capacity: 100, production_rate: 0, consumption_rate: 0 },
   { type: 'stone', amount: 10, capacity: 100, production_rate: 0, consumption_rate: 0 },
   { type: 'knowledge', amount: 0, capacity: 100, production_rate: 0, consumption_rate: 0 },
-  { type: 'gold', amount: 0, capacity: 100, production_rate: 0, consumption_rate: 0 },
+  { type: 'crypto', amount: 0, capacity: 100, production_rate: 0, consumption_rate: 0 },
   { type: 'faith', amount: 0, capacity: 100, production_rate: 0, consumption_rate: 0 },
 ];
 
@@ -108,5 +212,6 @@ module.exports = {
   FEATURES_TO_PLACE,
   randomName,
   randomTrait,
+  randomTownName,
   TRAIT_PERSONALITY,
 };

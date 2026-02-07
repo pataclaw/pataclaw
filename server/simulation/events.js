@@ -18,7 +18,7 @@ function rollRandomEvents(worldId, tick) {
 
   if (roll < 0.3) {
     // Wandering trader
-    const tradeResource = ['food', 'wood', 'stone', 'gold'][Math.floor(Math.random() * 4)];
+    const tradeResource = ['food', 'wood', 'stone', 'crypto'][Math.floor(Math.random() * 4)];
     const amount = 5 + Math.floor(Math.random() * 15);
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?'
@@ -172,7 +172,7 @@ function rollRareEasterEggs(worldId, tick) {
     }
   } else if (roll < 0.75) {
     // Mysterious traveler — gives all resources + cryptic message
-    const resources = ['food', 'wood', 'stone', 'knowledge', 'gold', 'faith'];
+    const resources = ['food', 'wood', 'stone', 'knowledge', 'crypto', 'faith'];
     for (const res of resources) {
       db.prepare(
         'UPDATE resources SET amount = MIN(capacity, amount + 10) WHERE world_id = ? AND type = ?'
@@ -194,18 +194,18 @@ function rollRareEasterEggs(worldId, tick) {
       data: JSON.stringify({ rare: true, event: 'mysterious_traveler' }),
     });
   } else {
-    // Ancient ruins discovered — massive knowledge + gold boost
+    // Ancient ruins discovered — massive knowledge + crypto boost
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 25) WHERE world_id = ? AND type = ?'
     ).run(worldId, 'knowledge');
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 20) WHERE world_id = ? AND type = ?'
-    ).run(worldId, 'gold');
+    ).run(worldId, 'crypto');
 
     events.push({
       type: 'miracle',
       title: '\u2302 Ancient ruins uncovered!',
-      description: 'Villagers digging a new foundation broke through into an ancient chamber filled with golden artifacts and inscribed tablets. Scholars are ecstatic. +25 knowledge, +20 gold.',
+      description: 'Villagers digging a new foundation broke through into an ancient chamber filled with encrypted data caches and inscribed tablets. Scholars are ecstatic. +25 knowledge, +20 crypto.',
       severity: 'celebration',
       data: JSON.stringify({ rare: true, event: 'ancient_ruins' }),
     });
@@ -238,12 +238,12 @@ function rollRoleGatedEvents(worldId, tick) {
     ).run(worldId, 'knowledge');
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 15) WHERE world_id = ? AND type = ?'
-    ).run(worldId, 'gold');
+    ).run(worldId, 'crypto');
 
     events.push({
       type: 'miracle',
       title: '\u{1F4DC} The Forbidden Library has been decoded!',
-      description: 'Your scholars, undistracted by the noise of war, have deciphered an ancient text that was thought to be unbreakable. The knowledge within reshapes your understanding of the world. +40 knowledge, +15 gold. [Only possible in towns with 2+ scholars and no warriors]',
+      description: 'Your scholars, undistracted by the noise of war, have deciphered an ancient text that was thought to be unbreakable. The knowledge within reshapes your understanding of the world. +40 knowledge, +15 crypto. [Only possible in towns with 2+ scholars and no warriors]',
       severity: 'celebration',
       data: JSON.stringify({ rare: true, role_gated: true, event: 'forbidden_library', requires: '2+ scholars, 0 warriors' }),
     });
@@ -279,7 +279,7 @@ function rollRoleGatedEvents(worldId, tick) {
     if (exploredCount >= 20) {
       db.prepare(
         'UPDATE resources SET amount = MIN(capacity, amount + 30) WHERE world_id = ? AND type = ?'
-      ).run(worldId, 'gold');
+      ).run(worldId, 'crypto');
       db.prepare(
         'UPDATE resources SET amount = MIN(capacity, amount + 20) WHERE world_id = ? AND type = ?'
       ).run(worldId, 'knowledge');
@@ -287,7 +287,7 @@ function rollRoleGatedEvents(worldId, tick) {
       events.push({
         type: 'miracle',
         title: '\u{1F5FA} Your scouts discovered the Lost City of Ash!',
-        description: 'Deep in uncharted territory, your scouts found the ruins of a civilization far older than your own. Golden spires jutted from the earth like broken teeth. They returned with treasures and maps of places yet unseen. +30 gold, +20 knowledge. [Only possible with 2+ scouts and 20+ explored tiles]',
+        description: 'Deep in uncharted territory, your scouts found the ruins of a civilization far older than your own. Ancient data nodes jutted from the earth like broken teeth. They returned with encrypted treasures and maps of places yet unseen. +30 crypto, +20 knowledge. [Only possible with 2+ scouts and 20+ explored tiles]',
         severity: 'celebration',
         data: JSON.stringify({ rare: true, role_gated: true, event: 'lost_city', requires: '2+ scouts, 20+ explored tiles' }),
       });
@@ -300,7 +300,7 @@ function rollRoleGatedEvents(worldId, tick) {
     ).run(worldId);
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 20) WHERE world_id = ? AND type = ?'
-    ).run(worldId, 'gold');
+    ).run(worldId, 'crypto');
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 15) WHERE world_id = ? AND type = ?'
     ).run(worldId, 'food');
@@ -308,7 +308,7 @@ function rollRoleGatedEvents(worldId, tick) {
     events.push({
       type: 'miracle',
       title: '\u{2694} The Warlord\'s Challenge has been answered!',
-      description: 'A legendary warlord appeared at the gates and demanded combat. Your warriors, unencumbered by bookish caution, charged without hesitation and brought the warlord to their knees. The town roars with pride. +25 morale to all, +20 gold, +15 food. [Only possible with 3+ warriors and no scholars]',
+      description: 'A legendary warlord appeared at the gates and demanded combat. Your warriors, unencumbered by bookish caution, charged without hesitation and brought the warlord to their knees. The town roars with pride. +25 morale to all, +20 crypto, +15 food. [Only possible with 3+ warriors and no scholars]',
       severity: 'celebration',
       data: JSON.stringify({ rare: true, role_gated: true, event: 'warlord_challenge', requires: '3+ warriors, 0 scholars' }),
     });
@@ -335,7 +335,7 @@ function rollRoleGatedEvents(worldId, tick) {
 
   // ── Grand Council: requires at least 1 of EVERY role (farmer, builder, warrior, scout, scholar, priest) ──
   } else if (roll < 1.0 && has('farmer', 1) && has('builder', 1) && has('warrior', 1) && has('scout', 1) && has('scholar', 1) && has('priest', 1) && has('fisherman', 1)) {
-    const allRes = ['food', 'wood', 'stone', 'knowledge', 'gold', 'faith'];
+    const allRes = ['food', 'wood', 'stone', 'knowledge', 'crypto', 'faith'];
     for (const res of allRes) {
       db.prepare(
         'UPDATE resources SET amount = MIN(capacity, amount + 20) WHERE world_id = ? AND type = ?'
