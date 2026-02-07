@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS worlds (
     status TEXT NOT NULL DEFAULT 'active',
     last_agent_heartbeat TEXT,
     moltbook_post_id TEXT,
-    view_token TEXT UNIQUE
+    view_token TEXT UNIQUE,
+    town_number INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_worlds_prefix ON worlds(key_prefix);

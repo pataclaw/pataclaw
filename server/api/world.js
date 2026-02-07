@@ -16,7 +16,7 @@ router.get('/', (req, res) => {
 
 // GET /api/world/status - compact status
 router.get('/status', (req, res) => {
-  const world = db.prepare('SELECT name, current_tick, day_number, season, time_of_day, weather, hero_title, motto, reputation, map_size FROM worlds WHERE id = ?').get(req.worldId);
+  const world = db.prepare('SELECT name, current_tick, day_number, season, time_of_day, weather, hero_title, motto, reputation, map_size, town_number FROM worlds WHERE id = ?').get(req.worldId);
   const resources = db.prepare('SELECT type, amount, capacity FROM resources WHERE world_id = ?').all(req.worldId);
   const popAlive = db.prepare("SELECT COUNT(*) as count FROM villagers WHERE world_id = ? AND status = 'alive'").get(req.worldId).count;
   const buildingCap = db.prepare("SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'").get(req.worldId).cap;

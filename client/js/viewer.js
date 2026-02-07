@@ -1227,7 +1227,7 @@ function escText(s) {
 // ─── SIDEBAR UPDATES ───
 function updateSidebar(data) {
   var w = data.world;
-  document.getElementById('town-name').textContent = w.name || 'Unnamed Town';
+  document.getElementById('town-name').textContent = (w.town_number ? '#' + w.town_number + ' ' : '') + (w.name || 'Unnamed Town');
   document.getElementById('town-meta').textContent = 'Day ' + w.day_number + ' | ' + w.season + ' | ' + w.time_of_day;
   document.getElementById('town-motto').textContent = w.motto ? '"' + w.motto + '"' : '';
 

@@ -432,6 +432,27 @@ body {
 #world .c-hill-mid  { color: #446633; }
 #world .c-hill-near { color: #558844; }
 
+/* Hill colors respond to time of day */
+body.dawn #world .c-hill-far  { color: #4a3a22; }
+body.dawn #world .c-hill-mid  { color: #5c4a2a; }
+body.dawn #world .c-hill-near { color: #6e5c33; }
+
+body.noon #world .c-hill-far  { color: #445533; }
+body.noon #world .c-hill-mid  { color: #557744; }
+body.noon #world .c-hill-near { color: #669955; }
+
+body.afternoon #world .c-hill-far  { color: #3e4c28; }
+body.afternoon #world .c-hill-mid  { color: #4e5e35; }
+body.afternoon #world .c-hill-near { color: #5e6e45; }
+
+body.dusk #world .c-hill-far  { color: #3d2a1a; }
+body.dusk #world .c-hill-mid  { color: #4e3822; }
+body.dusk #world .c-hill-near { color: #5f462a; }
+
+body.night #world .c-hill-far  { color: #1a2218; }
+body.night #world .c-hill-mid  { color: #223320; }
+body.night #world .c-hill-near { color: #2a3a28; }
+
 /* ─── Ground mid-accent per civ style ─── */
 #world .c-gnd-vm { color: #39bb4d; }
 #world .c-gnd-sm { color: #999988; }

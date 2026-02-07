@@ -9,10 +9,12 @@ function createWorld(worldId, keyHash, keyPrefix) {
 
   // Insert world record
   const viewToken = uuid();
+  const maxTown = db.prepare("SELECT COALESCE(MAX(town_number), 0) as m FROM worlds").get().m;
+  const townNumber = maxTown + 1;
   db.prepare(`
-    INSERT INTO worlds (id, key_hash, key_prefix, name, seed, view_token)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(worldId, keyHash, keyPrefix, 'Unnamed Town', seed, viewToken);
+    INSERT INTO worlds (id, key_hash, key_prefix, name, seed, view_token, town_number)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(worldId, keyHash, keyPrefix, 'Unnamed Town', seed, viewToken, townNumber);
 
   // Compute seed-based center for this world
   const center = getCenter(seed);
@@ -71,7 +73,7 @@ function createWorld(worldId, keyHash, keyPrefix) {
     "INSERT INTO culture (world_id) VALUES (?)"
   ).run(worldId);
 
-  return { worldId, seed, villagersCreated: villagers.length, viewToken };
+  return { worldId, seed, villagersCreated: villagers.length, viewToken, townNumber };
 }
 
 function placeFeatures(worldId, tiles, rng, center) {

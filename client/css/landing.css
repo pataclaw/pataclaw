@@ -396,6 +396,12 @@ input[type="password"]:focus {
   text-shadow: 0 0 6px rgba(255, 204, 0, 0.4);
 }
 
+.wc-town-id {
+  color: #555;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .wc-score {
   color: var(--yellow);
   font-size: 11px;

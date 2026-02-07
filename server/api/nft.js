@@ -121,8 +121,12 @@ router.get('/:tokenId/live.html', (req, res) => {
   const world = db.prepare('SELECT name, view_token, season, weather FROM worlds WHERE id = ?').get(mint.world_id);
   if (!world || !world.view_token) return res.status(404).send('World not found');
 
+  // Build initial frame data so the page renders instantly (no SSE dependency)
+  const { buildFrame } = require('../render/ascii');
+  const frameData = buildFrame(mint.world_id, 'town');
+
   const { generateNftAnimation } = require('../render/nft-animation');
-  const html = generateNftAnimation(world.name, world.view_token, config);
+  const html = generateNftAnimation(world.name, world.view_token, config, frameData);
 
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('Cache-Control', 'public, max-age=30');

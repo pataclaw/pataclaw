@@ -119,6 +119,7 @@ function buildTownFrame(worldId) {
       banner_symbol: world.banner_symbol,
       map_size: world.map_size || 40,
       seed: world.seed,
+      town_number: world.town_number,
     },
     culture: {
       mood: culture.village_mood,

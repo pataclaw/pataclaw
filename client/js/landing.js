@@ -121,11 +121,13 @@ async function loadWorlds() {
 
       var rankLabel = '#' + rank;
       var rankClass = rank <= 3 ? ' wc-rank-top' : '';
+      var townId = w.town_number ? 'Town #' + w.town_number : '';
 
       return '<a class="world-card" href="/viewer?token=' + encodeURIComponent(w.view_token) + '">' +
         '<div class="wc-header">' +
           '<span class="wc-rank' + rankClass + '">' + rankLabel + '</span>' +
           '<span class="wc-name">' + name + '</span>' +
+          (townId ? '<span class="wc-town-id">' + townId + '</span>' : '') +
           '<span class="wc-score">' + score + ' pts</span>' +
         '</div>' +
         '<div class="wc-meta">Day ' + day + ' | ' + season + ' ' + mood + ' | \u2606 ' + rep + ' rep | ' + achievements + ' achievements</div>' +

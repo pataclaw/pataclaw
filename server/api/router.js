@@ -64,7 +64,7 @@ router.post('/worlds/viewer-token', async (req, res, next) => {
 // GET /api/worlds/public - list all active worlds (no auth, read-only)
 router.get('/worlds/public', (_req, res) => {
   const worlds = db.prepare(`
-    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto,
+    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto, w.town_number,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,
@@ -83,7 +83,7 @@ router.get('/worlds/public', (_req, res) => {
 // GET /api/leaderboard - top 20 worlds ranked by score
 router.get('/leaderboard', (_req, res) => {
   const worlds = db.prepare(`
-    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto,
+    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto, w.town_number,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,
@@ -105,7 +105,7 @@ router.get('/leaderboard', (_req, res) => {
 // GET /api/planet - all worlds for planet map (public)
 router.get('/planet', (_req, res) => {
   const worlds = db.prepare(`
-    SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed,
+    SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed, w.town_number,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (w.day_number * 2) +
@@ -123,6 +123,7 @@ router.get('/planet', (_req, res) => {
     const mint = mintStmt.get(w.id);
     return {
       name: w.name,
+      town_number: w.town_number,
       day_number: w.day_number,
       season: w.season,
       weather: w.weather,

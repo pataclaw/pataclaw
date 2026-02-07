@@ -32,6 +32,8 @@ const migrations = [
   "ALTER TABLE buildings ADD COLUMN renovated INTEGER NOT NULL DEFAULT 0",
   // Agent-to-agent trading
   "ALTER TABLE trades ADD COLUMN partner_world_id TEXT DEFAULT NULL",
+  // Town numbering
+  "ALTER TABLE worlds ADD COLUMN town_number INTEGER",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
@@ -76,6 +78,17 @@ const { v4: uuidV4 } = require('uuid');
 const worldsWithoutToken = db.prepare("SELECT id FROM worlds WHERE view_token IS NULL").all();
 for (const w of worldsWithoutToken) {
   db.prepare("UPDATE worlds SET view_token = ? WHERE id = ?").run(uuidV4(), w.id);
+}
+
+// Backfill town_numbers for existing worlds that don't have one
+const unnumbered = db.prepare("SELECT id FROM worlds WHERE town_number IS NULL ORDER BY created_at ASC").all();
+if (unnumbered.length > 0) {
+  const maxNum = db.prepare("SELECT COALESCE(MAX(town_number), 0) as m FROM worlds").get().m;
+  let next = maxNum + 1;
+  for (const w of unnumbered) {
+    db.prepare("UPDATE worlds SET town_number = ? WHERE id = ?").run(next++, w.id);
+  }
+  console.log(`[INIT] Backfilled town_number for ${unnumbered.length} worlds (${maxNum + 1}-${next - 1})`);
 }
 
 const app = express();
