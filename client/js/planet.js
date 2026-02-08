@@ -61,13 +61,13 @@
 
     bgStars = [];
     var area = starCanvas.width * starCanvas.height;
-    var count = Math.floor(area / 800); // ~1 star per 800 pixels
+    var count = Math.floor(area / 1200); // sparser — ambient background only
     for (var i = 0; i < count; i++) {
       bgStars.push({
         x: Math.random() * starCanvas.width,
         y: Math.random() * starCanvas.height,
-        size: Math.random() < 0.7 ? 1 : (Math.random() < 0.85 ? 1.5 : 2),
-        brightness: 0.2 + Math.random() * 0.8,
+        size: Math.random() < 0.85 ? 1 : 1.5, // mostly tiny dots
+        brightness: 0.1 + Math.random() * 0.35, // dimmer — don't compete with globe
         twinkleSpeed: 0.01 + Math.random() * 0.04,
         twinklePhase: Math.random() * Math.PI * 2,
       });
@@ -91,12 +91,6 @@
 
       starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
       starCtx.fillRect(s.x, s.y, s.size, s.size);
-
-      // Bright stars get a small glow
-      if (s.size >= 2 && alpha > 0.6) {
-        starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.15).toFixed(2) + ')';
-        starCtx.fillRect(s.x - 1, s.y - 1, s.size + 2, s.size + 2);
-      }
     }
   }
 
