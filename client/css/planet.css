@@ -76,6 +76,17 @@ body {
 .globe-dim    { opacity: 0.55; }
 .globe-atmo   { color: #223366; opacity: 0.4; }
 
+/* Starfield */
+.star-dim    { color: #334; }
+.star-med    { color: #667788; }
+.star-bright { color: #aabbcc; text-shadow: 0 0 3px rgba(170, 187, 204, 0.4); }
+
+/* Meteors */
+.meteor-head   { color: #ffffff; text-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+.meteor-trail1 { color: #aaccff; text-shadow: 0 0 4px rgba(170, 204, 255, 0.5); }
+.meteor-trail2 { color: #5577aa; }
+.meteor-trail3 { color: #334466; }
+
 /* World markers */
 .world-normal {
   color: #33ff33;

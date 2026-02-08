@@ -27,6 +27,94 @@
   var worlds = [];
   var stats = { total_worlds: 0, total_population: 0, total_minted: 0 };
 
+  // ─── STARFIELD ───
+  var STAR_DENSITY = 0.035; // ~3.5% of void pixels
+  var STAR_CHARS = ['.', '\u00b7', '+', '*'];
+  var STAR_CLASSES = ['star-dim', 'star-dim', 'star-med', 'star-bright'];
+
+  // Deterministic star placement — seeded by screen position
+  function starAt(sx, sy) {
+    var h = hash2d(sx * 0.73 + 5.1, sy * 1.37 + 8.3);
+    if (h > STAR_DENSITY) return null;
+    var idx = Math.floor(h / STAR_DENSITY * 3.99);
+    // Twinkling: phase based on position, modulated by frameCount
+    var twinklePhase = hash2d(sx * 3.1, sy * 7.7);
+    var twinkleSpeed = 0.02 + twinklePhase * 0.04; // different speeds per star
+    var brightness = Math.sin(frameCount * twinkleSpeed + twinklePhase * 100);
+    if (brightness < -0.3) return null; // star dims out periodically
+    var boosted = brightness > 0.7 ? Math.min(3, idx + 1) : idx;
+    return { ch: STAR_CHARS[boosted], cls: STAR_CLASSES[boosted] };
+  }
+
+  // ─── METEORS ───
+  var meteors = [];
+  var METEOR_SPAWN_RATE = 0.008; // chance per frame of spawning
+  var METEOR_MAX = 3;
+  var METEOR_TRAIL = ['*', '-', '.', '\u00b7'];
+  var METEOR_CLASSES = ['meteor-head', 'meteor-trail1', 'meteor-trail2', 'meteor-trail3'];
+
+  function spawnMeteor() {
+    // Random entry from top or sides
+    var side = Math.random();
+    var sx, sy, dx, dy;
+    if (side < 0.6) {
+      // From top
+      sx = Math.floor(Math.random() * GLOBE_W);
+      sy = 0;
+      dx = (Math.random() - 0.5) * 1.5;
+      dy = 1.2 + Math.random() * 0.8;
+    } else if (side < 0.8) {
+      // From left
+      sx = 0;
+      sy = Math.floor(Math.random() * GLOBE_H * 0.5);
+      dx = 1.5 + Math.random() * 0.5;
+      dy = 0.5 + Math.random() * 0.8;
+    } else {
+      // From right
+      sx = GLOBE_W - 1;
+      sy = Math.floor(Math.random() * GLOBE_H * 0.5);
+      dx = -(1.5 + Math.random() * 0.5);
+      dy = 0.5 + Math.random() * 0.8;
+    }
+    return { x: sx, y: sy, dx: dx, dy: dy, life: 12 + Math.floor(Math.random() * 10), age: 0 };
+  }
+
+  function updateMeteors() {
+    // Spawn
+    if (meteors.length < METEOR_MAX && Math.random() < METEOR_SPAWN_RATE) {
+      meteors.push(spawnMeteor());
+    }
+    // Advance
+    for (var i = meteors.length - 1; i >= 0; i--) {
+      var m = meteors[i];
+      m.x += m.dx;
+      m.y += m.dy;
+      m.age++;
+      if (m.age > m.life || m.x < -5 || m.x > GLOBE_W + 5 || m.y < -5 || m.y > GLOBE_H + 5) {
+        meteors.splice(i, 1);
+      }
+    }
+  }
+
+  // Build sparse lookup of meteor pixels for current frame
+  function buildMeteorMap() {
+    var map = {};
+    for (var i = 0; i < meteors.length; i++) {
+      var m = meteors[i];
+      for (var t = 0; t < METEOR_TRAIL.length; t++) {
+        var px = Math.round(m.x - m.dx * t * 0.5);
+        var py = Math.round(m.y - m.dy * t * 0.5);
+        if (px >= 0 && px < GLOBE_W && py >= 0 && py < GLOBE_H) {
+          var key = px + ',' + py;
+          if (!map[key]) {
+            map[key] = { ch: METEOR_TRAIL[t], cls: METEOR_CLASSES[t] };
+          }
+        }
+      }
+    }
+    return map;
+  }
+
   // ─── SIMPLEX-LIKE NOISE (hash-based, no dependencies) ───
   function hash2d(x, y) {
     var n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
@@ -135,6 +223,7 @@
     var sinTilt = Math.sin(tilt);
     var cosR = Math.cos(rotation);
     var sinR = Math.sin(rotation);
+    var meteorMap = buildMeteorMap();
 
     for (var sy = 0; sy < GLOBE_H; sy++) {
       var row = '';
@@ -146,7 +235,19 @@
         var r2 = nx * nx + ny * ny;
 
         if (r2 > 1.0) {
-          row += ' ';
+          // Void space — check meteor first, then stars
+          var mKey = sx + ',' + sy;
+          var meteor = meteorMap[mKey];
+          if (meteor) {
+            row += '<span class="' + meteor.cls + '">' + escHtml(meteor.ch) + '</span>';
+          } else {
+            var star = starAt(sx, sy);
+            if (star) {
+              row += '<span class="' + star.cls + '">' + escHtml(star.ch) + '</span>';
+            } else {
+              row += ' ';
+            }
+          }
           continue;
         }
 
@@ -260,6 +361,7 @@
       rotation += AUTO_SPIN_SPEED;
     }
 
+    updateMeteors();
     var html = renderGlobe();
     container.innerHTML = '<pre class="globe-pre">' + html.join('\n') + '</pre>';
   }
