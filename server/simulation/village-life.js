@@ -559,15 +559,22 @@ function processProjects(worldId, villagers, tick) {
     for (const v of villagers) {
       if ((v.creativity || 50) > 60 && v.morale > 50) {
         const act = activities[v.id];
-        if (act && act.activity === 'idle' && act.duration_ticks >= 3) {
+        if (act && act.activity === 'idle' && act.duration_ticks >= 6) {
           // Start a project — pick type, enforce shrine cap
           let typeKey = PROJECT_TYPE_KEYS[Math.floor(Math.random() * PROJECT_TYPE_KEYS.length)];
           if (typeKey === 'shrine') {
-            const stageInfo = getGrowthStage(worldId);
-            const existingTemples = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'temple' AND status != 'destroyed'").get(worldId).c;
-            const existingShrines = db.prepare("SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND type = 'shrine'").get(worldId).c;
-            if (existingTemples + existingShrines >= stageInfo.maxReligious) {
-              typeKey = 'bonfire'; // fallback to non-religious project
+            // Shrines require: active temple, priest exists, creativity > 75
+            const hasTemple = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'temple' AND status = 'active'").get(worldId).c > 0;
+            const hasPriest = villagers.some(vv => vv.role === 'priest');
+            if (!hasTemple || !hasPriest || (v.creativity || 50) <= 75) {
+              typeKey = 'bonfire'; // fallback — not spiritually ready
+            } else {
+              const stageInfo = getGrowthStage(worldId);
+              const existingTemples = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'temple' AND status != 'destroyed'").get(worldId).c;
+              const existingShrines = db.prepare("SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND type = 'shrine'").get(worldId).c;
+              if (existingTemples + existingShrines >= stageInfo.maxReligious) {
+                typeKey = 'bonfire'; // fallback — religious cap reached
+              }
             }
           }
           const def = PROJECT_TYPES[typeKey];

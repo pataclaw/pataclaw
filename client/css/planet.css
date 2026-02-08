@@ -141,6 +141,9 @@ body {
 .terrain-water   { color: #1a4488; }
 .terrain-mountain{ color: #6b6b4a; }
 .terrain-forest  { color: #1e551e; }
+.terrain-desert  { color: #8a7030; }
+.terrain-swamp   { color: #3a5535; }
+.terrain-tundra  { color: #667788; }
 .terrain-ice     { color: #8899aa; }
 
 /* Globe shading */

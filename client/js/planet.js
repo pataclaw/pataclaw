@@ -423,13 +423,19 @@
       if (latFactor > 0.82) {
         cell = { ch: '*', cls: 'terrain-ice' };
       } else if (latFactor > 0.72) {
-        cell = adjusted > 0.52 ? { ch: '*', cls: 'terrain-ice' } : { ch: '.', cls: 'terrain-plains' };
+        cell = adjusted > 0.52 ? { ch: '*', cls: 'terrain-ice' } : { ch: ':', cls: 'terrain-tundra' };
       } else if (adjusted < 0.35) {
         cell = { ch: '~', cls: 'terrain-water' };
-      } else if (adjusted < 0.42) {
+      } else if (adjusted < 0.38) {
+        cell = { ch: '%', cls: 'terrain-swamp' };
+      } else if (adjusted < 0.44) {
         cell = { ch: '.', cls: 'terrain-plains' };
-      } else if (adjusted < 0.52) {
+      } else if (adjusted < 0.54) {
         cell = { ch: '^', cls: 'terrain-forest' };
+      } else if (adjusted < 0.62) {
+        cell = { ch: '#', cls: 'terrain-mountain' };
+      } else if (latFactor < 0.35) {
+        cell = { ch: '~', cls: 'terrain-desert' };
       } else {
         cell = { ch: '#', cls: 'terrain-mountain' };
       }
@@ -753,10 +759,13 @@
     legend.innerHTML =
       '<span class="world-minted">\u2666</span> Minted  ' +
       '<span class="world-normal">\u25cf</span> Active  ' +
-      '<span class="terrain-plains">.</span> Land  ' +
+      '<span class="terrain-plains">.</span> Plains  ' +
       '<span class="terrain-water">~</span> Sea  ' +
-      '<span class="terrain-mountain">#</span> Mountain  ' +
       '<span class="terrain-forest">^</span> Forest  ' +
+      '<span class="terrain-mountain">#</span> Mountain  ' +
+      '<span class="terrain-desert">~</span> Desert  ' +
+      '<span class="terrain-swamp">%</span> Swamp  ' +
+      '<span class="terrain-tundra">:</span> Tundra  ' +
       '<span class="terrain-ice">*</span> Ice';
     container.parentNode.insertBefore(legend, container.nextSibling);
   }
