@@ -41,6 +41,12 @@ const PLANETARY_EVENTS = {
     duration: 36,
     effects: { productionMul: 1.25, moraleDelta: 5 },
   },
+  molt_season: {
+    title: 'The Great Molt!',
+    description: 'Every living creature on Pata sheds their shell at once. The world is soft and vulnerable.',
+    duration: 6,
+    effects: { moltAll: true, moraleDelta: -5 },
+  },
 };
 
 const EVENT_TYPES = Object.keys(PLANETARY_EVENTS);

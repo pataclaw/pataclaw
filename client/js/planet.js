@@ -36,6 +36,7 @@
     shell_migration: '\u2727',
     blood_moon: '\u25CF',
     golden_age: '\u2605',
+    molt_season: '\u25CB',
   };
   // Visual modifiers per event type
   var PE_EFFECTS = {
@@ -45,9 +46,76 @@
     shell_migration: { shadeMul: 1.1, atmoCls: 'globe-atmo-shell', meteorBoost: 0 },
     blood_moon:      { shadeMul: 0.7, atmoCls: 'globe-atmo-blood', meteorBoost: 0 },
     golden_age:      { shadeMul: 1.2, atmoCls: 'globe-atmo-golden', meteorBoost: 0 },
+    molt_season:     { shadeMul: 1.1, atmoCls: 'globe-atmo-golden', meteorBoost: 0 },
   };
 
-  // ─── STARFIELD ───
+  // ─── FULL-VIEWPORT STARFIELD (canvas) ───
+  var starCanvas = document.getElementById('starfield');
+  var starCtx = starCanvas ? starCanvas.getContext('2d') : null;
+  var bgStars = []; // {x, y, size, brightness, twinkleSpeed, twinklePhase}
+
+  function initBgStarfield() {
+    if (!starCanvas) return;
+    starCanvas.width = window.innerWidth;
+    starCanvas.height = window.innerHeight;
+
+    bgStars = [];
+    var area = starCanvas.width * starCanvas.height;
+    var count = Math.floor(area / 800); // ~1 star per 800 pixels
+    for (var i = 0; i < count; i++) {
+      bgStars.push({
+        x: Math.random() * starCanvas.width,
+        y: Math.random() * starCanvas.height,
+        size: Math.random() < 0.7 ? 1 : (Math.random() < 0.85 ? 1.5 : 2),
+        brightness: 0.2 + Math.random() * 0.8,
+        twinkleSpeed: 0.01 + Math.random() * 0.04,
+        twinklePhase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  function renderBgStarfield() {
+    if (!starCtx || !starCanvas) return;
+    starCtx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+
+    for (var i = 0; i < bgStars.length; i++) {
+      var s = bgStars[i];
+      var twinkle = Math.sin(frameCount * s.twinkleSpeed + s.twinklePhase);
+      var alpha = s.brightness * (0.5 + 0.5 * twinkle);
+      if (alpha < 0.05) continue;
+
+      // Color: mostly white/blue, rare warm
+      var r = 180 + Math.floor(s.brightness * 75);
+      var g = 190 + Math.floor(s.brightness * 65);
+      var b = 210 + Math.floor(s.brightness * 45);
+
+      starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
+      starCtx.fillRect(s.x, s.y, s.size, s.size);
+
+      // Bright stars get a small glow
+      if (s.size >= 2 && alpha > 0.6) {
+        starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.15).toFixed(2) + ')';
+        starCtx.fillRect(s.x - 1, s.y - 1, s.size + 2, s.size + 2);
+      }
+    }
+  }
+
+  initBgStarfield();
+  window.addEventListener('resize', initBgStarfield);
+
+  // ─── ATMOSPHERE OVERLAY ───
+  var atmoOverlay = document.getElementById('atmo-overlay');
+
+  function updateAtmoOverlay(evt) {
+    if (!atmoOverlay) return;
+    if (!evt) {
+      atmoOverlay.className = 'atmo-overlay hidden';
+      return;
+    }
+    atmoOverlay.className = 'atmo-overlay atmo-' + evt.type;
+  }
+
+  // ─── INLINE STARFIELD (around globe in the <pre>) ───
   var STAR_DENSITY = 0.035; // ~3.5% of void pixels
   var STAR_CHARS = ['.', '\u00b7', '+', '*'];
   var STAR_CLASSES = ['star-dim', 'star-dim', 'star-med', 'star-bright'];
@@ -391,6 +459,7 @@
       rotation += AUTO_SPIN_SPEED;
     }
 
+    renderBgStarfield();
     updateMeteors();
     if (!dragging) {
       var html = renderGlobe();
@@ -499,6 +568,7 @@
     if (!el) return;
     if (!evt) {
       el.classList.add('hidden');
+      updateAtmoOverlay(null);
       return;
     }
     var icon = PE_ICONS[evt.type] || '\u2731';
@@ -506,6 +576,7 @@
     el.innerHTML = '<span class="pe-icon">' + icon + '</span> ' +
       escAttr(evt.title) +
       ' <span class="pe-desc">' + escAttr(evt.description || '') + '</span>';
+    updateAtmoOverlay(evt);
   }
 
   function addLegend() {

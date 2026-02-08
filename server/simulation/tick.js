@@ -17,6 +17,10 @@ const { getActivePlanetaryEvent } = require('./planetary');
 const { recalculateStats } = require('./stats');
 const { processChronicler } = require('./chronicler');
 const { processMonolith } = require('./monolith');
+const { processMolting, forceAllMolting } = require('./molting');
+const { processProphets, processProphecies } = require('./prophets');
+const { processDeepSea } = require('./deep-sea');
+const { hasMegastructure } = require('./megastructures');
 const {
   MOLT_FESTIVAL_INTERVAL,
   MOLT_FESTIVAL_CULTURE_THRESHOLD,
@@ -48,10 +52,23 @@ function processTick(worldId) {
       db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'stone'").run(pEffects.stoneBonus, worldId);
     }
     if (pEffects.moraleDelta) {
-      if (pEffects.moraleDelta > 0) {
-        db.prepare("UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'").run(pEffects.moraleDelta, worldId);
-      } else {
-        db.prepare("UPDATE villagers SET morale = MAX(0, morale + ?) WHERE world_id = ? AND status = 'alive'").run(pEffects.moraleDelta, worldId);
+      // Molt Cathedral shields from negative morale during molt_season
+      let applyMorale = true;
+      if (pEffects.moraleDelta < 0 && pEffects.moltAll && hasMegastructure(worldId, 'molt_cathedral')) {
+        applyMorale = false;
+        planetaryEvents.push({
+          type: 'planetary',
+          title: 'Cathedral shields the village!',
+          description: 'The Molt Cathedral protects the village from molt season despair.',
+          severity: 'info',
+        });
+      }
+      if (applyMorale) {
+        if (pEffects.moraleDelta > 0) {
+          db.prepare("UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'").run(pEffects.moraleDelta, worldId);
+        } else {
+          db.prepare("UPDATE villagers SET morale = MAX(0, morale + ?) WHERE world_id = ? AND status = 'alive'").run(pEffects.moraleDelta, worldId);
+        }
       }
     }
     if (pEffects.buildingDamageChance && Math.random() < pEffects.buildingDamageChance) {
@@ -69,6 +86,9 @@ function processTick(worldId) {
     if (pEffects.warriorXpMul) {
       db.prepare("UPDATE villagers SET experience = experience + ? WHERE world_id = ? AND role = 'warrior' AND status = 'alive'").run(Math.floor(2 * pEffects.warriorXpMul), worldId);
     }
+    if (pEffects.moltAll) {
+      forceAllMolting(worldId);
+    }
   }
 
   // 3.5. Crops
@@ -83,8 +103,14 @@ function processTick(worldId) {
   // 5. Villagers
   const villagerEvents = processVillagers(worldId, resResult.isStarving, weather);
 
+  // 5.5. Molting
+  const moltEvents = processMolting(worldId, time.tick);
+
   // 6. Exploration
   const exploreEvents = processExploration(worldId);
+
+  // 6.5. Deep-sea exploration
+  const deepSeaEvents = processDeepSea(worldId, time.tick);
 
   // 7. Random events
   const randomEvents = rollRandomEvents(worldId, time.tick);
@@ -97,11 +123,17 @@ function processTick(worldId) {
   const lifeEvents = processVillagerLife(worldId);
 
   // 9.5. Chronicler — write book entries based on events
-  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents];
+  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...randomEvents, ...combatEvents, ...lifeEvents];
   const chroniclerEvents = processChronicler(worldId, time.tick, allEventsForChronicler);
 
   // 9.6. Monolith — Spire of Shells
   const monolithEvents = processMonolith(worldId, time.tick);
+
+  // 9.7. Prophets — discover teachings of the 64
+  const prophetEvents = processProphets(worldId, time.tick);
+
+  // 9.8. Prophecies — priests receive visions
+  const prophecyEvents = processProphecies(worldId, time.tick);
 
   // 10. Map expansion check — stage-based incremental expansion
   let expansionEvents = [];
@@ -169,7 +201,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
+  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

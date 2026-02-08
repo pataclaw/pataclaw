@@ -374,6 +374,11 @@ body {
 #world .c-b-storehouse{ color: #aa8844; }
 #world .c-b-town_center{ color: #ddaa55; }
 #world .c-b-dock      { color: #55aacc; }
+/* Megastructures — vibrant, glowing endgame colors */
+#world .c-b-shell_archive   { color: #ddaa44; text-shadow: 0 0 4px rgba(221, 170, 68, 0.4); }
+#world .c-b-abyssal_beacon  { color: #44aaff; text-shadow: 0 0 4px rgba(68, 170, 255, 0.4); }
+#world .c-b-molt_cathedral  { color: #cc88ff; text-shadow: 0 0 4px rgba(204, 136, 255, 0.4); }
+#world .c-b-spawning_pools  { color: #44ddaa; text-shadow: 0 0 4px rgba(68, 221, 170, 0.4); }
 
 /* Civilization style colors */
 #world .c-gnd-v { color: #33aa44; }
@@ -425,6 +430,13 @@ body {
 
 /* Ghost echoes */
 #world .c-ghost { color: #334455; opacity: 0.6; }
+
+/* Molting shimmer */
+#world .c-molt     { color: #ffcc33; }
+#world .c-molt-alt { color: #ffdd88; }
+
+/* Shell relics */
+#world .c-relic { color: #cc9944; }
 
 /* Monolith / Spire of Shells */
 #world .c-monolith       { color: #ccbb88; }
@@ -523,6 +535,14 @@ body.night #world .c-tree-t { color: #332211; }
 #world .c-b-town_center-t3{ color: #ffdd88; }
 #world .c-b-dock-t2       { color: #77ccee; }
 #world .c-b-dock-t3       { color: #99eeff; }
+#world .c-b-shell_archive-t2   { color: #eebb55; text-shadow: 0 0 5px rgba(238, 187, 85, 0.5); }
+#world .c-b-shell_archive-t3   { color: #ffcc66; text-shadow: 0 0 6px rgba(255, 204, 102, 0.6); }
+#world .c-b-abyssal_beacon-t2  { color: #66ccff; text-shadow: 0 0 5px rgba(102, 204, 255, 0.5); }
+#world .c-b-abyssal_beacon-t3  { color: #88eeff; text-shadow: 0 0 6px rgba(136, 238, 255, 0.6); }
+#world .c-b-molt_cathedral-t2  { color: #ddaaff; text-shadow: 0 0 5px rgba(221, 170, 255, 0.5); }
+#world .c-b-molt_cathedral-t3  { color: #eeccff; text-shadow: 0 0 6px rgba(238, 204, 255, 0.6); }
+#world .c-b-spawning_pools-t2  { color: #66eebb; text-shadow: 0 0 5px rgba(102, 238, 187, 0.5); }
+#world .c-b-spawning_pools-t3  { color: #88ffcc; text-shadow: 0 0 6px rgba(136, 255, 204, 0.6); }
 
 /* ─── Villager name colors by role ─── */
 #world .c-n-idle       { color: #888888; }
@@ -652,6 +672,7 @@ body.crt-mode #world {
 .pe-shell    { background: linear-gradient(90deg, rgba(20,30,20,0.9), rgba(30,60,30,0.9)); color: #88ff88; border-bottom: 1px solid #33aa33; }
 .pe-blood    { background: linear-gradient(90deg, rgba(40,10,10,0.9), rgba(80,10,10,0.9)); color: #ff4444; border-bottom: 1px solid #aa2222; }
 .pe-golden   { background: linear-gradient(90deg, rgba(40,30,10,0.9), rgba(80,60,10,0.9)); color: #ffdd44; border-bottom: 1px solid #ccaa22; }
+.pe-molt     { background: linear-gradient(90deg, rgba(40,30,10,0.9), rgba(60,50,20,0.9)); color: #ffcc44; border-bottom: 1px solid #aa8822; }
 
 /* ─── Biome panel ─── */
 .biome-row {

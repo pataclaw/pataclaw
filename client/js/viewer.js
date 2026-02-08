@@ -293,7 +293,7 @@ function updateAgent(a, world) {
     celebrating: 'celebrating', mourning: 'idle', sparring: 'sparring',
     meditating: 'meditating', feasting: 'celebrating', praying: 'meditating',
     teaching: 'talking', brooding: 'idle', socializing: 'talking',
-    wandering: 'walking', sleeping: 'sleeping',
+    wandering: 'walking', sleeping: 'sleeping', molting: 'molting',
   };
 
   if (a.stateTimer > 37 + Math.random() * 45) {
@@ -322,6 +322,12 @@ function updateAgent(a, world) {
       var artPool = a.data.speechPool || ['...'];
       a.currentSpeech = artPool[Math.floor(Math.random() * artPool.length)];
       a.speechTimer = 22;
+    }
+
+    if (a.state === 'molting') {
+      var moltPool = a.data.speechPool || ['*crack*'];
+      a.currentSpeech = moltPool[Math.floor(Math.random() * moltPool.length)];
+      a.speechTimer = 25;
     }
 
     if (a.state === 'fighting' || a.state === 'sparring') {
@@ -1238,6 +1244,7 @@ function renderScene(data) {
     else if (a.state === 'playing_music' || serverAct === 'playing_music') vColor = 'c-art';
     else if (a.state === 'meditating') vColor = 'c-med';
     else if (a.state === 'celebrating') vColor = 'c-cele';
+    else if (a.state === 'molting') vColor = (waveCounter % 4 < 2) ? 'c-molt' : 'c-molt-alt';
     else if (a.state === 'walking') vColor = 'c-walk';
     else if (a.state === 'sleeping') vColor = 'c-sleep';
     else if (a.state === 'talking') vColor = 'c-talk';
@@ -1319,6 +1326,17 @@ function renderScene(data) {
         '|' + ap.mouth + '|',
         "'" + ap.body.slice(1, -1) + "'",
         bob ? ' d  b ' : '  db  ',
+      ];
+    } else if (a.state === 'molting') {
+      var moltFrame = a.bobFrame % 6;
+      var crackChars = ['|', '/', '\\', '*', '#', '|'];
+      charLines = [
+        '  ' + crackChars[moltFrame] + '~' + crackChars[(moltFrame + 2) % 6] + '  ',
+        ap.head,
+        '|' + ap.eyes.replace(/[oO@*0><=^]/g, 'x') + '|',
+        '|' + ap.mouth + '|',
+        "'" + ap.body.slice(1, -1) + "'",
+        ' _/\\/\\_ ',
       ];
     } else if (a.state === 'walking') {
       var step = a.bobFrame % 3;
@@ -1428,6 +1446,25 @@ function renderScene(data) {
           if (gpx >= 0 && gpx < W && gy2 - 1 >= 0) {
             setCell(grid, gpx, gy2 - 1, gphrase[gpi], 'c-ghost');
           }
+        }
+      }
+    }
+  }
+
+  // ─── SHELL RELICS ───
+  if (data.relics && data.relics.length > 0) {
+    for (var ri = 0; ri < data.relics.length; ri++) {
+      var relic = data.relics[ri];
+      // Place near town center, spread out
+      var rHash = 0;
+      for (var rhi = 0; rhi < relic.villager_name.length; rhi++) rHash = ((rHash << 5) - rHash + relic.villager_name.charCodeAt(rhi)) | 0;
+      rHash = Math.abs(rHash);
+      var rx = Math.floor(W / 2) - 8 + (rHash % 16);
+      var ry = groundY - 1;
+      if (rx >= 0 && rx + 1 < W && ry >= 0 && ry < H) {
+        if (getCell(grid, rx, ry).ch === ' ' || getCell(grid, rx, ry).cls.indexOf('c-gnd') === 0) {
+          setCell(grid, rx, ry, '(', 'c-relic');
+          setCell(grid, rx + 1, ry, ')', 'c-relic');
         }
       }
     }
@@ -1611,10 +1648,12 @@ function updateSidebar(data) {
 var PLANETARY_ICONS = {
   solar_eclipse: '\u25d1', meteor_shower: '\u2604', tidal_surge: '\u224b',
   shell_migration: '\u2727', blood_moon: '\u25cf', golden_age: '\u2605',
+  molt_season: '\u25cb',
 };
 var PLANETARY_CLASSES = {
   solar_eclipse: 'pe-eclipse', meteor_shower: 'pe-meteor', tidal_surge: 'pe-tidal',
   shell_migration: 'pe-shell', blood_moon: 'pe-blood', golden_age: 'pe-golden',
+  molt_season: 'pe-molt',
 };
 
 function updatePlanetaryBanner(evt) {

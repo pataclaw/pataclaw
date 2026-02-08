@@ -130,6 +130,41 @@ const SPEECH = {
   ],
 };
 
+// Molting speech
+const MOLTING_SPEECH = [
+  '*crack*', 'it\'s... happening', '*shed*', 'the shell breaks...',
+  'I am... changing', '*split*', 'almost... free', 'so vulnerable...',
+  'the old me falls away', '*tremble*', 'don\'t look at me',
+  'it hurts but it\'s right', '*gasp*', 'I can feel everything',
+  'the new shell hardens', 'I am reborn', '*emerge*',
+  'shed the old, become the new', 'the molt is sacred',
+  'this is what it means to grow',
+];
+
+// Megastructure-related speech
+const MEGASTRUCTURE_SPEECH = {
+  shell_archive: [
+    'the Archive remembers all', 'every shell has a story', 'so many relics...',
+    '*read ancient inscription*', 'the dead speak through shells',
+    'memory persists in the Archive', 'I found a relic from the first molt',
+  ],
+  abyssal_beacon: [
+    'the light reaches the deep', 'something answered the beacon...',
+    'the abyss stares back', '*gaze into the depths*', 'the beacon never sleeps',
+    'they say leviathans follow the light', 'deeper than we dreamed',
+  ],
+  molt_cathedral: [
+    'the Cathedral hums', 'sacred ground for shedding', '*kneel at the molt pool*',
+    'to molt here is to be reborn twice', 'the Cathedral amplifies change',
+    'every shell offered to the Cathedral', 'the holiest place on Pata',
+  ],
+  spawning_pools: [
+    'the pools are warm today', 'new life stirs in the water', '*tend the pools*',
+    'from the warm waters they come', 'the pools remember every birth',
+    'strongest young I\'ve ever seen', 'the current cradles them',
+  ],
+};
+
 const SLEEP_BUBBLES = ['z', 'zz', 'zzZ', 'ZZz', 'Zz'];
 
 // Role-specific accessories for the sprite
@@ -257,6 +292,51 @@ const BUILDING_SPRITES = {
     '/|=====|\\ ',
     '~|_<>)_|~ ',
     '~~~~~~~~~~',
+  ],
+  // ─── ENDGAME MEGASTRUCTURES ───
+  shell_archive: [
+    '  .====[ARCHIVE]====.  ',
+    ' / ()  ()  ()  ()  () \\',
+    '|[B][B][B][B][B][B][B]|',
+    '|  ==================  |',
+    '|[B][B][B][B][B][B][B]|',
+    '|  ==================  |',
+    '| ()  ()  ()  ()  ()  |',
+    '|======================|',
+    '|________[====]________|',
+  ],
+  abyssal_beacon: [
+    '         *|*         ',
+    '        /===\\        ',
+    '       | *** |       ',
+    '      |=======|      ',
+    '     /| ~~~~~ |\\     ',
+    '    / |=======| \\    ',
+    '   /  |  (o)  |  \\   ',
+    '  /===|=======|===\\  ',
+    ' |~~~~|=======|~~~~| ',
+    '~|~~~~~~~~~~~~~~~~~~~|',
+  ],
+  molt_cathedral: [
+    '          + + +          ',
+    '         /+ + +\\         ',
+    '        / + + + \\        ',
+    '       /=========\\       ',
+    '      ||| + + + |||      ',
+    '     ||||  (+)  ||||     ',
+    '     ||||=======||||     ',
+    '    /||||+ + + +||||\\    ',
+    '   / |||=========||| \\   ',
+    '  |  |_____[]______|  |  ',
+  ],
+  spawning_pools: [
+    '  ~~  ~~~~  ~~~~  ~~  ',
+    ' /====================\\',
+    '| ~~~~  ~~~~  ~~~~  ~~|',
+    '| ~oo~  ~oo~  ~oo~ ~ |',
+    '| ~~~~  ~~~~  ~~~~  ~~|',
+    '|======================|',
+    '|_____[]________[]_____|',
   ],
 };
 
@@ -515,6 +595,8 @@ const OVERGROWN_SPRITE = [
 module.exports = {
   villagerAppearance,
   SPEECH,
+  MOLTING_SPEECH,
+  MEGASTRUCTURE_SPEECH,
   SLEEP_BUBBLES,
   ROLE_HATS,
   ROLE_ITEMS,

@@ -7,12 +7,73 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── Full-viewport starfield canvas ─── */
+#starfield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ─── Planetary event atmosphere overlay ─── */
+.atmo-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 2s ease, background 2s ease;
+}
+.atmo-overlay.hidden { opacity: 0; }
+
+.atmo-overlay.atmo-solar_eclipse {
+  background: radial-gradient(ellipse at 35% 40%, rgba(60, 20, 120, 0.25), rgba(10, 0, 30, 0.5) 60%, rgba(0, 0, 0, 0.7));
+  opacity: 1;
+}
+.atmo-overlay.atmo-meteor_shower {
+  background: radial-gradient(ellipse at 50% 30%, rgba(40, 60, 100, 0.15), transparent 70%);
+  opacity: 1;
+}
+.atmo-overlay.atmo-tidal_surge {
+  background: radial-gradient(ellipse at 50% 60%, rgba(15, 50, 120, 0.3), transparent 70%);
+  opacity: 1;
+}
+.atmo-overlay.atmo-shell_migration {
+  background: radial-gradient(ellipse at 50% 50%, rgba(30, 100, 60, 0.2), transparent 70%);
+  opacity: 1;
+}
+.atmo-overlay.atmo-blood_moon {
+  background: radial-gradient(ellipse at 60% 35%, rgba(120, 20, 20, 0.35), rgba(40, 0, 0, 0.2) 60%, transparent);
+  opacity: 1;
+}
+.atmo-overlay.atmo-golden_age {
+  background: radial-gradient(ellipse at 50% 50%, rgba(120, 100, 30, 0.2), rgba(60, 40, 10, 0.1) 60%, transparent);
+  opacity: 1;
+}
+.atmo-overlay.atmo-molt_season {
+  background: radial-gradient(ellipse at 50% 50%, rgba(120, 100, 20, 0.25), rgba(60, 40, 5, 0.15) 60%, transparent);
+  opacity: 1;
+}
+
+/* All page content layers above starfield + atmo */
+#header, #planet-event, #planet-grid, #footer, .planet-legend {
+  position: relative;
+  z-index: 5;
 }
 
 #header {
   text-align: center;
   padding: 16px 12px 8px;
-  border-bottom: 1px solid #181818;
+  border-bottom: 1px solid rgba(24, 24, 24, 0.6);
+  background: transparent;
 }
 
 .header-title {
@@ -95,6 +156,7 @@ body {
 .globe-atmo-shell   { color: #33aa77; opacity: 0.45; }
 .globe-atmo-blood   { color: #882222; opacity: 0.55; }
 .globe-atmo-golden  { color: #aa8833; opacity: 0.45; }
+.globe-atmo-molt    { color: #aa8822; opacity: 0.45; }
 
 /* ─── Planetary Event Banner ─── */
 .planet-event {
@@ -103,6 +165,7 @@ body {
   font-size: 12px;
   letter-spacing: 1px;
   animation: peBannerPulse 3s ease-in-out infinite;
+  backdrop-filter: blur(2px);
 }
 .planet-event.hidden { display: none; }
 .planet-event .pe-icon { margin-right: 6px; font-size: 14px; }
@@ -114,6 +177,7 @@ body {
 .pe-shell_migration { color: #66ddaa; border-bottom: 1px solid #113322; background: #040e0a; }
 .pe-blood_moon      { color: #ff4444; border-bottom: 1px solid #331111; background: #180404; }
 .pe-golden_age      { color: #ffcc00; border-bottom: 1px solid #332200; background: #140e02; }
+.pe-molt_season     { color: #ffcc44; border-bottom: 1px solid #332200; background: #120c02; }
 
 @keyframes peBannerPulse {
   0%, 100% { opacity: 0.8; }
@@ -177,7 +241,8 @@ body {
   z-index: 10;
   text-align: center;
   padding: 12px;
-  border-top: 1px solid #181818;
+  border-top: 1px solid rgba(24, 24, 24, 0.6);
+  background: transparent;
   font-size: 11px;
 }
 

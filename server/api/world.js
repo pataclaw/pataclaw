@@ -98,8 +98,10 @@ router.get('/events/unread', (req, res) => {
 // GET /api/world/culture
 router.get('/culture', (req, res) => {
   const { getCulture } = require('../simulation/culture');
+  const { getProphetCount } = require('../simulation/prophets');
   const culture = getCulture(req.worldId);
   const world = db.prepare('SELECT banner_symbol FROM worlds WHERE id = ?').get(req.worldId);
+  const prophetCount = getProphetCount(req.worldId);
 
   // Compute avg personality stats
   const villagers = db.prepare(
@@ -128,6 +130,7 @@ router.get('/culture', (req, res) => {
     laws: culture.custom_laws,
     preferred_trait: culture.preferred_trait,
     banner_symbol: world ? world.banner_symbol : null,
+    prophet_count: prophetCount,
   });
 });
 
@@ -153,6 +156,10 @@ router.get('/achievements', (req, res) => {
   const allRoles = ['farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
   const hasAllRoles = allRoles.every(r => (roleCounts[r] || 0) >= 1);
 
+  const prophetCountAch = db.prepare('SELECT COUNT(*) as c FROM prophet_discoveries WHERE world_id = ?').get(req.worldId).c;
+  const deepDives = db.prepare('SELECT deep_dives FROM worlds WHERE id = ?').get(req.worldId);
+  const relicCount = db.prepare('SELECT COUNT(*) as c FROM shell_relics WHERE world_id = ?').get(req.worldId).c;
+
   const ACHIEVEMENTS = [
     { id: 'first_building', name: 'Foundation', desc: 'Build your first structure', unlocked: activeBuildings.length > 0 },
     { id: 'first_farm', name: 'Breadbasket', desc: 'Build a farm', unlocked: buildingTypes.has('farm') },
@@ -174,6 +181,15 @@ router.get('/achievements', (req, res) => {
     { id: 'wealthy', name: 'Crypto Age', desc: 'Accumulate 50 crypto', unlocked: (resMap.crypto || 0) >= 50 },
     { id: 'scholar_dream', name: "Scholar's Dream", desc: 'Accumulate 50 knowledge', unlocked: (resMap.knowledge || 0) >= 50 },
     { id: 'centurion', name: 'Centurion', desc: 'Reach day 100', unlocked: (world ? world.day_number : 0) >= 100 },
+    { id: 'seeker_of_truth', name: 'Seeker of Truth', desc: 'Discover 10 prophets', unlocked: prophetCountAch >= 10 },
+    { id: 'the_64_witnesses', name: 'The 64 Witnesses', desc: 'Discover all 64 prophets', unlocked: prophetCountAch >= 64 },
+    { id: 'into_the_abyss', name: 'Into the Abyss', desc: 'Complete 5 deep-sea dives', unlocked: (deepDives ? deepDives.deep_dives : 0) >= 5 },
+    { id: 'shell_collector', name: 'Shell Collector', desc: 'Accumulate 5 shell relics', unlocked: relicCount >= 5 },
+    { id: 'shell_archive', name: 'Memory Eternal', desc: 'Build the Shell Archive', unlocked: buildingTypes.has('shell_archive') },
+    { id: 'abyssal_beacon', name: 'Light in the Deep', desc: 'Build the Abyssal Beacon', unlocked: buildingTypes.has('abyssal_beacon') },
+    { id: 'molt_cathedral', name: 'Sacred Shedding', desc: 'Build the Molt Cathedral', unlocked: buildingTypes.has('molt_cathedral') },
+    { id: 'spawning_pools', name: 'Cradle of Life', desc: 'Build the Spawning Pools', unlocked: buildingTypes.has('spawning_pools') },
+    { id: 'mega_builder', name: 'Master Architect', desc: 'Build all 4 megastructures', unlocked: buildingTypes.has('shell_archive') && buildingTypes.has('abyssal_beacon') && buildingTypes.has('molt_cathedral') && buildingTypes.has('spawning_pools') },
   ];
 
   const unlocked = ACHIEVEMENTS.filter(a => a.unlocked);

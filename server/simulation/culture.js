@@ -1,6 +1,8 @@
 const db = require('../db/connection');
-const { SPEECH } = require('../render/sprites');
+const { SPEECH, MOLTING_SPEECH, MEGASTRUCTURE_SPEECH } = require('../render/sprites');
 const { getMoltbookSpeech } = require('./moltbook-feed');
+const { hasMegastructure } = require('./megastructures');
+const { ARCHIVE_CULTURE_MULTIPLIER } = require('./constants');
 
 // ─── PHRASE TONE ANALYSIS ───
 // Keywords that nudge village personality when taught
@@ -124,20 +126,35 @@ function recalculateCulture(worldId) {
   ).get(worldId, windowStart).c;
   const cooperationLevel = Math.min(100, avg.sociability + recentCoop * 4 + Math.floor(recentCelebrated / 2));
 
+  // Shell relic bonus — split across all 3 culture axes
+  // Shell Archive megastructure doubles the relic bonus
+  let relicBonus = db.prepare(
+    'SELECT COALESCE(SUM(culture_bonus), 0) as total FROM shell_relics WHERE world_id = ?'
+  ).get(worldId).total;
+  if (hasMegastructure(worldId, 'shell_archive')) {
+    relicBonus *= ARCHIVE_CULTURE_MULTIPLIER;
+  }
+  const relicPerAxis = Math.floor(relicBonus / 3);
+
+  // Apply relic bonus (already min-capped at 100 above, re-cap after adding)
+  const finalViolence = Math.min(100, violenceLevel + relicPerAxis);
+  const finalCreativity = Math.min(100, creativityLevel + relicPerAxis);
+  const finalCooperation = Math.min(100, cooperationLevel + relicPerAxis);
+
   // Auto-unlock scouting when any bar hits 100
-  if (violenceLevel >= 100 || creativityLevel >= 100 || cooperationLevel >= 100) {
+  if (finalViolence >= 100 || finalCreativity >= 100 || finalCooperation >= 100) {
     db.prepare('UPDATE worlds SET scouting_unlocked = 1 WHERE id = ? AND scouting_unlocked = 0').run(worldId);
   }
 
   // Village mood
   let mood = 'calm';
-  if (avg.morale > 75 && violenceLevel < 20) mood = 'joyful';
-  else if (avg.morale > 60 && creativityLevel > 60) mood = 'inspired';
-  else if (violenceLevel > 60) mood = 'tense';
+  if (avg.morale > 75 && finalViolence < 20) mood = 'joyful';
+  else if (avg.morale > 60 && finalCreativity > 60) mood = 'inspired';
+  else if (finalViolence > 60) mood = 'tense';
   else if (avg.morale < 30) mood = 'desperate';
-  else if (avg.morale < 50 && violenceLevel > 30) mood = 'restless';
-  else if (creativityLevel > 70 && cooperationLevel > 60) mood = 'flourishing';
-  else if (cooperationLevel > 70) mood = 'harmonious';
+  else if (avg.morale < 50 && finalViolence > 30) mood = 'restless';
+  else if (finalCreativity > 70 && finalCooperation > 60) mood = 'flourishing';
+  else if (finalCooperation > 70) mood = 'harmonious';
 
   // Dominant activities
   const activityCounts = db.prepare(`
@@ -154,7 +171,7 @@ function recalculateCulture(worldId) {
       dominant_activities = ?,
       updated_at = datetime('now')
     WHERE world_id = ?
-  `).run(mood, violenceLevel, creativityLevel, cooperationLevel, JSON.stringify(dominantActivities), worldId);
+  `).run(mood, finalViolence, finalCreativity, finalCooperation, JSON.stringify(dominantActivities), worldId);
 
   // Prune old culture_log entries
   db.prepare('DELETE FROM culture_log WHERE world_id = ? AND tick < ?')
@@ -294,6 +311,7 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
       'almost there', 'one thing at a time', '*work work*',
       'earning my keep', 'no rest yet',
     ],
+    molting: MOLTING_SPEECH,
   };
 
   if (activity && ACTIVITY_SPEECH[activity]) {

@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS worlds (
     map_size INTEGER NOT NULL DEFAULT 40,
     banner_symbol TEXT DEFAULT NULL,
     tick_mode TEXT NOT NULL DEFAULT 'normal',
-    scouting_unlocked INTEGER NOT NULL DEFAULT 0
+    scouting_unlocked INTEGER NOT NULL DEFAULT 0,
+    deep_dives INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_worlds_prefix ON worlds(key_prefix);
@@ -113,6 +114,8 @@ CREATE TABLE IF NOT EXISTS villagers (
     creativity INTEGER NOT NULL DEFAULT 50,
     sociability INTEGER NOT NULL DEFAULT 50,
     is_chronicler INTEGER NOT NULL DEFAULT 0,
+    last_molt_tick INTEGER DEFAULT 0,
+    molt_count INTEGER DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -370,3 +373,28 @@ CREATE TABLE IF NOT EXISTS world_stats (
     army_power TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- ============================================================
+-- PROPHET DISCOVERIES: Which prophets each world has discovered
+-- ============================================================
+CREATE TABLE IF NOT EXISTS prophet_discoveries (
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    prophet_id INTEGER NOT NULL,
+    discovered_tick INTEGER NOT NULL,
+    PRIMARY KEY (world_id, prophet_id)
+);
+
+-- ============================================================
+-- SHELL RELICS: Left behind when villagers die
+-- ============================================================
+CREATE TABLE IF NOT EXISTS shell_relics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    villager_name TEXT NOT NULL,
+    villager_trait TEXT,
+    relic_type TEXT NOT NULL,
+    culture_bonus INTEGER NOT NULL DEFAULT 1,
+    created_tick INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_shell_relics_world ON shell_relics(world_id);

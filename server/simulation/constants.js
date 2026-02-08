@@ -50,4 +50,32 @@ module.exports = {
   MOLT_FESTIVAL_CULTURE_THRESHOLD: 100,
   MOLT_FESTIVAL_MORALE_BOOST: 15,
   MOLT_FESTIVAL_SCAFFOLD_BONUS: 25,
+
+  // Villager Molting
+  MOLT_INTERVAL: 80,
+  MOLT_CHANCE: 0.05,
+  MOLT_DURATION: 3,
+  MOLT_STAT_BOOST: 2,
+  MOLT_HP_BOOST: 5,
+
+  // Prophets
+  PROPHET_CHECK_INTERVAL: 36,
+  PROPHET_CULTURE_THRESHOLD: 50,
+  PROPHET_CHANCE_PER_PRIEST: 0.03,
+
+  // Deep-Sea Exploration
+  DEEP_SEA_CHECK_INTERVAL: 12,
+  DEEP_SEA_CULTURE_THRESHOLD: 75,
+  DEEP_SEA_MIN_FISHERMEN: 2,
+
+  // Prophecy
+  PROPHECY_CHANCE: 0.02,
+
+  // Megastructures
+  ARCHIVE_CULTURE_MULTIPLIER: 2,        // Shell Archive doubles relic culture bonus
+  BEACON_SILENCE_REDUCTION: 20,         // Abyssal Beacon: silence chance drops from 40% to 20%
+  CATHEDRAL_MOLT_BOOST_MULTIPLIER: 2,   // Molt Cathedral: 2x stat boost on molt completion
+  CATHEDRAL_MOLT_DURATION_REDUCTION: 1, // Molt Cathedral: molt finishes 1 tick faster
+  POOLS_BIRTH_RATE_BONUS: 0.015,        // Spawning Pools: +1.5% birth rate
+  POOLS_STAT_BONUS: 3,                  // Spawning Pools: newborns get +3 to a random stat
 };

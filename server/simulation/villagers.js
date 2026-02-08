@@ -3,6 +3,8 @@ const db = require('../db/connection');
 const { randomName, randomTrait, TRAIT_PERSONALITY } = require('../world/templates');
 const { getCenter } = require('../world/map');
 const { getCulture } = require('./culture');
+const { hasMegastructure } = require('./megastructures');
+const { POOLS_BIRTH_RATE_BONUS, POOLS_STAT_BONUS } = require('./constants');
 
 function processVillagers(worldId, isStarving, weather) {
   const culture = getCulture(worldId);
@@ -113,10 +115,26 @@ function processVillagers(worldId, isStarving, weather) {
     // Death check
     if (hp <= 0) {
       status = 'dead';
+
+      // Shell relic — legacy of the fallen
+      const moltCount = v.molt_count || 0;
+      const exp = v.experience || 0;
+      let relicType, relicBonus;
+      if (moltCount >= 5 || exp >= 200) { relicType = 'ancient'; relicBonus = 5; }
+      else if (moltCount >= 3 || exp >= 100) { relicType = 'inscribed'; relicBonus = 4; }
+      else if (moltCount >= 2 || exp >= 50) { relicType = 'crystallized'; relicBonus = 3; }
+      else if (moltCount >= 1) { relicType = 'whole_shell'; relicBonus = 2; }
+      else { relicType = 'fragment'; relicBonus = 1; }
+
+      const currentTick = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(worldId);
+      db.prepare(
+        'INSERT INTO shell_relics (world_id, villager_name, villager_trait, relic_type, culture_bonus, created_tick) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(worldId, v.name, v.trait, relicType, relicBonus, currentTick ? currentTick.current_tick : 0);
+
       events.push({
         type: 'death',
         title: `${v.name} has died`,
-        description: `${v.name} the ${v.role} has perished. ${hunger >= 80 ? 'Starvation took them.' : 'Their wounds were too severe.'}`,
+        description: `${v.name} the ${v.role} has perished. ${hunger >= 80 ? 'Starvation took them.' : 'Their wounds were too severe.'} A ${relicType} shell relic remains.`,
         severity: 'danger',
       });
     }
@@ -126,15 +144,19 @@ function processVillagers(worldId, isStarving, weather) {
 
   // Birth chance: if pop < capacity, morale > 60 avg, 2% chance per tick
   const alive = villagers.filter((v) => v.status === 'alive' || (v.hp > 0));
-  const buildingCap = db.prepare(
+  let buildingCap = db.prepare(
     "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId).cap;
+  // Spawning Pools add +5 population capacity
+  if (hasMegastructure(worldId, 'spawning_pools')) buildingCap += 5;
 
   const avgMorale = alive.length > 0 ? alive.reduce((s, v) => s + v.morale, 0) / alive.length : 0;
 
   // Higher cooperation = slightly higher birth rate
   const cooperationBonus = Math.max(0, (culture.cooperation_level || 0) - 50) / 2000;
-  const birthRate = Math.max(0.005, Math.min(0.05, 0.02 + cooperationBonus));
+  const hasPools = hasMegastructure(worldId, 'spawning_pools');
+  const poolsBonus = hasPools ? POOLS_BIRTH_RATE_BONUS : 0;
+  const birthRate = Math.max(0.005, Math.min(0.06, 0.02 + cooperationBonus + poolsBonus));
 
   if (alive.length < buildingCap && avgMorale > 60 && Math.random() < birthRate) {
     const rng = () => Math.random();
@@ -157,9 +179,18 @@ function processVillagers(worldId, isStarving, weather) {
 
     const blend = (base, avg) => Math.max(0, Math.min(100, Math.round(base * 0.7 + avg * 0.3) + Math.floor(Math.random() * 11) - 5));
 
-    const temperament = blend(basePers.temperament, avgTemp);
-    const creativity = blend(basePers.creativity, avgCre);
-    const sociability = blend(basePers.sociability, avgSoc);
+    let temperament = blend(basePers.temperament, avgTemp);
+    let creativity = blend(basePers.creativity, avgCre);
+    let sociability = blend(basePers.sociability, avgSoc);
+
+    // Spawning Pools: newborns get a bonus to a random stat
+    if (hasPools) {
+      const stats = ['temperament', 'creativity', 'sociability'];
+      const boosted = stats[Math.floor(Math.random() * stats.length)];
+      if (boosted === 'temperament') temperament = Math.min(100, temperament + POOLS_STAT_BONUS);
+      else if (boosted === 'creativity') creativity = Math.min(100, creativity + POOLS_STAT_BONUS);
+      else sociability = Math.min(100, sociability + POOLS_STAT_BONUS);
+    }
 
     // Cultural imprinting — newborn absorbs a phrase from town culture
     let culturalPhrase = null;

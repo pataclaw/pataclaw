@@ -1,5 +1,6 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH } = require('./sprites');
+const { hasMegastructure } = require('../simulation/megastructures');
 const { MAP_SIZE } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
 const { getActivePlanetaryEvent } = require('../simulation/planetary');
@@ -64,6 +65,11 @@ function buildTownFrame(worldId) {
     "SELECT title, severity, type FROM events WHERE world_id = ? AND type IN ('fight', 'project_complete', 'project_started', 'death') ORDER BY tick DESC LIMIT 8"
   ).all(worldId);
 
+  // Shell relics — priests reference the dead
+  const relicNames = db.prepare(
+    'SELECT villager_name FROM shell_relics WHERE world_id = ? ORDER BY created_tick DESC LIMIT 5'
+  ).all(worldId).map(r => r.villager_name);
+
   // Enrich villagers with unique appearance + activity-aware speech
   const enrichedVillagers = villagers.map((v) => {
     const appearance = villagerAppearance(v.name, v.trait, v.role);
@@ -71,6 +77,19 @@ function buildTownFrame(worldId) {
     const speechPool = buildSpeechPool(v.role, culture, world.hero_title, activity.activity);
     // Add villager's personal imprinted phrase
     if (v.cultural_phrase) speechPool.push(v.cultural_phrase);
+    // Priests reference the dead via shell relics
+    if (v.role === 'priest' && relicNames.length > 0) {
+      for (const name of relicNames) {
+        speechPool.push(`${name}'s shell remembers`);
+        speechPool.push(`we honor ${name}`);
+      }
+    }
+    // Megastructure-aware speech — all villagers near these buildings talk about them
+    for (const [megaType, lines] of Object.entries(MEGASTRUCTURE_SPEECH)) {
+      if (hasMegastructure(worldId, megaType)) {
+        speechPool.push(...lines);
+      }
+    }
 
     return {
       ...v,
@@ -170,7 +189,12 @@ function buildTownFrame(worldId) {
       phrase: g.cultural_phrase || '...',
       ticksSinceDeath: world.current_tick - g.death_tick,
     })),
+    relics: db.prepare(
+      'SELECT villager_name, relic_type, culture_bonus FROM shell_relics WHERE world_id = ? ORDER BY created_tick DESC LIMIT 10'
+    ).all(worldId),
     monolith: getMonolithData(worldId),
+    megastructures: ['shell_archive', 'abyssal_beacon', 'molt_cathedral', 'spawning_pools']
+      .filter(t => hasMegastructure(worldId, t)),
     biome: {
       dominant: dominantBiome,
       distribution: biomeDistribution,

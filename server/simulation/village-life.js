@@ -7,7 +7,7 @@ const ACTIVITIES = [
   'idle', 'working', 'fighting', 'building_project', 'making_art',
   'playing_music', 'arguing', 'celebrating', 'mourning', 'sparring',
   'meditating', 'feasting', 'praying', 'teaching', 'brooding',
-  'socializing', 'wandering', 'sleeping', 'fishing',
+  'socializing', 'wandering', 'sleeping', 'fishing', 'molting',
 ];
 
 // ─── MEMORY TYPES ───
@@ -203,6 +203,12 @@ function resolveActivities(worldId, villagers, world) {
 
   for (const v of villagers) {
     const cur = currentActivities[v.villager_id];
+
+    // Molting persists — managed by molting.js
+    if (cur && cur.activity === 'molting') {
+      upsert.run(v.id, worldId, 'molting', cur.target_id);
+      continue;
+    }
 
     // Fighting/building_project persist until resolved — don't re-roll
     if (cur && (cur.activity === 'fighting' || cur.activity === 'building_project') && cur.duration_ticks < 5) {

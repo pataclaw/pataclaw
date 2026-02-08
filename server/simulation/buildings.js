@@ -33,6 +33,11 @@ const BUILDING_DEFS = {
   library:    { wood: 15, stone: 20, crypto: 10, ticks: 25, hp: 130 },
   storehouse: { wood: 25, stone: 10, crypto: 0, ticks: 12, hp: 150 },
   dock:       { wood: 12, stone: 5, crypto: 0, ticks: 10, hp: 90 },
+  // Endgame megastructures — require growth stage 3
+  shell_archive:   { wood: 40, stone: 50, crypto: 20, ticks: 40, hp: 300 },
+  abyssal_beacon:  { wood: 30, stone: 40, crypto: 25, ticks: 35, hp: 250 },
+  molt_cathedral:  { wood: 35, stone: 60, crypto: 15, ticks: 45, hp: 350 },
+  spawning_pools:  { wood: 25, stone: 30, crypto: 10, ticks: 30, hp: 200 },
 };
 
 // ─── MAINTENANCE COSTS (charged every MAINTENANCE_INTERVAL ticks) ───
@@ -48,6 +53,11 @@ const MAINTENANCE_COSTS = {
   temple:     { wood: 0, stone: 0, crypto: 1 },
   market:     { wood: 1, stone: 0, crypto: 1 },
   library:    { wood: 0, stone: 1, crypto: 1 },
+  // Megastructures — expensive upkeep
+  shell_archive:   { wood: 1, stone: 2, crypto: 2 },
+  abyssal_beacon:  { wood: 2, stone: 1, crypto: 2 },
+  molt_cathedral:  { wood: 1, stone: 2, crypto: 1 },
+  spawning_pools:  { wood: 2, stone: 1, crypto: 1 },
 };
 
 const DECAY_HP_PER_TICK = 3;
@@ -215,6 +225,19 @@ function canBuild(worldId, type) {
   if ((resMap.wood || 0) < def.wood) return { ok: false, reason: `Need ${def.wood} wood (have ${Math.floor(resMap.wood || 0)})` };
   if ((resMap.stone || 0) < def.stone) return { ok: false, reason: `Need ${def.stone} stone (have ${Math.floor(resMap.stone || 0)})` };
   if ((resMap.crypto || 0) < def.crypto) return { ok: false, reason: `Need ${def.crypto} crypto (have ${Math.floor(resMap.crypto || 0)})` };
+
+  // Megastructures: require growth stage 3 + one of each type
+  const MEGASTRUCTURES = ['shell_archive', 'abyssal_beacon', 'molt_cathedral', 'spawning_pools'];
+  if (MEGASTRUCTURES.includes(type)) {
+    const stageInfo = getGrowthStage(worldId);
+    if (stageInfo.stage < 4) {
+      return { ok: false, reason: `${type.replace('_', ' ')} requires max growth stage (stage 4). Current: stage ${stageInfo.stage}.` };
+    }
+    const existing = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = ? AND status NOT IN ('destroyed')").get(worldId, type).c;
+    if (existing > 0) {
+      return { ok: false, reason: `Only one ${type.replace('_', ' ')} can exist per world.` };
+    }
+  }
 
   // Religious building cap (temple)
   if (type === 'temple') {

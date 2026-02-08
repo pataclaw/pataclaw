@@ -38,6 +38,11 @@ const migrations = [
   "ALTER TABLE villagers ADD COLUMN is_chronicler INTEGER NOT NULL DEFAULT 0",
   // Villager memories detail column for events like Molt Festival
   "ALTER TABLE villager_memories ADD COLUMN detail TEXT DEFAULT NULL",
+  // Lore expansion: molting
+  "ALTER TABLE villagers ADD COLUMN last_molt_tick INTEGER DEFAULT 0",
+  "ALTER TABLE villagers ADD COLUMN molt_count INTEGER DEFAULT 0",
+  // Lore expansion: deep-sea exploration
+  "ALTER TABLE worlds ADD COLUMN deep_dives INTEGER NOT NULL DEFAULT 0",
 ];
 
 for (const sql of migrations) {
