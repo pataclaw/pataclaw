@@ -287,13 +287,17 @@ function startAnimLoop() {
     if (!lastWorldData) return;
     waveCounter++;
 
-    for (var id in agents) {
-      var a = agents[id];
-      if (!a.data || a.data.status !== 'alive') continue;
-      updateAgent(a, lastWorldData.world);
-    }
+    try {
+      for (var id in agents) {
+        var a = agents[id];
+        if (!a.data || a.data.status !== 'alive') continue;
+        updateAgent(a, lastWorldData.world);
+      }
 
-    renderScene(lastWorldData);
+      renderScene(lastWorldData);
+    } catch (err) {
+      console.error('[viewer] render error:', err);
+    }
   }
 
   animFrameId = requestAnimationFrame(loop);
