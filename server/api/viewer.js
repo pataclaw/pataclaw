@@ -23,8 +23,13 @@ router.get('/stream', authViewToken, (req, res) => {
   if (res.socket) res.socket.setNoDelay(true);
 
   // Send initial frame immediately
-  const frame = buildFrame(req.worldId, 'town');
-  res.write(`event: frame\ndata: ${JSON.stringify(frame)}\n\n`);
+  try {
+    const frame = buildFrame(req.worldId, 'town');
+    const payload = `event: frame\ndata: ${JSON.stringify(frame)}\n\n`;
+    res.write(payload);
+  } catch (err) {
+    res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
+  }
 
   // Register for future frames
   addViewer(req.worldId, res);
