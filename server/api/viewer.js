@@ -11,6 +11,18 @@ const router = Router();
 // Rate limiting for whispers: worldId -> last whisper timestamp
 const whisperCooldowns = new Map();
 
+// SSE test endpoint (no auth, no frame building - pure SSE)
+router.get('/stream-test', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write('event: ping\ndata: {"ok":true}\n\n');
+  if (res.flush) res.flush();
+  setTimeout(() => res.end(), 5000);
+});
+
 // GET /api/stream?token=... - SSE stream for browser viewer (read-only via view token)
 router.get('/stream', authViewToken, (req, res) => {
   res.writeHead(200, {

@@ -144,7 +144,14 @@ if (unnumbered.length > 0) {
 const compression = require('compression');
 const app = express();
 
-app.use(compression());
+app.use(compression({
+  filter: (req, res) => {
+    // Don't compress SSE streams — compression buffers them
+    if (req.headers.accept === 'text/event-stream') return false;
+    if (res.getHeader('Content-Type') === 'text/event-stream') return false;
+    return compression.filter(req, res);
+  }
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
