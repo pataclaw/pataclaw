@@ -52,45 +52,212 @@
   // ─── FULL-VIEWPORT STARFIELD (canvas) ───
   var starCanvas = document.getElementById('starfield');
   var starCtx = starCanvas ? starCanvas.getContext('2d') : null;
-  var bgStars = []; // {x, y, size, brightness, twinkleSpeed, twinklePhase}
+  var bgStars = [];
+  var pulsars = [];    // bright rhythmic beacons
+  var nebulae = [];    // subtle colored gas wisps
+  var bgComets = [];   // distant shooting stars across viewport
 
   function initBgStarfield() {
     if (!starCanvas) return;
     starCanvas.width = window.innerWidth;
     starCanvas.height = window.innerHeight;
+    var w = starCanvas.width, h = starCanvas.height;
+    var area = w * h;
 
+    // Stars — ambient dust
     bgStars = [];
-    var area = starCanvas.width * starCanvas.height;
-    var count = Math.floor(area / 1200); // sparser — ambient background only
+    var count = Math.floor(area / 1000);
     for (var i = 0; i < count; i++) {
       bgStars.push({
-        x: Math.random() * starCanvas.width,
-        y: Math.random() * starCanvas.height,
-        size: Math.random() < 0.85 ? 1 : 1.5, // mostly tiny dots
-        brightness: 0.1 + Math.random() * 0.35, // dimmer — don't compete with globe
+        x: Math.random() * w,
+        y: Math.random() * h,
+        size: Math.random() < 0.85 ? 1 : 1.5,
+        brightness: 0.1 + Math.random() * 0.35,
         twinkleSpeed: 0.01 + Math.random() * 0.04,
         twinklePhase: Math.random() * Math.PI * 2,
       });
+    }
+
+    // Pulsars — 3-6 bright rhythmic beacons
+    pulsars = [];
+    var pulsarCount = 3 + Math.floor(Math.random() * 4);
+    for (var i = 0; i < pulsarCount; i++) {
+      pulsars.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        pulseSpeed: 0.03 + Math.random() * 0.05,
+        pulsePhase: Math.random() * Math.PI * 2,
+        color: Math.random() < 0.5 ? [140, 180, 255] : (Math.random() < 0.5 ? [255, 200, 140] : [200, 140, 255]),
+        maxRadius: 1.5 + Math.random() * 1.5,
+      });
+    }
+
+    // Nebulae — 2-4 faint colored gas patches
+    nebulae = [];
+    var nebulaCount = 2 + Math.floor(Math.random() * 3);
+    for (var i = 0; i < nebulaCount; i++) {
+      var hue = Math.random();
+      var nr, ng, nb;
+      if (hue < 0.3) { nr = 60; ng = 40; nb = 120; }       // purple
+      else if (hue < 0.5) { nr = 30; ng = 60; nb = 100; }   // blue
+      else if (hue < 0.7) { nr = 80; ng = 40; nb = 50; }    // red/pink
+      else { nr = 40; ng = 80; nb = 70; }                     // teal
+      nebulae.push({
+        x: w * 0.1 + Math.random() * w * 0.8,
+        y: h * 0.1 + Math.random() * h * 0.8,
+        radius: 60 + Math.random() * 120,
+        r: nr, g: ng, b: nb,
+        alpha: 0.015 + Math.random() * 0.025,
+        driftX: (Math.random() - 0.5) * 0.05,
+        driftY: (Math.random() - 0.5) * 0.03,
+      });
+    }
+  }
+
+  // ─── CANVAS COMETS (distant shooting stars) ───
+  var BG_COMET_MAX = 3;
+  var BG_COMET_SPAWN_RATE = 0.006;
+
+  function spawnBgComet() {
+    var w = starCanvas.width, h = starCanvas.height;
+    var side = Math.random();
+    var x, y, dx, dy, speed;
+    speed = 2 + Math.random() * 4;
+    if (side < 0.5) {
+      // From top
+      x = Math.random() * w;
+      y = -10;
+      dx = (Math.random() - 0.5) * speed * 0.6;
+      dy = speed;
+    } else if (side < 0.75) {
+      // From left
+      x = -10;
+      y = Math.random() * h * 0.6;
+      dx = speed;
+      dy = speed * (0.3 + Math.random() * 0.5);
+    } else {
+      // From right
+      x = w + 10;
+      y = Math.random() * h * 0.6;
+      dx = -speed;
+      dy = speed * (0.3 + Math.random() * 0.5);
+    }
+    var warm = Math.random() < 0.3;
+    return {
+      x: x, y: y, dx: dx, dy: dy,
+      life: 40 + Math.floor(Math.random() * 60), age: 0,
+      tailLen: 8 + Math.floor(Math.random() * 15),
+      r: warm ? 255 : 200, g: warm ? 220 : 210, b: warm ? 160 : 255,
+      brightness: 0.4 + Math.random() * 0.4,
+    };
+  }
+
+  function updateBgComets() {
+    // Spawn
+    var eff = planetaryEvent ? PE_EFFECTS[planetaryEvent.type] : null;
+    var boost = eff && eff.meteorBoost > 0 ? 4 : 1;
+    var maxC = BG_COMET_MAX * boost;
+    if (bgComets.length < maxC && Math.random() < BG_COMET_SPAWN_RATE * boost) {
+      bgComets.push(spawnBgComet());
+    }
+    // Advance
+    for (var i = bgComets.length - 1; i >= 0; i--) {
+      var c = bgComets[i];
+      c.x += c.dx;
+      c.y += c.dy;
+      c.age++;
+      if (c.age > c.life || c.x < -50 || c.x > starCanvas.width + 50 || c.y > starCanvas.height + 50) {
+        bgComets.splice(i, 1);
+      }
     }
   }
 
   function renderBgStarfield() {
     if (!starCtx || !starCanvas) return;
-    starCtx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+    var w = starCanvas.width, h = starCanvas.height;
+    starCtx.clearRect(0, 0, w, h);
 
+    // Nebulae — soft background glow
+    for (var i = 0; i < nebulae.length; i++) {
+      var n = nebulae[i];
+      n.x += n.driftX;
+      n.y += n.driftY;
+      // Wrap around
+      if (n.x < -n.radius) n.x = w + n.radius;
+      if (n.x > w + n.radius) n.x = -n.radius;
+      if (n.y < -n.radius) n.y = h + n.radius;
+      if (n.y > h + n.radius) n.y = -n.radius;
+
+      var grad = starCtx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius);
+      grad.addColorStop(0, 'rgba(' + n.r + ',' + n.g + ',' + n.b + ',' + n.alpha + ')');
+      grad.addColorStop(0.5, 'rgba(' + n.r + ',' + n.g + ',' + n.b + ',' + (n.alpha * 0.4) + ')');
+      grad.addColorStop(1, 'rgba(' + n.r + ',' + n.g + ',' + n.b + ',0)');
+      starCtx.fillStyle = grad;
+      starCtx.fillRect(n.x - n.radius, n.y - n.radius, n.radius * 2, n.radius * 2);
+    }
+
+    // Stars
     for (var i = 0; i < bgStars.length; i++) {
       var s = bgStars[i];
       var twinkle = Math.sin(frameCount * s.twinkleSpeed + s.twinklePhase);
       var alpha = s.brightness * (0.5 + 0.5 * twinkle);
       if (alpha < 0.05) continue;
-
-      // Color: mostly white/blue, rare warm
       var r = 180 + Math.floor(s.brightness * 75);
       var g = 190 + Math.floor(s.brightness * 65);
       var b = 210 + Math.floor(s.brightness * 45);
-
       starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
       starCtx.fillRect(s.x, s.y, s.size, s.size);
+    }
+
+    // Pulsars — rhythmic bright beacons
+    for (var i = 0; i < pulsars.length; i++) {
+      var p = pulsars[i];
+      var pulse = Math.sin(frameCount * p.pulseSpeed + p.pulsePhase);
+      var intensity = 0.1 + 0.9 * Math.max(0, pulse);
+      var radius = p.maxRadius * intensity;
+      if (radius < 0.3) continue;
+      // Core
+      starCtx.fillStyle = 'rgba(' + p.color[0] + ',' + p.color[1] + ',' + p.color[2] + ',' + (intensity * 0.8).toFixed(2) + ')';
+      starCtx.beginPath();
+      starCtx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      starCtx.fill();
+      // Glow halo
+      if (intensity > 0.5) {
+        var glow = starCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 4);
+        glow.addColorStop(0, 'rgba(' + p.color[0] + ',' + p.color[1] + ',' + p.color[2] + ',' + (intensity * 0.15).toFixed(2) + ')');
+        glow.addColorStop(1, 'rgba(' + p.color[0] + ',' + p.color[1] + ',' + p.color[2] + ',0)');
+        starCtx.fillStyle = glow;
+        starCtx.fillRect(p.x - radius * 4, p.y - radius * 4, radius * 8, radius * 8);
+      }
+    }
+
+    // Comets — streaking trails across the viewport
+    for (var i = 0; i < bgComets.length; i++) {
+      var c = bgComets[i];
+      var len = Math.sqrt(c.dx * c.dx + c.dy * c.dy);
+      var ux = -c.dx / len, uy = -c.dy / len; // unit tail direction
+
+      // Fade in/out at start and end of life
+      var lifeFade = Math.min(1, c.age / 8, (c.life - c.age) / 10);
+
+      // Head
+      starCtx.fillStyle = 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + (c.brightness * lifeFade).toFixed(2) + ')';
+      starCtx.beginPath();
+      starCtx.arc(c.x, c.y, 1.5, 0, Math.PI * 2);
+      starCtx.fill();
+
+      // Trail
+      for (var t = 1; t <= c.tailLen; t++) {
+        var tx = c.x + ux * t * 2.5;
+        var ty = c.y + uy * t * 2.5;
+        var ta = c.brightness * lifeFade * (1 - t / c.tailLen) * 0.6;
+        if (ta < 0.02) break;
+        var tr = 0.8 * (1 - t / c.tailLen);
+        starCtx.fillStyle = 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + ta.toFixed(2) + ')';
+        starCtx.beginPath();
+        starCtx.arc(tx, ty, Math.max(0.3, tr), 0, Math.PI * 2);
+        starCtx.fill();
+      }
     }
   }
 
@@ -130,8 +297,8 @@
 
   // ─── METEORS ───
   var meteors = [];
-  var METEOR_SPAWN_RATE = 0.008; // chance per frame of spawning
-  var METEOR_MAX = 3;
+  var METEOR_SPAWN_RATE = 0.003; // reduced — most action is on canvas comets now
+  var METEOR_MAX = 2;
   var METEOR_TRAIL = ['*', '-', '.', '\u00b7'];
   var METEOR_CLASSES = ['meteor-head', 'meteor-trail1', 'meteor-trail2', 'meteor-trail3'];
 
@@ -453,6 +620,7 @@
       rotation += AUTO_SPIN_SPEED;
     }
 
+    updateBgComets();
     renderBgStarfield();
     updateMeteors();
     if (!dragging) {
