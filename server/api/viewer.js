@@ -19,10 +19,12 @@ router.get('/stream', authViewToken, (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
+  // Disable TCP buffering for real-time streaming
+  if (res.socket) res.socket.setNoDelay(true);
+
   // Send initial frame immediately
   const frame = buildFrame(req.worldId, 'town');
   res.write(`event: frame\ndata: ${JSON.stringify(frame)}\n\n`);
-  if (res.flush) res.flush();
 
   // Register for future frames
   addViewer(req.worldId, res);
@@ -31,7 +33,6 @@ router.get('/stream', authViewToken, (req, res) => {
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n');
-      if (res.flush) res.flush();
     } catch {
       clearInterval(keepalive);
     }
