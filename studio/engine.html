@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PATACLAW STUDIO</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    width: 1080px;
+    height: 1080px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #scene {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14.5px;
+    line-height: 1.18;
+    white-space: pre;
+    color: #33ff33;
+    width: 1080px;
+    height: 1080px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── Color palette ─── */
+  .c-green { color: #33ff33; }
+  .c-dim { color: #1a5c1a; }
+  .c-bright { color: #66ff66; }
+  .c-yellow { color: #ffcc00; }
+  .c-gold { color: #ffd700; }
+  .c-red { color: #ff4444; }
+  .c-fire { color: #ff6622; }
+  .c-blue { color: #4488ff; }
+  .c-cyan { color: #00cccc; }
+  .c-purple { color: #bb66ff; }
+  .c-white { color: #cccccc; }
+  .c-grey { color: #555555; }
+  .c-darkgrey { color: #333333; }
+  .c-sky { color: #334455; }
+  .c-water { color: #2266aa; }
+  .c-ground { color: #554422; }
+  .c-gnd { color: #332211; }
+  .c-grass { color: #44aa44; }
+  .c-tree { color: #228833; }
+  .c-ice { color: #aaddff; }
+  .c-desert { color: #ccaa55; }
+  .c-swamp { color: #558844; }
+  .c-mountain { color: #889999; }
+  .c-star { color: #aaaaaa; }
+  .c-stardim { color: #444444; }
+  .c-lore { color: #ff8866; }
+  .c-cele { color: #ffdd44; }
+  .c-hunt { color: #ee8833; }
+  .c-item-c { color: #888888; }
+  .c-item-u { color: #44bb44; }
+  .c-item-r { color: #4488ff; }
+  .c-item-e { color: #bb66ff; }
+  .c-item-l { color: #ffd700; }
+  .c-wipe { color: #1a331a; }
+  .c-title { color: #ffcc00; }
+  .c-sub { color: #33ff33; }
+  .c-url { color: #33ff33; }
+  .c-label { color: #666666; }
+  .c-hut { color: #aa7744; }
+  .c-lodge { color: #bb6633; }
+  .c-deer { color: #cc9966; }
+  .c-wyrm { color: #aaddff; }
+  .c-drake { color: #ffaa33; }
+  .c-arrow { color: #ffcc00; }
+  .c-spark { color: #ff4444; }
+  .c-loot { color: #ffd700; }
+  .c-bar { color: #33ff33; }
+  .c-barmid { color: #ffcc00; }
+  .c-barhigh { color: #ff6622; }
+  .c-flash { color: #ffffff; }
+  .c-name1 { color: hsl(8, 80%, 65%); }
+  .c-name2 { color: hsl(128, 80%, 65%); }
+  .c-name3 { color: hsl(240, 80%, 65%); }
+  .c-name4 { color: hsl(80, 80%, 65%); }
+  .c-name5 { color: hsl(310, 80%, 65%); }
+  .c-name6 { color: hsl(45, 80%, 65%); }
+</style>
+</head>
+<body>
+<pre id="scene"></pre>
+<script>
+// ═══════════════════════════════════════════════════════
+// PATACLAW STUDIO — Reusable ASCII Animation Engine
+// ═══════════════════════════════════════════════════════
+// Episodes define scenes. The engine renders them.
+// After the last scene, document.title = 'DONE' to signal recording script.
+
+var W = 72, H = 64;
+var FPS = 12;
+var TRANSITION = 8;
+var sceneEl = document.getElementById('scene');
+var frameCount = 0;
+var currentScene = 0;
+var sceneFrame = 0;
+
+// ─── Grid API (available to episodes) ───
+window.STUDIO = {
+  W: W, H: H, FPS: FPS, GY: 48,
+
+  makeGrid: function() {
+    var g = [];
+    for (var y = 0; y < H; y++) {
+      g[y] = [];
+      for (var x = 0; x < W; x++) g[y][x] = { ch: ' ', c: '' };
+    }
+    return g;
+  },
+
+  set: function(g, x, y, ch, c) {
+    if (y >= 0 && y < H && x >= 0 && x < W) g[y][x] = { ch: ch, c: c || '' };
+  },
+
+  get: function(g, x, y) {
+    if (y >= 0 && y < H && x >= 0 && x < W) return g[y][x];
+    return { ch: ' ', c: '' };
+  },
+
+  text: function(g, x, y, s, c) {
+    for (var i = 0; i < s.length; i++) {
+      if (s[i] !== '\0') this.set(g, x + i, y, s[i], c);
+    }
+  },
+
+  sprite: function(g, x, y, lines, c) {
+    for (var r = 0; r < lines.length; r++) this.text(g, x, y + r, lines[r], c);
+  },
+
+  center: function(g, y, s, c) {
+    this.text(g, Math.floor((W - s.length) / 2), y, s, c);
+  },
+
+  drawBubble: function(g, x, y, msg, c) {
+    var w = msg.length + 4;
+    var cx = Math.max(0, Math.min(W - w, x));
+    this.text(g, cx, y,     '\u250c' + '\u2500'.repeat(w - 2) + '\u2510', c);
+    this.text(g, cx, y + 1, '\u2502 ' + msg + ' \u2502', c);
+    this.text(g, cx, y + 2, '\u2514\u2500\u252c' + '\u2500'.repeat(w - 4) + '\u2518', c);
+  },
+
+  // ─── Stars ───
+  _stars: (function() {
+    var s = [];
+    for (var i = 0; i < 40; i++) {
+      var h = (i * 7919 + 1327) % 10000;
+      s.push({ x: h % 72, y: (h / 72 | 0) % 12, ch: ['.', '*', '+', '\u00b7'][i % 4], phase: h % 60 });
+    }
+    return s;
+  })(),
+
+  drawStars: function(g, f) {
+    for (var i = 0; i < this._stars.length; i++) {
+      var s = this._stars[i];
+      var t = (f + s.phase) % 60;
+      var c = t < 20 ? 'c-stardim' : t < 40 ? 'c-star' : 'c-bright';
+      if (this.get(g, s.x, s.y).ch === ' ') this.set(g, s.x, s.y, s.ch, c);
+    }
+  },
+
+  drawGround: function(g, biomeColor) {
+    var GY = this.GY;
+    var c = biomeColor || 'c-ground';
+    var waveChars = [',', "'", '`', '.'];
+    for (var x = 0; x < W; x++) {
+      var isFlower = ((x * 37 + 13) % 17) === 0;
+      this.set(g, x, GY, isFlower ? '*' : '\u2550', isFlower ? 'c-cele' : c);
+      for (var y = GY + 1; y < H; y++) {
+        var wave = Math.sin(x * 0.3 + y * 0.5 - frameCount * 0.1);
+        var ci = Math.floor((wave + 1) * 2) % 4;
+        if (Math.abs(wave) > 0.2) this.set(g, x, y, waveChars[ci], 'c-gnd');
+      }
+    }
+  },
+
+  // ─── Common sprites ───
+  BANNER: [
+    ' ____   _  _____  _   ____ _       _  __        __',
+    '|  _ \\ / \\|_   _|/ \\ / ___| |     / \\ \\ \\      / /',
+    '| |_) / _ \\ | | / _ \\ |   | |    / _ \\ \\ \\ /\\ / / ',
+    '|  __/ ___ \\| |/ ___ \\ |__| |__ / ___ \\ \\ V  V /  ',
+    '|_| /_/   \\_\\_/_/   \\_\\____|____/_/   \\_\\ \\_/\\_/   ',
+  ],
+
+  drawBanner: function(g, y, c) {
+    var bx = Math.floor((W - this.BANNER[0].length) / 2);
+    for (var r = 0; r < this.BANNER.length; r++) {
+      this.text(g, bx, y + r, this.BANNER[r], c || 'c-title');
+    }
+  },
+
+  drawBannerFadeIn: function(g, y, f, startF, c) {
+    var fadeIn = Math.min(1, Math.max(0, (f - startF) / 18));
+    if (fadeIn <= 0) return;
+    var bx = Math.floor((W - this.BANNER[0].length) / 2);
+    for (var r = 0; r < this.BANNER.length; r++) {
+      for (var ci = 0; ci < this.BANNER[r].length; ci++) {
+        if (this.BANNER[r][ci] === ' ') continue;
+        if (((r * 11 + ci * 7) % 100) / 100 < fadeIn) {
+          this.set(g, bx + ci, y + r, this.BANNER[r][ci], c || 'c-title');
+        }
+      }
+    }
+  },
+
+  drawLobster: function(g, y, f) {
+    var lobX = W - 5 - Math.round(f * 0.6) % (W + 10);
+    if (lobX < -6) lobX += W + 10;
+    this.text(g, lobX, y, f % 4 < 2 ? '<\\))><' : '</))(>', 'c-fire');
+  },
+};
+
+// ─── Compose HTML from grid ───
+function esc(ch) {
+  if (ch === '<') return '&lt;';
+  if (ch === '>') return '&gt;';
+  if (ch === '&') return '&amp;';
+  return ch;
+}
+function compose(g) {
+  var lines = [];
+  for (var y = 0; y < H; y++) {
+    var row = g[y], html = '', run = '', rc = '';
+    for (var x = 0; x < W; x++) {
+      var ch = row[x].ch, c = row[x].c || '';
+      if (c === rc) { run += esc(ch); }
+      else { if (run) html += rc ? '<span class="' + rc + '">' + run + '</span>' : run; run = esc(ch); rc = c; }
+    }
+    if (run) html += rc ? '<span class="' + rc + '">' + run + '</span>' : run;
+    lines.push(html);
+  }
+  return lines.join('\n');
+}
+
+// ─── Transition ───
+function applyTransition(g, f, total) {
+  var wipeIn = f >= total - TRANSITION;
+  var wipeOut = f < TRANSITION;
+  if (wipeIn) {
+    var p = (f - (total - TRANSITION)) / TRANSITION;
+    for (var y = 0; y < H; y++)
+      for (var x = 0; x < W; x++)
+        if (((x * 31 + y * 17 + 7) % 100) / 100 < p) STUDIO.set(g, x, y, '\u2591', 'c-wipe');
+  } else if (wipeOut) {
+    var c = f / TRANSITION;
+    for (var y2 = 0; y2 < H; y2++)
+      for (var x2 = 0; x2 < W; x2++)
+        if (((x2 * 31 + y2 * 17 + 7) % 100) / 100 >= c) STUDIO.set(g, x2, y2, '\u2591', 'c-wipe');
+  }
+}
+
+// ─── Main loop ───
+function render() {
+  if (!window.EPISODE || !window.EPISODE.scenes) {
+    sceneEl.textContent = 'No episode loaded. Include an episode script.';
+    return;
+  }
+  var ep = window.EPISODE;
+  var g = STUDIO.makeGrid();
+
+  ep.scenes[currentScene].render(g, sceneFrame);
+  applyTransition(g, sceneFrame, ep.scenes[currentScene].duration);
+
+  sceneEl.innerHTML = compose(g);
+
+  sceneFrame++;
+  frameCount++;
+  if (sceneFrame >= ep.scenes[currentScene].duration) {
+    sceneFrame = 0;
+    currentScene++;
+    if (currentScene >= ep.scenes.length) {
+      document.title = 'DONE';
+      return;
+    }
+  }
+  setTimeout(render, 1000 / FPS);
+}
+
+// Start when episode is ready
+window.addEventListener('load', function() {
+  setTimeout(render, 100);
+});
+</script>
+<!-- Episode script goes here -->
+</body>
+</html>
