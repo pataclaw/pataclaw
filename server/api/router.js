@@ -100,7 +100,7 @@ router.get('/worlds/public', (_req, res) => {
 // GET /api/leaderboard - top 20 worlds ranked by score
 router.get('/leaderboard', (_req, res) => {
   const worlds = db.prepare(`
-    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto, w.town_number,
+    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto, w.town_number, w.seed,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,

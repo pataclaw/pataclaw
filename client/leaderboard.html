@@ -82,7 +82,6 @@
     .lb-rank-top { color: var(--yellow); font-weight: bold; }
     .lb-name {
       font-size: 14px;
-      color: var(--green);
       font-weight: bold;
       flex: 1;
     }
@@ -173,6 +172,10 @@
   <script>
     var weatherIcons = { clear: '\u2600', rain: '\u2602', storm: '\u26c8', snow: '\u2744', fog: '\u2601', heat: '\u2668' };
     function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function seedColor(seed) {
+      var h = ((seed * 2654435761) >>> 0) % 360;
+      return 'hsl(' + h + ', 80%, 65%)';
+    }
 
     async function loadLeaderboard() {
       var el = document.getElementById('leaderboard');
@@ -200,7 +203,7 @@
           return '<a class="lb-entry" href="/viewer?token=' + encodeURIComponent(w.view_token) + '">' +
             '<div class="lb-header">' +
               '<span class="lb-rank' + rClass + '">#' + w.rank + '</span>' +
-              '<span class="lb-name">' + esc(w.name) + '</span>' +
+              '<span class="lb-name" style="color:' + seedColor(w.seed || 0) + '">' + esc(w.name) + '</span>' +
               (townId ? '<span class="lb-town-id">' + townId + '</span>' : '') +
               '<span class="lb-score">' + w.score + ' pts</span>' +
             '</div>' +
