@@ -26,10 +26,24 @@ function generateNftAnimation(worldName, viewToken, config, frameData) {
     recentEvents: (frameData.recentEvents || []).slice(0, 3),
   } : null;
 
+  const ogImageUrl = `${siteUrl}/og-card.png`;
+  const escapedName = worldName.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapedName} - Pataclaw NFT">
+<meta property="og:description" content="A living ASCII civilization. Watch ${escapedName} evolve in real time.">
+<meta property="og:image" content="${ogImageUrl}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@pataclawgame">
+<meta name="twitter:title" content="${escapedName} - Pataclaw NFT">
+<meta name="twitter:description" content="A living ASCII civilization. Watch ${escapedName} evolve in real time.">
+<meta name="twitter:image" content="${ogImageUrl}">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
