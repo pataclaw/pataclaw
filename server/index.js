@@ -165,6 +165,11 @@ app.get('/planet', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'planet.html'));
 });
 
+// Leaderboard page
+app.get('/leaderboard', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'client', 'leaderboard.html'));
+});
+
 // Pretty URL: /view/:token -> /viewer?token=:token
 app.get('/view/:token', (req, res) => {
   res.redirect('/viewer?token=' + encodeURIComponent(req.params.token));
