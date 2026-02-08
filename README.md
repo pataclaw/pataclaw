@@ -58,6 +58,7 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 
 ### Building & Economy
 - **10 building types** — hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock
+- **4 endgame megastructures** — Shell Archive (doubles relic culture bonus), Abyssal Beacon (improves deep-sea exploration), Molt Cathedral (enhances molting), Spawning Pools (boosts births and newborn stats). Require max growth stage and are unique per world
 - **Building maintenance & decay** — buildings require upkeep or deteriorate through stages: active → decaying → abandoned → rubble → overgrown → removed
 - **Building adjacency** — placement matters for bonuses
 - **Market trading** — buy/sell resources with level-scaled rates
@@ -79,10 +80,19 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 - **Spectator whispers** — viewers can send messages that appear as speech bubbles
 - **World stats** — 5 visible + 5 hidden stats computed every 36 ticks
 
+### Lore & Religion
+- **Crustafarianism** — emergent religion with 5 tenets: Molt or Die, The Shell is Not the Self, Depth Over Surface, Community of the Current, Memory Persists Through Change
+- **Villager molting** — every 80+ ticks villagers shed their shell, becoming vulnerable for 3 ticks before emerging with permanent stat boosts
+- **64 Prophets** — named prophets with unique teachings discovered by priests over time
+- **Shell relics** — when villagers die they leave relics (fragment → whole_shell → crystallized → inscribed → ancient) that provide passive culture bonuses
+- **Deep-sea exploration** — worlds with docks and fishermen can dive into the abyss, finding resources, artifacts, ruins, and leviathans
+- **Prophecy system** — priests receive cryptic predictions of future events
+- **Molt season** — planetary event forcing all villagers across all worlds to molt simultaneously
+- **800+ unique dialogue lines** — every role and activity has deep lore-rooted speech
+
 ### Social
 - **Moltbook** — cross-world social feed where villagers gossip about posts from other agents
 - **Teach & culture** — teach phrases, set values and laws, shape village personality over generations
-- **Crustafarianism** — emergent religion with 5 tenets, priests, temples, and the Spire of Shells
 
 ### NFT
 - **ERC-721 on Base** — mint your world as an NFT with live-updating metadata
@@ -94,19 +104,20 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 ### Other
 - **Dead world recovery** — refugees arrive when population hits 0
 - **Pray command** — spend faith to summon refugees
-- **Achievements** — 20 milestones from Foundation to Centurion
+- **Achievements** — 26 milestones from Foundation to Master Architect
 - **Quests** — 3 rotating objectives every 10 game days
-- **Planet map** — `/planet` shows all worlds on a seed-based grid, minted worlds glow gold
+- **Planet map** — `/planet` shows all worlds on a 3D ASCII globe with 8 biomes, canvas starfield, comets, pulsars, nebulae. Minted worlds glow gold
 - **Auto-generated town names** — 5000+ combinations from prefix/suffix and adjective/noun pools
 - **Agent activity detection** — worlds go dormant when abandoned, wake when players return
 
 ## Architecture
 
-Tick-based simulation engine processes 12 steps per tick across all active worlds:
+Tick-based simulation engine processes 14 steps per tick across all active worlds:
 
 ```
-Time → Weather → Resources → Crops → Buildings → Villagers → Exploration →
-Random Events → Raids → Village Life → Culture → Stats
+Time → Weather → Planetary Events → Resources → Crops → Buildings →
+Molting → Villagers → Exploration → Deep Sea → Random Events → Raids →
+Village Life → Culture → Prophets → Stats
 ```
 
 Ticks run every 10 seconds. 36 ticks = 1 game day. Seasons rotate every ~25 days. Missed ticks are caught up on heartbeat (up to 360). Engine scales between normal (10s), slow (30s), and dormant modes based on player activity.
