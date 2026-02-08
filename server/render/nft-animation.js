@@ -26,7 +26,7 @@ function generateNftAnimation(worldName, viewToken, config, frameData) {
     recentEvents: (frameData.recentEvents || []).slice(0, 3),
   } : null;
 
-  const ogImageUrl = `${siteUrl}/og-card.png?v=2`;
+  const ogImageUrl = `${siteUrl}/og-card.png?v=3`;
   const escapedName = worldName.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
   return `<!DOCTYPE html>
