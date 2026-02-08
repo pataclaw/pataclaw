@@ -1778,7 +1778,7 @@ function renderScene(data) {
       var rx = Math.floor(W / 2) - 8 + (rHash % 16);
       var ry = groundY - 1;
       if (rx >= 0 && rx + 1 < W && ry >= 0 && ry < H) {
-        if (getCell(grid, rx, ry).ch === ' ' || getCell(grid, rx, ry).cls.indexOf('c-gnd') === 0) {
+        if (getCell(grid, rx, ry).ch === ' ' || (getCell(grid, rx, ry).c || '').indexOf('c-gnd') === 0) {
           setCell(grid, rx, ry, '(', 'c-relic');
           setCell(grid, rx + 1, ry, ')', 'c-relic');
         }
