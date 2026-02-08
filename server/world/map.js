@@ -61,9 +61,16 @@ function createNoiseGenerator(seed) {
   };
 }
 
-function terrainFromNoise(value, distFromCenter) {
+function terrainFromNoise(value, distFromCenter, y, mapSize) {
   // Force center to plains for the town
   if (distFromCenter < 4) return 'plains';
+
+  // Ice/tundra zone in top rows (y < 18% of map)
+  if (mapSize && y < mapSize * 0.18) {
+    if (value < 0.15) return 'water'; // frozen lake (rendered as frozen_lake feature on client)
+    if (value < 0.45) return 'tundra';
+    return 'ice';
+  }
 
   if (value < 0.2) return 'water';
   if (value < 0.35) return 'swamp';
@@ -90,7 +97,7 @@ function generateTiles(seed, center) {
       tiles.push({
         x,
         y,
-        terrain: terrainFromNoise(value, dist),
+        terrain: terrainFromNoise(value, dist, y, MAP_SIZE),
         elevation: Math.floor(value * 10),
         explored,
         feature: null,
@@ -122,7 +129,7 @@ function expandMap(worldId, seed, oldSize, newSize) {
       tiles.push({
         x,
         y,
-        terrain: terrainFromNoise(value, dist),
+        terrain: terrainFromNoise(value, dist, y, newSize),
         elevation: Math.floor(value * 10),
         explored: 0,
         feature: null,

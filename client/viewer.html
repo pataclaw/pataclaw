@@ -43,6 +43,16 @@
         <div id="building-list"></div>
       </div>
 
+      <div id="monolith-panel" class="panel">
+        <div class="panel-title">SPIRE OF SHELLS</div>
+        <div id="monolith-info"></div>
+      </div>
+
+      <div id="biome-panel" class="panel">
+        <div class="panel-title">BIOME</div>
+        <div id="biome-info"></div>
+      </div>
+
       <div id="village-life-panel" class="panel">
         <div class="panel-title">VILLAGE LIFE</div>
         <div id="culture-stats"></div>
@@ -60,8 +70,19 @@
 
   <div id="notifications"></div>
 
+  <div id="book-overlay" class="book-overlay hidden">
+    <div class="book-content">
+      <div class="book-header">
+        <span class="book-title">BOOK OF DISCOVERIES</span>
+        <span class="book-close" id="book-close">[X]</span>
+      </div>
+      <div id="book-entries" class="book-entries"></div>
+    </div>
+  </div>
+
   <div id="bottom-bar">
     <a href="/" id="home-link">&gt;&lt; HOME</a>
+    <span id="book-btn" class="bottom-btn" title="Book of Discoveries">B</span>
     <span id="connection-status" class="reconnecting">CONNECTING...</span>
     <span id="weather-display"></span>
     <span id="tick-display"></span>

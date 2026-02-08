@@ -110,7 +110,7 @@ router.get('/leaderboard', (_req, res) => {
 // GET /api/planet - all worlds for planet map (public)
 router.get('/planet', (_req, res) => {
   const worlds = db.prepare(`
-    SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed, w.town_number,
+    SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed, w.town_number, w.banner_symbol,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (w.day_number * 2) +
@@ -138,6 +138,7 @@ router.get('/planet', (_req, res) => {
       population: w.population,
       buildings: w.buildings,
       score: w.score,
+      banner_symbol: w.banner_symbol,
       is_minted: !!mint,
       token_id: mint ? mint.token_id : null,
     };

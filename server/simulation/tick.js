@@ -15,6 +15,14 @@ const { expandMap, mulberry32 } = require('../world/map');
 const { FEATURES_TO_PLACE } = require('../world/templates');
 const { getActivePlanetaryEvent } = require('./planetary');
 const { recalculateStats } = require('./stats');
+const { processChronicler } = require('./chronicler');
+const { processMonolith } = require('./monolith');
+const {
+  MOLT_FESTIVAL_INTERVAL,
+  MOLT_FESTIVAL_CULTURE_THRESHOLD,
+  MOLT_FESTIVAL_MORALE_BOOST,
+  MOLT_FESTIVAL_SCAFFOLD_BONUS,
+} = require('./constants');
 
 function processTick(worldId) {
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
@@ -88,6 +96,13 @@ function processTick(worldId) {
   // 9. Village life (relationships, activities, interactions, projects, violence)
   const lifeEvents = processVillagerLife(worldId);
 
+  // 9.5. Chronicler — write book entries based on events
+  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents];
+  const chroniclerEvents = processChronicler(worldId, time.tick, allEventsForChronicler);
+
+  // 9.6. Monolith — Spire of Shells
+  const monolithEvents = processMonolith(worldId, time.tick);
+
   // 10. Map expansion check — stage-based incremental expansion
   let expansionEvents = [];
   const stageInfo = getGrowthStage(worldId);
@@ -100,6 +115,43 @@ function processTick(worldId) {
   if (time.tick % 36 === 0) {
     recalculateCulture(worldId);
     recalculateStats(worldId);
+  }
+
+  // 11.5. Molt Festival — every 360 ticks when culture is strong
+  let festivalEvents = [];
+  if (time.tick % MOLT_FESTIVAL_INTERVAL === 0 && time.tick > 0) {
+    const culture = db.prepare('SELECT * FROM culture WHERE world_id = ?').get(worldId);
+    if (culture) {
+      const cultureSum = (culture.violence_level || 0) + (culture.creativity_level || 0) + (culture.cooperation_level || 0);
+      if (cultureSum >= MOLT_FESTIVAL_CULTURE_THRESHOLD) {
+        // Morale boost to all villagers
+        db.prepare(
+          "UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'"
+        ).run(MOLT_FESTIVAL_MORALE_BOOST, worldId);
+        // Free monolith scaffolding progress
+        db.prepare(
+          "UPDATE monoliths SET scaffolding_progress = MIN(?, scaffolding_progress + ?) WHERE world_id = ? AND status = 'building_scaffold'"
+        ).run(100, MOLT_FESTIVAL_SCAFFOLD_BONUS, worldId);
+        // Set all alive villagers to celebrating
+        db.prepare(
+          "UPDATE villager_activities SET activity = 'celebrating', duration_ticks = 3 WHERE world_id = ?"
+        ).run(worldId);
+        // Add celebration memories
+        const alive = db.prepare("SELECT id FROM villagers WHERE world_id = ? AND status = 'alive'").all(worldId);
+        const insertMem = db.prepare(
+          'INSERT INTO villager_memories (world_id, villager_id, memory_type, tick, detail) VALUES (?, ?, ?, ?, ?)'
+        );
+        for (const v of alive) {
+          insertMem.run(worldId, v.id, 'celebrated', time.tick, 'Molt Festival');
+        }
+        festivalEvents.push({
+          type: 'festival',
+          title: 'The Molt Festival!',
+          description: `The village celebrates the sacred shedding! All villagers gather to honor growth and change. +${MOLT_FESTIVAL_MORALE_BOOST} morale. "We shed, we grow, we remember!"`,
+          severity: 'celebration',
+        });
+      }
+    }
   }
 
   // 10b. Season change events
@@ -117,7 +169,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...expansionEvents, ...seasonEvents];
+  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...exploreEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

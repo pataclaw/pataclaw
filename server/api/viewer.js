@@ -4,6 +4,7 @@ const { addViewer, pushEvent } = require('../simulation/engine');
 const { buildFrame } = require('../render/ascii');
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
+const { getBookEntries, getChronicler } = require('../simulation/chronicler');
 
 const router = Router();
 
@@ -45,6 +46,16 @@ router.get('/render', authMiddleware, (req, res) => {
   const viewType = req.query.view || 'town';
   const frame = buildFrame(req.worldId, viewType);
   res.json(frame);
+});
+
+// GET /api/book?token=... - get discovery book entries
+router.get('/book', authViewToken, (req, res) => {
+  const entries = getBookEntries(req.worldId);
+  const chronicler = getChronicler(req.worldId);
+  res.json({
+    chronicler: chronicler ? chronicler.name : null,
+    entries,
+  });
 });
 
 // POST /api/whisper?token=... - spectator sends a whisper to the village

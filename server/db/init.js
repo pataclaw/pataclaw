@@ -34,6 +34,8 @@ const migrations = [
   "ALTER TABLE buildings ADD COLUMN renovated INTEGER NOT NULL DEFAULT 0",
   // Agent-to-agent trading
   "ALTER TABLE trades ADD COLUMN partner_world_id TEXT DEFAULT NULL",
+  // Book of Discoveries
+  "ALTER TABLE villagers ADD COLUMN is_chronicler INTEGER NOT NULL DEFAULT 0",
 ];
 
 for (const sql of migrations) {

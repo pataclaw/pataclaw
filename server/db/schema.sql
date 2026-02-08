@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS villagers (
     temperament INTEGER NOT NULL DEFAULT 50,
     creativity INTEGER NOT NULL DEFAULT 50,
     sociability INTEGER NOT NULL DEFAULT 50,
+    is_chronicler INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -307,6 +308,50 @@ CREATE TABLE IF NOT EXISTS planetary_events (
     effects TEXT NOT NULL DEFAULT '{}',
     active INTEGER NOT NULL DEFAULT 1
 );
+
+-- ============================================================
+-- WORLD STATS: Computed stats per world (visible + hidden)
+-- ============================================================
+-- ============================================================
+-- DISCOVERY BOOK: Chronicler-written entries
+-- ============================================================
+CREATE TABLE IF NOT EXISTS discovery_book (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    tick INTEGER NOT NULL,
+    chronicler_id TEXT,
+    chronicler_name TEXT NOT NULL,
+    entry_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_book ON discovery_book(world_id, tick DESC);
+
+-- ============================================================
+-- MONOLITHS: Per-world Spire of Shells
+-- ============================================================
+CREATE TABLE IF NOT EXISTS monoliths (
+    world_id TEXT PRIMARY KEY REFERENCES worlds(id),
+    total_height INTEGER NOT NULL DEFAULT 0,
+    scaffolding_progress INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'dormant',
+    last_maintained_tick INTEGER DEFAULT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS monolith_segments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    position INTEGER NOT NULL,
+    segment_type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    hp INTEGER NOT NULL DEFAULT 100,
+    created_tick INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monolith_seg ON monolith_segments(world_id, position);
 
 -- ============================================================
 -- WORLD STATS: Computed stats per world (visible + hidden)

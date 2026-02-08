@@ -224,6 +224,8 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
       'another round!', '*twirl*', 'life is good!', 'hip hip!',
       'the current is STRONG today!', 'we molted through it!',
       'no crab swims alone!', '*click claws in joy*',
+      'MOLT FESTIVAL!', 'shed and be free!', 'we grow together!',
+      'honor the molt!', 'the sacred shedding!', '*rattle shells*',
     ],
     mourning: [
       '...why', '*sob*', 'miss them', 'gone...', '*sigh*',

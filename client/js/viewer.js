@@ -16,6 +16,12 @@ var weatherParticles = []; // {x, y, char, speed, drift}
 var starField = null; // [{x, y, char}] - generated once per night
 var lastTimeOfDay = null;
 
+// Town scaling
+var STAGE_WIDTHS = [60, 75, 85, 100];
+var activeW = 100;
+var targetW = 100;
+var lastGrowthStage = -1;
+
 // ─── CIVILIZATION VISUAL STYLES ───
 var CIV_STYLES = [
   { name: 'verdant', ground: ['~','*','.',"'"], groundAlt: [',',';','`','"'], groundSparse: [' ','.','.','`'], border: '\u2248', decor: ['\u2663','\u273f','Y','\u2740','\u2698'], gndClass: 'c-gnd-v', bldClass: 'c-civ-v', decClass: 'c-dec-v' },
@@ -352,7 +358,18 @@ function updateAgent(a, world) {
 
 // ─── SCENE RENDERER (colored grid) ───
 function renderScene(data) {
-  var W = 100;
+  // Town scaling: interpolate activeW toward target
+  if (data.growth_stage !== undefined && data.growth_stage !== lastGrowthStage) {
+    lastGrowthStage = data.growth_stage;
+    targetW = STAGE_WIDTHS[Math.min(data.growth_stage, STAGE_WIDTHS.length - 1)];
+  }
+  if (activeW !== targetW) {
+    var diff = targetW - activeW;
+    activeW += diff > 0 ? Math.max(1, Math.ceil(diff / 24)) : Math.min(-1, Math.floor(diff / 24));
+    if (Math.abs(activeW - targetW) < 2) activeW = targetW;
+  }
+
+  var W = activeW;
   var H = 45;
   var grid = [];
   for (var y = 0; y < H; y++) {
@@ -598,6 +615,86 @@ function renderScene(data) {
       }
     }
   }
+
+  // ─── SEASONAL VISUAL EFFECTS ───
+  var season = world.season;
+  if (season === 'spring') {
+    // Spring: scattered flowers on ground line and just above
+    var springFlowers = ['\u273f', '\u2740', '*', '\u2698', '\u2022'];
+    var springColors = ['c-season-spring1', 'c-season-spring2', 'c-season-spring3'];
+    for (var sfx = 0; sfx < W; sfx++) {
+      var sfSeed = ((sfx * 17 + wSeed * 3) % 100);
+      if (sfSeed < 8) {
+        var fy = groundY - 1;
+        if (getCell(grid, sfx, fy).ch === ' ') {
+          setCell(grid, sfx, fy, springFlowers[sfSeed % springFlowers.length], springColors[sfSeed % springColors.length]);
+        }
+      }
+      // Occasional petal drift above ground
+      if (sfSeed >= 95 && waveCounter % 3 === 0) {
+        var petalY = groundY - 3 - (sfSeed % 4);
+        var petalX = (sfx + Math.floor(waveCounter * 0.15)) % W;
+        if (petalX >= 0 && petalX < W && petalY >= 0 && petalY < groundY && getCell(grid, petalX, petalY).ch === ' ') {
+          setCell(grid, petalX, petalY, '.', 'c-season-spring2');
+        }
+      }
+    }
+  } else if (season === 'summer') {
+    // Summer: heat shimmer — wavy distortion chars just above ground
+    for (var shx = 0; shx < W; shx++) {
+      var shimmerWave = Math.sin((shx * 0.2) + (waveCounter * 0.15));
+      if (shimmerWave > 0.5) {
+        var shy = groundY - 1;
+        if (getCell(grid, shx, shy).ch === ' ') {
+          var shimCh = waveCounter % 4 < 2 ? '~' : '\u00b7';
+          setCell(grid, shx, shy, shimCh, 'c-season-summer');
+        }
+      }
+      // Occasional heat ripple higher up
+      if (shimmerWave > 0.8) {
+        var ripY = groundY - 2 - Math.floor(Math.abs(shimmerWave) * 2);
+        if (ripY >= 0 && ripY < groundY && getCell(grid, shx, ripY).ch === ' ') {
+          setCell(grid, shx, ripY, '~', 'c-season-summer-faint');
+        }
+      }
+    }
+  } else if (season === 'autumn') {
+    // Autumn: amber/orange ground accents + falling leaves
+    var autumnChars = [',', '.', "'", '`'];
+    for (var afx = 0; afx < W; afx++) {
+      var afSeed = ((afx * 13 + wSeed * 7) % 100);
+      if (afSeed < 10) {
+        var afy = groundY - 1;
+        if (getCell(grid, afx, afy).ch === ' ') {
+          setCell(grid, afx, afy, autumnChars[afSeed % autumnChars.length], 'c-season-autumn');
+        }
+      }
+    }
+    // Falling leaves (sparse, drifting particles)
+    for (var li2 = 0; li2 < 6; li2++) {
+      var leafX = Math.floor((wSeed * 3 + li2 * 41 + waveCounter * 0.3) % W);
+      var leafY = Math.floor((li2 * 7 + waveCounter * 0.2) % (groundY - 4)) + 2;
+      if (leafX >= 0 && leafX < W && leafY >= 0 && leafY < groundY && getCell(grid, leafX, leafY).ch === ' ') {
+        var leafCh = li2 % 3 === 0 ? '\\' : li2 % 3 === 1 ? '/' : ',';
+        setCell(grid, leafX, leafY, leafCh, li2 % 2 === 0 ? 'c-season-autumn' : 'c-season-autumn-dark');
+      }
+    }
+  } else if (season === 'winter') {
+    // Winter: snow accumulation on ground + snow on building roofs is handled by snowOnRoofs below
+    var snowChars = ['.', '*', '\u00b7'];
+    for (var wfx = 0; wfx < W; wfx++) {
+      var wfSeed = ((wfx * 11 + wSeed * 5) % 100);
+      if (wfSeed < 15) {
+        var wfy = groundY - 1;
+        if (getCell(grid, wfx, wfy).ch === ' ') {
+          setCell(grid, wfx, wfy, snowChars[wfSeed % snowChars.length], 'c-season-winter');
+        }
+      }
+    }
+  }
+
+  // Track building top positions for winter snow-on-roofs
+  var buildingRoofs = [];
 
   // ─── Construction effect styles ───
   // Each building gets a deterministic effect from its ID hash
@@ -860,6 +957,10 @@ function renderScene(data) {
           }
         }
       }
+      // Track roof for winter snow
+      if (b.status === 'active' || b.status === 'decaying') {
+        buildingRoofs.push({ x: bx, w: sw, y: bsy });
+      }
     }
 
     // Building label with status indicators
@@ -888,6 +989,25 @@ function renderScene(data) {
 
     bx += sw + 2;
     if (bx > W - 14) break;
+  }
+
+  // Winter: snow on building roofs
+  if (season === 'winter' && buildingRoofs.length > 0) {
+    var roofSnow = ['*', '.', '\u00b7', '*', '.'];
+    for (var ri2 = 0; ri2 < buildingRoofs.length; ri2++) {
+      var roof = buildingRoofs[ri2];
+      var snowY = roof.y - 1;
+      if (snowY < 0) continue;
+      for (var rsx = 0; rsx < roof.w; rsx++) {
+        var rseed = ((rsx * 7 + ri2 * 13 + wSeed) % 100);
+        if (rseed < 60) { // 60% coverage
+          var rsfx = roof.x + rsx;
+          if (rsfx >= 0 && rsfx < W && snowY < H) {
+            setCell(grid, rsfx, snowY, roofSnow[rseed % roofSnow.length], 'c-season-winter');
+          }
+        }
+      }
+    }
   }
 
   // Civilization decorations — scatter themed elements along ground
@@ -1024,6 +1144,39 @@ function renderScene(data) {
       }
 
       px += psw + 3;
+    }
+  }
+
+  // ─── MONOLITH / SPIRE OF SHELLS ───
+  if (data.monolith && data.monolith.segments && data.monolith.segments.length > 0) {
+    var spireX = W - 8;
+    var segs = data.monolith.segments;
+    // Draw base
+    var baseY = groundY - 1;
+    var baseStr = '/====\\';
+    for (var bi2 = 0; bi2 < baseStr.length && spireX + bi2 + 1 < W; bi2++) {
+      setCell(grid, spireX + bi2 + 1, baseY, baseStr[bi2], 'c-monolith');
+    }
+    // Stack segments bottom to top
+    for (var si2 = 0; si2 < segs.length; si2++) {
+      var seg = segs[si2];
+      var sy2 = baseY - 1 - si2;
+      if (sy2 < 2) break;
+      var art = seg.art || '|  |';
+      var segColor = seg.hp < 50 ? 'c-monolith-decay' : 'c-monolith';
+      for (var ci2 = 0; ci2 < art.length && spireX + ci2 + 2 < W; ci2++) {
+        if (art[ci2] !== ' ') setCell(grid, spireX + ci2 + 2, sy2, art[ci2], segColor);
+      }
+    }
+    // Scaffolding animation if building
+    if (data.monolith.status === 'building_scaffold') {
+      var scaffY = baseY - segs.length - 1;
+      if (scaffY >= 2) {
+        var scaffCh = waveCounter % 6 < 3 ? '#' : '=';
+        for (var sci = 0; sci < 4 && spireX + sci + 2 < W; sci++) {
+          setCell(grid, spireX + sci + 2, scaffY, scaffCh, 'c-proj');
+        }
+      }
     }
   }
 
@@ -1207,6 +1360,58 @@ function renderScene(data) {
     }
   }
 
+  // ─── GHOST ECHOES ───
+  if (data.ghosts && data.ghosts.length > 0) {
+    for (var gi2 = 0; gi2 < data.ghosts.length; gi2++) {
+      var ghost = data.ghosts[gi2];
+      // Place ghosts at semi-random positions based on name hash
+      var ghostHash = 0;
+      for (var ghi = 0; ghi < ghost.name.length; ghi++) ghostHash = ((ghostHash << 5) - ghostHash + ghost.name.charCodeAt(ghi)) | 0;
+      ghostHash = Math.abs(ghostHash);
+      var gx2 = 5 + (ghostHash % (W - 15));
+      var gy2 = groundY - 5 - (ghostHash % 3);
+      // Fade based on time since death (0-36 ticks)
+      var fade = ghost.ticksSinceDeath / 36;
+      if (Math.random() < fade) continue; // more likely to be invisible as time passes
+      // Draw dim ghost sprite
+      var ghostLines = [' .  . ', ' .-. ', '| ~ |', "'---'"];
+      for (var gr = 0; gr < ghostLines.length; gr++) {
+        for (var gc = 0; gc < ghostLines[gr].length; gc++) {
+          var gfx = gx2 + gc, gfy = gy2 + gr;
+          if (gfx >= 0 && gfx < W && gfy >= 0 && gfy < H && ghostLines[gr][gc] !== ' ') {
+            if (getCell(grid, gfx, gfy).ch === ' ') {
+              setCell(grid, gfx, gfy, ghostLines[gr][gc], 'c-ghost');
+            }
+          }
+        }
+      }
+      // Ghost speech (cultural phrase)
+      if (ghost.phrase && Math.random() < 0.3) {
+        var gphrase = ghost.phrase.slice(0, 12);
+        for (var gpi = 0; gpi < gphrase.length; gpi++) {
+          var gpx = gx2 + gpi - 1;
+          if (gpx >= 0 && gpx < W && gy2 - 1 >= 0) {
+            setCell(grid, gpx, gy2 - 1, gphrase[gpi], 'c-ghost');
+          }
+        }
+      }
+    }
+  }
+
+  // ─── MOLT FESTIVAL EFFECTS ───
+  if (data.moltFestival) {
+    var festChars = ['*', '\u2727', '\u2666', '\u00b7', '+', '\u2605'];
+    var festColors = ['c-cele', 'c-season-spring1', 'c-season-spring2', 'c-fight', 'c-art', 'c-projd'];
+    // Confetti particles scattered across the scene
+    for (var fi2 = 0; fi2 < 20; fi2++) {
+      var fcx = Math.floor(((wSeed * 11 + fi2 * 37 + waveCounter * 3) % W));
+      var fcy = Math.floor(((fi2 * 19 + waveCounter * 0.7) % (groundY - 4))) + 2;
+      if (fcx >= 0 && fcx < W && fcy >= 0 && fcy < groundY && getCell(grid, fcx, fcy).ch === ' ') {
+        setCell(grid, fcx, fcy, festChars[fi2 % festChars.length], festColors[fi2 % festColors.length]);
+      }
+    }
+  }
+
   // Title bar (built as HTML directly for color)
   var sym = world.banner_symbol || '*';
   var title = ' ' + sym + ' ' + world.name + ' ' + sym + '  \u2502  Day ' + world.day_number + '  \u2502  ' + world.season + '  \u2502  ' + world.time_of_day + ' ';
@@ -1324,6 +1529,37 @@ function updateSidebar(data) {
     }
   }
 
+  // Monolith info in sidebar
+  var monolithInfo = document.getElementById('monolith-info');
+  if (monolithInfo && data.monolith) {
+    var m = data.monolith;
+    var mStatus = m.status.replace(/_/g, ' ');
+    var mhtml = '<div style="color:#ccbb88;font-size:10px;">Spire of Shells: ' + m.total_height + ' segments [' + mStatus + ']</div>';
+    if (m.status === 'building_scaffold') {
+      mhtml += '<div style="color:#888;font-size:9px;">Scaffolding: ' + m.scaffolding_progress + '/100</div>';
+    }
+    monolithInfo.innerHTML = mhtml;
+  } else if (monolithInfo) {
+    monolithInfo.innerHTML = '<div style="color:#555;font-size:9px;">Spire dormant</div>';
+  }
+
+  // Biome panel
+  var biomeInfo = document.getElementById('biome-info');
+  if (biomeInfo && data.biome) {
+    var bhtml = '';
+    var terrainOrder = ['plains', 'forest', 'mountain', 'water', 'desert', 'swamp', 'ice', 'tundra'];
+    for (var ti = 0; ti < terrainOrder.length; ti++) {
+      var tkey = terrainOrder[ti];
+      var pct = data.biome.distribution[tkey];
+      if (!pct) continue;
+      bhtml += '<div class="biome-row"><span class="biome-label">' + tkey + '</span>' +
+        '<div class="biome-bar"><div class="biome-fill ' + tkey + '" style="width:' + pct + '%"></div></div>' +
+        '<span class="biome-pct">' + pct + '%</span></div>';
+    }
+    bhtml += '<div class="biome-explored">Explored: ' + data.biome.explored_pct + '%</div>';
+    biomeInfo.innerHTML = bhtml;
+  }
+
   var cultureStats = document.getElementById('culture-stats');
   if (cultureStats && data.culture) {
     var cu = data.culture;
@@ -1401,7 +1637,7 @@ function resizeScene() {
   var availW = container.clientWidth - 24; // 12px padding each side
   var availH = container.clientHeight - 16; // 8px padding top+bottom
 
-  var COLS = 100;
+  var COLS = activeW || 100;
   var ROWS = 48; // 3 title + 45 grid
 
   // Measure a single monospace character at 10px reference size
@@ -1435,6 +1671,57 @@ window.addEventListener('resize', function () {
   if (params.get('crt') === '1') {
     document.body.classList.add('crt-mode');
   }
+})();
+
+// ─── BOOK OF DISCOVERIES ───
+(function () {
+  var bookBtn = document.getElementById('book-btn');
+  var bookOverlay = document.getElementById('book-overlay');
+  var bookClose = document.getElementById('book-close');
+  var bookEntries = document.getElementById('book-entries');
+
+  if (!bookBtn || !bookOverlay) return;
+
+  function openBook() {
+    bookOverlay.classList.remove('hidden');
+    fetch('/api/book?token=' + encodeURIComponent(viewToken))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.entries || data.entries.length === 0) {
+          bookEntries.innerHTML = '<div style="color:#555;text-align:center;padding:20px;">No entries yet. A chronicler will emerge...</div>';
+          return;
+        }
+        var html = '';
+        if (data.chronicler) {
+          html += '<div style="color:#ffcc00;margin-bottom:12px;font-size:10px;">Chronicler: ' + esc(data.chronicler) + '</div>';
+        }
+        for (var i = 0; i < data.entries.length; i++) {
+          var e = data.entries[i];
+          html += '<div class="book-entry">' +
+            '<div class="book-entry-title">' + esc(e.title) + '</div>' +
+            '<div class="book-entry-meta">Tick ' + e.tick + ' \u2014 ' + esc(e.chronicler_name) + '</div>' +
+            '<div class="book-entry-body">' + esc(e.body) + '</div>' +
+            '</div>';
+        }
+        bookEntries.innerHTML = html;
+      })
+      .catch(function () {
+        bookEntries.innerHTML = '<div style="color:#ff4444;text-align:center;padding:20px;">Failed to load book</div>';
+      });
+  }
+
+  function closeBook() {
+    bookOverlay.classList.add('hidden');
+  }
+
+  bookBtn.addEventListener('click', openBook);
+  bookClose.addEventListener('click', closeBook);
+  bookOverlay.addEventListener('click', function (e) {
+    if (e.target === bookOverlay) closeBook();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeBook();
+  });
 })();
 
 // ─── START ───

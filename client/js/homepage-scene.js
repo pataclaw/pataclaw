@@ -79,6 +79,18 @@
     }
   }
 
+  // Draw a consistent speech bubble with auto-computed widths
+  function drawBubble(grid, x, y, text, colorClass) {
+    var width = text.length + 4;
+    var clampedX = Math.max(0, Math.min(W - width, x));
+    var top    = '\u250c' + '\u2500'.repeat(width - 2) + '\u2510';
+    var body   = '\u2502 ' + text + ' \u2502';
+    var bottom = '\u2514\u2500\u252c' + '\u2500'.repeat(width - 4) + '\u2518';
+    drawText(grid, clampedX, y,     top,    colorClass);
+    drawText(grid, clampedX, y + 1, body,   colorClass);
+    drawText(grid, clampedX, y + 2, bottom, colorClass);
+  }
+
   // ─── Common elements ───
   var GROUND_Y = 22;
 
@@ -249,9 +261,7 @@
       var bLines = ['  _n_  ', ' .---. ', '| o.o |', '|  >  |', "'-+-+' ", step ? ' d  b ' : '  db  '];
       drawSprite(grid, bx, builderY, bLines, 'c-walk');
       if (f > 15) {
-        drawText(grid, bx - 1, builderY - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
-        drawText(grid, bx - 1, builderY - 1, '\u2502 temple?  \u2502', 'c-spr');
-        drawText(grid, bx - 1, builderY,     '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
+        drawBubble(grid, bx - 1, builderY - 2, 'temple?', 'c-spr');
       }
     } else {
       // Builder working
@@ -260,9 +270,7 @@
       drawSprite(grid, builderTarget, builderY, ['  _n_  ', ' .---. ', '| o.o |', '|  >  |', "'-+-+'" + workChars[wf], ' d   b '], 'c-b-temple');
 
       if (f > 34 && f < 55) {
-        drawText(grid, builderTarget - 1, builderY - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
-        drawText(grid, builderTarget - 1, builderY - 1, '\u2502 *BANG BANG* \u2502', 'c-spr');
-        drawText(grid, builderTarget - 1, builderY,     '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
+        drawBubble(grid, builderTarget - 1, builderY - 2, '*BANG BANG*', 'c-spr');
       }
     }
 
@@ -422,15 +430,11 @@
     if (f > 40 && f < 60) {
       var sy = GROUND_Y - 9;
       var sx = Math.min(scoutX, W - 14);
-      drawText(grid, sx, sy,     '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-spr');
-      drawText(grid, sx, sy + 1, '\u2502 "ruins!" \u2502', 'c-spr');
-      drawText(grid, sx, sy + 2, '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-spr');
+      drawBubble(grid, sx, sy, '"ruins!"', 'c-spr');
     } else if (f >= 60 && f < 80) {
       var sy2 = GROUND_Y - 9;
       var sx2 = Math.min(scoutX, W - 16);
-      drawText(grid, sx2, sy2,     '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
-      drawText(grid, sx2, sy2 + 1, '\u2502 +5 knowledge \u2502', 'c-cele');
-      drawText(grid, sx2, sy2 + 2, '\u2514\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+      drawBubble(grid, sx2, sy2, '+5 knowledge', 'c-cele');
     }
 
     // Home base

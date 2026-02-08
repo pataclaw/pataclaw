@@ -423,6 +423,27 @@ body {
 #world .c-waterl { color: #55aadd; }
 #world .c-fish   { color: #66ccaa; }
 
+/* Ghost echoes */
+#world .c-ghost { color: #334455; opacity: 0.6; }
+
+/* Monolith / Spire of Shells */
+#world .c-monolith       { color: #ccbb88; }
+#world .c-monolith-decay { color: #887755; }
+
+/* Ice / Tundra terrain */
+#world .c-terrain-ice    { color: #ccddee; }
+#world .c-terrain-tundra { color: #8899aa; }
+
+/* Seasonal visual effects */
+#world .c-season-spring1     { color: #ff88aa; }
+#world .c-season-spring2     { color: #ffaacc; }
+#world .c-season-spring3     { color: #ffcc88; }
+#world .c-season-summer      { color: #ff8833; opacity: 0.5; }
+#world .c-season-summer-faint{ color: #ff6622; opacity: 0.25; }
+#world .c-season-autumn      { color: #cc8833; }
+#world .c-season-autumn-dark { color: #995522; }
+#world .c-season-winter      { color: #ddeeff; }
+
 /* Crops */
 #world .c-crop  { color: #66aa44; }
 #world .c-croph { color: #ddaa33; }
@@ -617,6 +638,137 @@ body.crt-mode #world {
 .pe-shell    { background: linear-gradient(90deg, rgba(20,30,20,0.9), rgba(30,60,30,0.9)); color: #88ff88; border-bottom: 1px solid #33aa33; }
 .pe-blood    { background: linear-gradient(90deg, rgba(40,10,10,0.9), rgba(80,10,10,0.9)); color: #ff4444; border-bottom: 1px solid #aa2222; }
 .pe-golden   { background: linear-gradient(90deg, rgba(40,30,10,0.9), rgba(80,60,10,0.9)); color: #ffdd44; border-bottom: 1px solid #ccaa22; }
+
+/* ─── Biome panel ─── */
+.biome-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+  font-size: 9px;
+}
+
+.biome-row .biome-label { color: #888; width: 56px; text-transform: capitalize; }
+.biome-row .biome-pct { color: #557755; width: 28px; text-align: right; }
+
+.biome-bar {
+  flex: 1;
+  height: 4px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.biome-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.biome-fill.plains  { background: #33aa44; }
+.biome-fill.forest  { background: #227733; }
+.biome-fill.mountain{ background: #888877; }
+.biome-fill.water   { background: #3388cc; }
+.biome-fill.desert  { background: #aa8833; }
+.biome-fill.swamp   { background: #557744; }
+.biome-fill.ice     { background: #ccddee; }
+.biome-fill.tundra  { background: #8899aa; }
+
+.biome-explored {
+  font-size: 9px;
+  color: #555;
+  margin-top: 4px;
+}
+
+/* ─── Book of Discoveries overlay ─── */
+.book-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-overlay.hidden { display: none; }
+
+.book-content {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  font-family: 'Courier New', Courier, monospace;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  color: #ffcc00;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.book-close {
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.book-close:hover { color: #ff4444; }
+
+.book-entries {
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #88cc88;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #333 #0a0a0a;
+}
+
+.book-entry {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.book-entry-title {
+  color: #ffcc00;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.book-entry-meta {
+  color: #555;
+  font-size: 9px;
+  margin-bottom: 4px;
+}
+
+.book-entry-body {
+  color: #88cc88;
+}
+
+.bottom-btn {
+  color: #33ff33;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  border: 1px solid #333;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.bottom-btn:hover { opacity: 1; }
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {

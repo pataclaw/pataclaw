@@ -50,10 +50,17 @@ body {
   padding: 16px;
 }
 
-#planet-grid pre {
+#planet-grid pre,
+#planet-grid .globe-pre {
   font-size: 14px;
   line-height: 1.3;
   text-shadow: 0 0 4px rgba(51, 255, 51, 0.1);
+  cursor: grab;
+  user-select: none;
+}
+
+#planet-grid .globe-pre:active {
+  cursor: grabbing;
 }
 
 /* Terrain colors */
@@ -61,6 +68,11 @@ body {
 .terrain-water   { color: #1a3355; }
 .terrain-mountain{ color: #333322; }
 .terrain-forest  { color: #1a3a1a; }
+.terrain-ice     { color: #667788; }
+
+/* Globe shading */
+.globe-bg  { color: #0a0a12; }
+.globe-dim { opacity: 0.5; }
 
 /* World markers */
 .world-normal {

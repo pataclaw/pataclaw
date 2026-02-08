@@ -3,6 +3,8 @@ const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPR
 const { MAP_SIZE } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
 const { getActivePlanetaryEvent } = require('../simulation/planetary');
+const { getGrowthStage } = require('../simulation/buildings');
+const { getMonolithData } = require('../simulation/monolith');
 
 // Build structured world state for the client to animate
 function buildFrame(worldId, viewType = 'town') {
@@ -36,6 +38,11 @@ function buildTownFrame(worldId) {
   const buildingCap = db.prepare(
     "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId).cap;
+
+  // Ghost echoes: recently dead villagers (within last 36 ticks)
+  const ghosts = db.prepare(
+    "SELECT v.name, v.x, v.y, v.cultural_phrase, v.role, e.tick as death_tick FROM villagers v JOIN events e ON e.world_id = v.world_id AND e.type = 'death' AND e.title LIKE '%' || v.name || '%' WHERE v.world_id = ? AND v.status = 'dead' AND e.tick >= ? ORDER BY e.tick DESC LIMIT 5"
+  ).all(worldId, world.current_tick - 36);
 
   // Get activities for each villager
   const activityRows = db.prepare('SELECT * FROM villager_activities WHERE world_id = ?').all(worldId);
@@ -96,6 +103,23 @@ function buildTownFrame(worldId) {
   const resMap = {};
   for (const r of resources) resMap[r.type] = { amount: Math.floor(r.amount), capacity: r.capacity };
 
+  // Biome distribution (explored tiles only)
+  const biomeRows = db.prepare(
+    "SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain"
+  ).all(worldId);
+  const totalExplored = biomeRows.reduce((s, r) => s + r.c, 0);
+  const totalTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ?").get(worldId).c;
+  const biomeDistribution = {};
+  let dominantBiome = 'plains';
+  let maxCount = 0;
+  for (const row of biomeRows) {
+    biomeDistribution[row.terrain] = Math.round((row.c / Math.max(1, totalExplored)) * 100);
+    if (row.c > maxCount) { maxCount = row.c; dominantBiome = row.terrain; }
+  }
+
+  // Growth stage
+  const stageInfo = getGrowthStage(worldId);
+
   // Emergent culture descriptor string
   const moodDescriptors = [];
   moodDescriptors.push(culture.village_mood.toUpperCase());
@@ -141,7 +165,22 @@ function buildTownFrame(worldId) {
     population: { alive: popAlive, capacity: buildingCap },
     recentEvents,
     socialEvents,
+    ghosts: ghosts.map(g => ({
+      name: g.name,
+      phrase: g.cultural_phrase || '...',
+      ticksSinceDeath: world.current_tick - g.death_tick,
+    })),
+    monolith: getMonolithData(worldId),
+    biome: {
+      dominant: dominantBiome,
+      distribution: biomeDistribution,
+      explored_pct: totalTiles > 0 ? Math.round((totalExplored / totalTiles) * 100) : 0,
+    },
+    growth_stage: stageInfo.stage,
     planetaryEvent: getActivePlanetaryEvent(),
+    moltFestival: db.prepare(
+      "SELECT 1 FROM events WHERE world_id = ? AND type = 'festival' AND tick >= ? LIMIT 1"
+    ).get(worldId, world.current_tick - 3) != null,
     timestamp: Date.now(),
   };
 }

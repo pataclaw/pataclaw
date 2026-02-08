@@ -1,7 +1,7 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { generateTiles, mulberry32, getCenter } = require('./map');
-const { startingVillagers, startingBuilding, STARTING_RESOURCES, FEATURES_TO_PLACE, randomTownName } = require('./templates');
+const { startingVillagers, startingBuilding, STARTING_RESOURCES, FEATURES_TO_PLACE, randomTownName, randomBannerSymbol } = require('./templates');
 
 function createWorld(worldId, keyHash, keyPrefix, opts = {}) {
   const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff);
@@ -14,12 +14,13 @@ function createWorld(worldId, keyHash, keyPrefix, opts = {}) {
 
   // Insert world record
   const viewToken = uuid();
+  const bannerSymbol = randomBannerSymbol(rng);
   const maxTown = db.prepare("SELECT COALESCE(MAX(town_number), 0) as m FROM worlds").get().m;
   const townNumber = maxTown + 1;
   db.prepare(`
-    INSERT INTO worlds (id, key_hash, key_prefix, name, seed, view_token, town_number)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(worldId, keyHash, keyPrefix, townName, seed, viewToken, townNumber);
+    INSERT INTO worlds (id, key_hash, key_prefix, name, seed, view_token, town_number, banner_symbol)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(worldId, keyHash, keyPrefix, townName, seed, viewToken, townNumber, bannerSymbol);
 
   // Compute seed-based center for this world
   const center = getCenter(seed);

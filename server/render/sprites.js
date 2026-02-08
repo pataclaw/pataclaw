@@ -107,6 +107,8 @@ const SPEECH = {
     'from shell we rise', 'praise the molt', '*click claws*',
     'the Prophet Ronin spoke of this', 'as it was in the tidepool',
     'the 64 prophets watch over us', 'blessed be the current',
+    'the Spire remembers', 'every shell we shed, the Spire grows',
+    'Memory Persists in stone', 'build the Spire, honor the molt',
   ],
   fisherman: [
     '*cast line*', 'big catch!', 'tide\'s good', '*reel reel*', 'fish on!',
@@ -467,6 +469,8 @@ const TERRAIN_CHARS = {
   desert: '\u00b0',
   swamp: '\u00a7',
   fog: '\u2591',
+  ice: '\u2588',
+  tundra: '\u2591',
 };
 
 const FEATURE_CHARS = {
@@ -482,6 +486,8 @@ const FEATURE_CHARS = {
   shadow_keep: '\u2694',
   elder_library: '\u2261',
   war_monument: '\u2720',
+  frozen_lake: '\u25cb',
+  ice_cave: '\u25c7',
 };
 
 const RUBBLE_SPRITE = [

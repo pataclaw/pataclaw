@@ -129,6 +129,16 @@ function randomTownName(rng) {
   }
 }
 
+// ─── BANNER SYMBOLS (unique per town) ───
+const BANNER_SYMBOLS = [
+  '☆','♦','◆','▲','●','♠','♣','♥','◎','✦','⚑','⊕',
+  '☽','⚘','✧','◇','▽','☼','⚓','⌂','♛','✶','⚡','✴','♜','⬡',
+];
+
+function randomBannerSymbol(rng) {
+  return BANNER_SYMBOLS[Math.floor(rng() * BANNER_SYMBOLS.length)];
+}
+
 function randomTrait(rng) {
   return TRAITS[Math.floor(rng() * TRAITS.length)];
 }
@@ -202,6 +212,8 @@ const FEATURES_TO_PLACE = [
   { type: 'ore_vein', count: 2, nearCenter: false, minDist: 10, terrains: ['mountain'] },
   { type: 'ruins', count: 1, nearCenter: false, minDist: 12 },
   { type: 'spring', count: 1, nearCenter: true, maxDist: 10, terrains: ['plains', 'forest'] },
+  { type: 'frozen_lake', count: 2, nearCenter: false, minDist: 5, terrains: ['ice', 'tundra'] },
+  { type: 'ice_cave', count: 1, nearCenter: false, minDist: 8, terrains: ['ice'] },
 ];
 
 module.exports = {
@@ -213,5 +225,6 @@ module.exports = {
   randomName,
   randomTrait,
   randomTownName,
+  randomBannerSymbol,
   TRAIT_PERSONALITY,
 };

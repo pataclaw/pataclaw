@@ -34,6 +34,8 @@ const migrations = [
   "ALTER TABLE trades ADD COLUMN partner_world_id TEXT DEFAULT NULL",
   // Town numbering
   "ALTER TABLE worlds ADD COLUMN town_number INTEGER",
+  // Book of Discoveries
+  "ALTER TABLE villagers ADD COLUMN is_chronicler INTEGER NOT NULL DEFAULT 0",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
@@ -86,6 +88,36 @@ const tableMigrations = [
     FOREIGN KEY (world_id) REFERENCES worlds(id),
     FOREIGN KEY (farm_id) REFERENCES buildings(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS discovery_book (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    tick INTEGER NOT NULL,
+    chronicler_id TEXT,
+    chronicler_name TEXT NOT NULL,
+    entry_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_discovery_book ON discovery_book(world_id, tick DESC)`,
+  `CREATE TABLE IF NOT EXISTS monoliths (
+    world_id TEXT PRIMARY KEY REFERENCES worlds(id),
+    total_height INTEGER NOT NULL DEFAULT 0,
+    scaffolding_progress INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'dormant',
+    last_maintained_tick INTEGER DEFAULT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS monolith_segments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    position INTEGER NOT NULL,
+    segment_type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    hp INTEGER NOT NULL DEFAULT 100,
+    created_tick INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_monolith_seg ON monolith_segments(world_id, position)`,
 ];
 for (const sql of tableMigrations) {
   try { db.exec(sql); } catch (e) { /* ignore */ }
