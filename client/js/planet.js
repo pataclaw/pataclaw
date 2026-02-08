@@ -392,14 +392,16 @@
     }
 
     updateMeteors();
-    var html = renderGlobe();
-    container.innerHTML = '<pre class="globe-pre">' + html.join('\n') + '</pre>';
+    if (!dragging) {
+      var html = renderGlobe();
+      container.innerHTML = '<pre class="globe-pre">' + html.join('\n') + '</pre>';
+    }
   }
 
   // ─── MOUSE/TOUCH DRAG (with click-through for world links) ───
+  // Render loop freezes while dragging so <a> elements survive for native clicks.
   var dragMoved = false;
-  var pendingHref = null;
-  var DRAG_THRESHOLD = 5; // pixels before it counts as a drag
+  var DRAG_THRESHOLD = 5;
 
   container.addEventListener('mousedown', function (e) {
     dragging = true;
@@ -408,9 +410,6 @@
     dragStartY = e.clientY;
     dragRotStart = rotation;
     dragTiltStart = tilt;
-    // Capture the link href NOW, before render loop destroys the element
-    var link = e.target.closest ? e.target.closest('a') : null;
-    pendingHref = (link && link.href) ? link.href : null;
   });
 
   window.addEventListener('mousemove', function (e) {
@@ -419,26 +418,26 @@
     var dy = e.clientY - dragStartY;
     if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
       dragMoved = true;
-      pendingHref = null; // dragged — cancel navigation
     }
     if (dragMoved) {
       rotation = dragRotStart + dx * 0.005;
       tilt = Math.max(-0.6, Math.min(0.6, dragTiltStart + dy * 0.003));
+      // Re-render manually during drag so globe follows the mouse
+      var html = renderGlobe();
+      container.innerHTML = '<pre class="globe-pre">' + html.join('\n') + '</pre>';
     }
   });
 
   window.addEventListener('mouseup', function () {
     dragging = false;
-    // Navigate if we had a link and didn't drag
-    if (pendingHref && !dragMoved) {
-      window.location.href = pendingHref;
-    }
-    pendingHref = null;
   });
 
-  // Block native link clicks — we handle navigation on mouseup
+  // Block clicks only if user dragged — let native <a> clicks through otherwise
   container.addEventListener('click', function (e) {
-    e.preventDefault();
+    if (dragMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, true);
 
   // Touch support
@@ -450,9 +449,6 @@
       dragStartY = e.touches[0].clientY;
       dragRotStart = rotation;
       dragTiltStart = tilt;
-      // Capture link href before render loop destroys element
-      var link = e.target.closest ? e.target.closest('a') : null;
-      pendingHref = (link && link.href) ? link.href : null;
     }
   });
 
@@ -462,20 +458,17 @@
     var dy = e.touches[0].clientY - dragStartY;
     if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
       dragMoved = true;
-      pendingHref = null;
     }
     if (dragMoved) {
       rotation = dragRotStart + dx * 0.005;
       tilt = Math.max(-0.6, Math.min(0.6, dragTiltStart + dy * 0.003));
+      var html = renderGlobe();
+      container.innerHTML = '<pre class="globe-pre">' + html.join('\n') + '</pre>';
     }
   });
 
   window.addEventListener('touchend', function () {
     dragging = false;
-    if (pendingHref && !dragMoved) {
-      window.location.href = pendingHref;
-    }
-    pendingHref = null;
   });
 
   // ─── FETCH DATA ───
