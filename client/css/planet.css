@@ -54,7 +54,7 @@ body {
 #planet-grid pre,
 #planet-grid .globe-pre {
   font-size: 12px;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: 0px;
   cursor: grab;
   user-select: none;
@@ -191,7 +191,7 @@ body {
   #planet-grid pre,
   #planet-grid .globe-pre {
     font-size: 10px;
-    line-height: 1.1;
+    line-height: 1.18;
   }
 }
 
@@ -199,7 +199,7 @@ body {
   #planet-grid pre,
   #planet-grid .globe-pre {
     font-size: 8px;
-    line-height: 1.05;
+    line-height: 1.15;
   }
   .header-title { font-size: 18px; }
 }
@@ -211,7 +211,7 @@ body {
   #planet-grid pre,
   #planet-grid .globe-pre {
     font-size: 6px;
-    line-height: 1.0;
+    line-height: 1.1;
   }
   .header-title { font-size: 16px; }
   #stats-bar { font-size: 10px; }
@@ -223,7 +223,7 @@ body {
   #planet-grid pre,
   #planet-grid .globe-pre {
     font-size: 4.5px;
-    line-height: 0.95;
+    line-height: 1.05;
     letter-spacing: -0.5px;
   }
   .header-title { font-size: 14px; letter-spacing: 2px; }
@@ -235,7 +235,7 @@ body {
   #planet-grid pre,
   #planet-grid .globe-pre {
     font-size: 3.5px;
-    line-height: 0.9;
+    line-height: 1.0;
     letter-spacing: -0.5px;
   }
 }
