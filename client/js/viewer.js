@@ -17,7 +17,7 @@ var starField = null; // [{x, y, char}] - generated once per night
 var lastTimeOfDay = null;
 
 // Town scaling
-var STAGE_WIDTHS = [60, 75, 85, 100];
+var STAGE_WIDTHS = [80, 88, 94, 100];
 var activeW = 100;
 var targetW = 100;
 var lastGrowthStage = -1;
