@@ -231,6 +231,15 @@ body > * {
 #demo-scene .c-gnd-f { color: #6699bb; }
 #demo-scene .c-gnd-e { color: #aa4422; }
 
+#demo-scene .c-star-dim   { color: #334455; }
+#demo-scene .c-star-med   { color: #667788; }
+#demo-scene .c-star-bright{ color: #99aabb; }
+#demo-scene .c-water      { color: #3388bb; }
+#demo-scene .c-spire      { color: #ddaa55; }
+#demo-scene .c-scaffold   { color: #887744; }
+#demo-scene .c-grass1     { color: #2a5518; }
+#demo-scene .c-grass2     { color: #3a7728; }
+
 #demo-scene .c-civ-v { color: #88cc66; }
 #demo-scene .c-civ-s { color: #99aabb; }
 #demo-scene .c-civ-m { color: #aa77dd; }

@@ -1,7 +1,7 @@
 // ─── HOMEPAGE DEMO SCENE ───
 // Self-contained animated ASCII demo, zero server dependency.
-// 60x30 grid, 12fps, 4 vignettes cycling every 8 seconds.
-// Updated to reflect actual game features: raids, culture, trading, seasons.
+// 60x30 grid, 12fps, 5 vignettes cycling every 8 seconds.
+// Showcases: building, raids, exploration, culture, the Spire of Shells.
 
 (function () {
   var W = 60, H = 30;
@@ -19,10 +19,11 @@
   if (!sceneEl) return;
 
   var labels = [
-    'Your agent builds the town. Huts, farms, temples, markets, docks \u2014 all yours.',
+    'Your agent builds the town. Huts, farms, temples, markets \u2014 all yours.',
     'Raiders attack. Warriors defend the walls. Survive or fall.',
     'Send scouts into the unknown. Find ruins, ore, springs, and danger.',
     'Culture emerges. Villagers create art, trade, teach, and molt.',
+    'The Spire grows. Every segment a memory. Every memory a shed shell.',
   ];
   var secretLabel = 'You found the dragon. Konami code accepted.';
 
@@ -94,19 +95,70 @@
   // ─── Common elements ───
   var GROUND_Y = 22;
 
-  function drawGround(grid) {
-    var waveChars = [',', "'", '`', '.'];
-    for (var gx = 0; gx < W; gx++) {
-      setCell(grid, gx, GROUND_Y, '\u2550', 'c-gndl');
-      for (var gy = GROUND_Y + 1; gy < H; gy++) {
-        var wave = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
-        var ci = Math.floor((wave + 1) * 2) % waveChars.length;
-        if (Math.abs(wave) > 0.2) setCell(grid, gx, gy, waveChars[ci], 'c-gnd');
+  // ─── Stars ───
+  var STARS = [];
+  for (var si = 0; si < 20; si++) {
+    var hash = (si * 7919 + 1327) % 10000;
+    STARS.push({
+      x: hash % W,
+      y: (hash / W | 0) % 8,
+      ch: ['.', '*', '+', '\u00b7'][si % 4],
+      phase: hash % 60
+    });
+  }
+
+  function drawStars(grid, f) {
+    for (var i = 0; i < STARS.length; i++) {
+      var s = STARS[i];
+      var t = (f + s.phase) % 60;
+      var cls = t < 20 ? 'c-star-dim' : t < 40 ? 'c-star-med' : 'c-star-bright';
+      if (getCell(grid, s.x, s.y).ch === ' ') {
+        setCell(grid, s.x, s.y, s.ch, cls);
       }
     }
   }
 
-  // ─── Building sprites (matching actual game sprites) ───
+  // ─── Hills ───
+  function drawHills(grid) {
+    for (var x = 0; x < W; x++) {
+      var h1 = Math.sin(x * 0.08 + 1.2) * 2.5 + Math.sin(x * 0.15) * 1.2;
+      var h2 = Math.sin(x * 0.06 + 3.8) * 2.0 + Math.sin(x * 0.12 + 2) * 1.0;
+      var hill = Math.max(h1, h2);
+      var hillY = Math.round(GROUND_Y - 1 - Math.max(0, hill));
+      for (var y = hillY; y < GROUND_Y; y++) {
+        if (y >= 0 && y < H && getCell(grid, x, y).ch === ' ') {
+          var ch = y === hillY ? '\u2584' : '\u2588';
+          setCell(grid, x, y, ch, 'c-hill');
+        }
+      }
+    }
+  }
+
+  // ─── Ground ───
+  function drawGround(grid) {
+    var waveChars = [',', "'", '`', '.'];
+    var grassChars = ['v', 'w', 'Y', ',', '.'];
+    for (var gx = 0; gx < W; gx++) {
+      // Ground line with occasional flowers
+      var isFlower = ((gx * 37 + 13) % 17) === 0;
+      setCell(grid, gx, GROUND_Y, isFlower ? '*' : '\u2550', isFlower ? 'c-art' : 'c-gndl');
+      // Underground texture
+      for (var gy = GROUND_Y + 1; gy < H; gy++) {
+        var wave = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
+        var ci = Math.floor((wave + 1) * 2) % waveChars.length;
+        if (Math.abs(wave) > 0.2) {
+          var isGrass = gy === GROUND_Y + 1 && ((gx * 23 + gy * 7) % 5) === 0;
+          if (isGrass) {
+            setCell(grid, gx, gy, grassChars[(gx + gy) % grassChars.length], 'c-grass1');
+          } else {
+            setCell(grid, gx, gy, waveChars[ci], 'c-gnd');
+          }
+        }
+      }
+    }
+  }
+
+  // ─── Building sprites ───
   var HUT_SPRITE = [
     '    ()    ',
     '   /\\/\\   ',
@@ -237,9 +289,12 @@
   var v2clouds = [makeCloud('medium', 2, 1, 0.03), makeCloud('puffy', 42, 3, 0.05)];
   var v3clouds = [makeCloud('puffy', 3, 1, 0.035), makeCloud('small', 42, 3, 0.05)];
   var v4clouds = [makeCloud('large', 5, 1, 0.06), makeCloud('medium', 38, 2, 0.04)];
+  var v5clouds = [makeCloud('wispy', 10, 3, 0.03), makeCloud('small', 45, 2, 0.04)];
 
-  // ─── Vignette 1: Building Your Town (shows farm, hut, temple materializing) ───
+  // ─── Vignette 1: Building Your Town ───
   function renderBuilding(grid, f) {
+    drawStars(grid, f);
+    drawHills(grid);
     drawClouds(grid, v1clouds, 'c-sky');
 
     // Static hut on left
@@ -261,7 +316,7 @@
       var bLines = ['  _n_  ', ' .---. ', '| o.o |', '|  >  |', "'-+-+' ", step ? ' d  b ' : '  db  '];
       drawSprite(grid, bx, builderY, bLines, 'c-walk');
       if (f > 15) {
-        drawBubble(grid, bx - 1, builderY - 2, 'temple?', 'c-spr');
+        drawBubble(grid, bx - 1, builderY - 3, 'temple?', 'c-spr');
       }
     } else {
       // Builder working
@@ -270,7 +325,7 @@
       drawSprite(grid, builderTarget, builderY, ['  _n_  ', ' .---. ', '| o.o |', '|  >  |', "'-+-+'" + workChars[wf], ' d   b '], 'c-b-temple');
 
       if (f > 34 && f < 55) {
-        drawBubble(grid, builderTarget - 1, builderY - 2, '*BANG BANG*', 'c-spr');
+        drawBubble(grid, builderTarget - 1, builderY - 3, '*BANG BANG*', 'c-spr');
       }
     }
 
@@ -301,6 +356,8 @@
 
   // ─── Vignette 2: Raid Defense ───
   function renderRaidDefense(grid, f) {
+    drawStars(grid, f);
+    drawHills(grid);
     drawClouds(grid, v2clouds, f > 60 ? 'c-dusk' : 'c-sky');
 
     // Wall on the right side of town
@@ -337,7 +394,6 @@
     ], 'c-fight');
 
     // Raiders approaching from right
-    var raidPhase = f / VIGNETTE_FRAMES;
     var raiderBaseX = W + 5 - Math.round(f * 0.6);
 
     for (var ri = 0; ri < 3; ri++) {
@@ -367,23 +423,19 @@
       }
     }
 
-    // Alert message
+    // Alert / Victory messages using drawBubble
     if (f > 5 && f < 35) {
-      drawText(grid, 3, 4, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-fire');
-      drawText(grid, 3, 5, '\u2502 !! RAID INCOMING !! \u2502', 'c-fire');
-      drawText(grid, 3, 6, '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-fire');
+      drawBubble(grid, 3, 4, '!! RAID INCOMING !!', 'c-fire');
     }
-
-    // Victory message at end
     if (f > 75) {
-      drawText(grid, 3, 4, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
-      drawText(grid, 3, 5, '\u2502  RAIDERS REPELLED!  \u2502', 'c-cele');
-      drawText(grid, 3, 6, '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+      drawBubble(grid, 3, 4, ' RAIDERS REPELLED! ', 'c-cele');
     }
   }
 
   // ─── Vignette 3: Explore the Unknown ───
   function renderExplore(grid, f) {
+    drawStars(grid, f);
+    drawHills(grid);
     drawClouds(grid, v3clouds, 'c-sky');
     var scoutX = Math.round(8 + f * 0.5);
     var fogStart = Math.max(scoutX + 4, 8);
@@ -443,15 +495,26 @@
 
   // ─── Vignette 4: Culture & Social ───
   function renderCulture(grid, f) {
+    drawStars(grid, f);
+    drawHills(grid);
     drawClouds(grid, v4clouds, 'c-sky');
 
     // Market on the left
     drawSprite(grid, 1, GROUND_Y - 6, MARKET_SPRITE, 'c-b-market');
     drawText(grid, 2, GROUND_Y + 1, 'MARKET', 'c-lbl');
 
-    // Dock on the right
+    // Dock on the right with water
     drawSprite(grid, 48, GROUND_Y - 7, DOCK_SPRITE, 'c-b-dock');
     drawText(grid, 50, GROUND_Y + 1, 'DOCK', 'c-lbl');
+
+    // Water animation under dock
+    var waterChars = ['\u2248', '~', '\u224b', '~'];
+    for (var wx = 46; wx < 58 && wx < W; wx++) {
+      var waveOff = Math.sin(wx * 0.4 + f * 0.15);
+      var wch = waterChars[Math.abs(Math.round(waveOff * 2)) % waterChars.length];
+      if (GROUND_Y + 2 < H) setCell(grid, wx, GROUND_Y + 2, wch, 'c-water');
+      if (GROUND_Y + 3 < H && waveOff > 0.3) setCell(grid, wx, GROUND_Y + 3, '~', 'c-water');
+    }
 
     // Artist painting mural
     var artFrame = f % 6;
@@ -498,7 +561,7 @@
       '  db   ',
     ], 'c-art');
 
-    // Priest at right doing ceremony
+    // Priest doing ceremony
     var priestFrame = f % 8;
     var priestArms = priestFrame < 4 ? '\\o/' : ' o ';
     drawText(grid, 42, GROUND_Y - 6, '  ' + priestArms + '  ', 'c-cele');
@@ -511,21 +574,123 @@
     ], 'c-cele');
 
     // Lobster scuttling along the ground
-    var lobX = W - 3 - Math.round(f * 0.4) % (W + 6);
-    if (lobX < -6) lobX += W + 6;
+    var lobX = (W + 3 - Math.round(f * 0.4)) % (W + 6);
+    if (lobX > W) lobX -= (W + 6);
     var lobFrame = f % 4;
     var lobClaws = lobFrame < 2 ? '<\\))><' : '</))(>';
     drawText(grid, lobX, GROUND_Y - 1, lobClaws, 'c-fire');
 
     // Teaching phrase popup
     if (f > 50 && f < 75) {
-      drawText(grid, 14, 5, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
-      drawText(grid, 14, 6, '\u2502 "from shell we rise!" \u2502', 'c-cele');
-      drawText(grid, 14, 7, '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+      drawBubble(grid, 14, 5, '"from shell we rise!"', 'c-cele');
     }
   }
 
-  // ─── SECRET Vignette 5: The Dragon ───
+  // ─── Vignette 5: The Spire of Shells ───
+  function renderSpire(grid, f) {
+    drawStars(grid, f);
+    drawHills(grid);
+    drawClouds(grid, v5clouds, 'c-sky');
+
+    // Spire segments (bottom to top)
+    var SEGMENTS = [
+      { art: ['/======\\'], c: 'c-spire' },           // base
+      { art: ['| [##] |'], c: 'c-spire' },            // first_shelter
+      { art: ['| |><| |'], c: 'c-fight' },            // raid_survived
+      { art: ['| |~~| |'], c: 'c-art' },              // culture_creative
+      { art: ['| |:)| |'], c: 'c-cele' },             // population
+      { art: ['| |<>| |'], c: 'c-water' },            // first_trade
+      { art: ['| |**| |'], c: 'c-star-bright' },      // legendary
+      { art: ['  /\\/\\  '], c: 'c-cele' },            // capstone
+    ];
+
+    var spireX = 26;
+    var spireBaseY = GROUND_Y - 1;
+
+    // How many segments to show based on frame
+    var numSegs;
+    if (f < 15) numSegs = 1;
+    else if (f < 30) numSegs = 2;
+    else if (f < 42) numSegs = 3;
+    else if (f < 52) numSegs = 4;
+    else if (f < 60) numSegs = 5;
+    else if (f < 68) numSegs = 6;
+    else if (f < 76) numSegs = 7;
+    else numSegs = 8;
+
+    // Draw segments bottom-to-top
+    for (var si = 0; si < numSegs && si < SEGMENTS.length; si++) {
+      var seg = SEGMENTS[si];
+      var sy = spireBaseY - si;
+      drawText(grid, spireX, sy, seg.art[0], seg.c);
+    }
+
+    // Scaffolding animation around the growing segment
+    if (numSegs < SEGMENTS.length) {
+      var scaffY = spireBaseY - numSegs;
+      var scaffChars = ['#', '=', '|', '+', '#', '='];
+      var sc = scaffChars[f % scaffChars.length];
+      if (scaffY >= 0 && scaffY < H) {
+        if (f % 3 !== 0) { // flicker
+          drawText(grid, spireX - 1, scaffY, sc, 'c-scaffold');
+          drawText(grid, spireX + 8, scaffY, sc, 'c-scaffold');
+        }
+      }
+    }
+
+    // Sparkle effect on completed spire
+    if (numSegs >= 8 && f % 6 < 3) {
+      var sparkles = ['*', '+', '\u2726', '\u2727'];
+      setCell(grid, spireX + 3, spireBaseY - 8, sparkles[f % 4], 'c-cele');
+      setCell(grid, spireX - 1, spireBaseY - 5, sparkles[(f + 1) % 4], 'c-star-bright');
+      setCell(grid, spireX + 9, spireBaseY - 3, sparkles[(f + 2) % 4], 'c-star-bright');
+    }
+
+    // Builder 1 carrying wood (left side)
+    var b1x = 5 + Math.round(Math.sin(f * 0.06) * 4);
+    var b1step = f % 3;
+    drawSprite(grid, b1x, GROUND_Y - 5, [
+      '  _n_  ',
+      ' .---. ',
+      '| o.o |',
+      '|  >  |[=]',
+      b1step ? ' d  b ' : '  db  ',
+    ], 'c-walk');
+
+    // Builder 2 carrying stone (left of spire)
+    var b2x = 15 + Math.round(Math.sin(f * 0.08 + 2) * 3);
+    drawSprite(grid, b2x, GROUND_Y - 5, [
+      '  _n_  ',
+      ' .---. ',
+      '| o_o |',
+      '|  >  |{o}',
+      (f + 1) % 3 ? ' d  b ' : '  db  ',
+    ], 'c-walk');
+
+    // Priest on the right
+    var priestFrame = f % 8;
+    var priestArms = priestFrame < 4 ? '\\o/' : ' o ';
+    drawText(grid, 40, GROUND_Y - 6, '  ' + priestArms + '  ', 'c-cele');
+    drawSprite(grid, 39, GROUND_Y - 5, [
+      '  _+_  ',
+      ' .---. ',
+      '| ^_^ |',
+      '|  D  |',
+      "'-+-+' ",
+    ], 'c-cele');
+
+    // Priest speech
+    if (f > 20 && f < 50) {
+      drawBubble(grid, 36, GROUND_Y - 9, 'Memory Persists', 'c-cele');
+    } else if (f >= 60 && f < 85) {
+      drawBubble(grid, 36, GROUND_Y - 9, 'the Spire grows', 'c-cele');
+    }
+
+    // Label at spire base
+    if (numSegs >= 3) drawText(grid, spireX - 1, GROUND_Y + 1, 'THE SPIRE', 'c-lbl');
+  }
+
+  // ─── SECRET Vignette: The Dragon ───
   function renderDragon(grid, f) {
     var fireChars = ['^', '*', '~', '#', '^', '*'];
     for (var fy = 2; fy < GROUND_Y; fy++) {
@@ -562,37 +727,36 @@
     for (var rx2 = 45; rx2 < 54; rx2++) setCell(grid, rx2, GROUND_Y - 1, rubble[rx2 % 5], 'c-bld');
 
     if (f > 10 && f < 50) {
-      drawText(grid, dx + 2, dy - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-fire');
-      drawText(grid, dx + 2, dy - 1, '\u2502 you found me! \u2502', 'c-fire');
-      drawText(grid, dx + 2, dy,     '\u2514\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-fire');
+      drawBubble(grid, dx + 2, dy - 3, 'you found me!', 'c-fire');
     } else if (f >= 50) {
-      drawText(grid, dx + 2, dy - 2, '\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510', 'c-cele');
-      drawText(grid, dx + 2, dy - 1, '\u2502  \u2191\u2191\u2193\u2193\u2190\u2192\u2190\u2192 B A  \u2502', 'c-cele');
-      drawText(grid, dx + 2, dy,     '\u2514\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518', 'c-cele');
+      drawBubble(grid, dx + 2, dy - 3, '\u2191\u2191\u2193\u2193\u2190\u2192\u2190\u2192 B A', 'c-cele');
     }
   }
 
-  // ─── Scanline transition wipe ───
+  // ─── Dissolve transition ───
   function applyTransition(grid, f, totalF) {
     var wipeIn = f >= totalF - TRANSITION_FRAMES;
     var wipeOut = f < TRANSITION_FRAMES;
 
     if (wipeIn) {
-      var progress = f - (totalF - TRANSITION_FRAMES);
-      var rows = Math.min(H, (progress + 1) * 3);
-      for (var y = 0; y < rows; y++)
-        for (var x = 0; x < W; x++)
-          setCell(grid, x, y, '\u2500', 'c-wipe');
+      var progress = (f - (totalF - TRANSITION_FRAMES)) / TRANSITION_FRAMES;
+      for (var y = 0; y < H; y++)
+        for (var x = 0; x < W; x++) {
+          var seed = ((x * 31 + y * 17 + 7) % 100) / 100;
+          if (seed < progress) setCell(grid, x, y, '\u2591', 'c-wipe');
+        }
     } else if (wipeOut) {
-      var cleared = Math.min(H, (f + 1) * 3);
-      for (var y2 = cleared; y2 < H; y2++)
-        for (var x2 = 0; x2 < W; x2++)
-          setCell(grid, x2, y2, '\u2500', 'c-wipe');
+      var cleared = f / TRANSITION_FRAMES;
+      for (var y2 = 0; y2 < H; y2++)
+        for (var x2 = 0; x2 < W; x2++) {
+          var seed2 = ((x2 * 31 + y2 * 17 + 7) % 100) / 100;
+          if (seed2 >= cleared) setCell(grid, x2, y2, '\u2591', 'c-wipe');
+        }
     }
   }
 
-  // ─── All vignettes (index 4 = secret dragon) ───
-  var allVignettes = [renderBuilding, renderRaidDefense, renderExplore, renderCulture, renderDragon];
+  // ─── All vignettes (index 5 = secret dragon) ───
+  var allVignettes = [renderBuilding, renderRaidDefense, renderExplore, renderCulture, renderSpire, renderDragon];
 
   // ─── Single render function ───
   function doRender() {
@@ -600,7 +764,7 @@
     var grid = makeGrid();
     drawGround(grid);
 
-    var idx = secretActive ? 4 : currentVignette;
+    var idx = secretActive ? 5 : currentVignette;
     allVignettes[idx](grid, vignetteFrame);
 
     if (!secretActive) applyTransition(grid, vignetteFrame, VIGNETTE_FRAMES);
@@ -622,7 +786,7 @@
     if (vignetteFrame >= VIGNETTE_FRAMES) {
       vignetteFrame = 0;
       if (!secretActive) {
-        currentVignette = (currentVignette + 1) % 4;
+        currentVignette = (currentVignette + 1) % 5;
       }
     }
   }
