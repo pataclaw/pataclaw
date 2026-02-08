@@ -231,6 +231,11 @@ body > * {
 #demo-scene .c-gnd-f { color: #6699bb; }
 #demo-scene .c-gnd-e { color: #aa4422; }
 
+#demo-scene .c-hill-far  { color: #334422; }
+#demo-scene .c-hill-mid  { color: #446633; }
+#demo-scene .c-hill-near { color: #558844; }
+#demo-scene .c-tree      { color: #338833; }
+#demo-scene .c-tree-t    { color: #664422; }
 #demo-scene .c-star-dim   { color: #334455; }
 #demo-scene .c-star-med   { color: #667788; }
 #demo-scene .c-star-bright{ color: #99aabb; }

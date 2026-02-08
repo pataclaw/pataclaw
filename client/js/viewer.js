@@ -457,23 +457,23 @@ function renderScene(data) {
   // Clouds (rendered before weather particles, after stars)
   renderClouds(grid, W, world.weather);
 
-  // Hills — 3 layered depth ranges
+  // Hills — 3 layered depth ranges (overwrite celestial so sun/moon set behind hills)
   // Far hills (background, subtle)
   for (var hx = 0; hx < W; hx++) {
     var hFar = Math.floor(Math.sin(hx * 0.04) * 2.5 + Math.sin(hx * 0.09 + 2) * 1.5 + Math.cos(hx * 0.02) * 1);
     for (var dy = 0; dy <= Math.max(0, hFar + 2); dy++) {
       var hy = 8 - hFar + dy;
-      if (hy >= 0 && hy < groundY - 10 && getCell(grid, hx, hy).ch === ' ') {
+      if (hy >= 0 && hy < groundY - 10) {
         setCell(grid, hx, hy, '\u00b7', 'c-hill-far');
       }
     }
   }
-  // Mid hills
+  // Mid hills (overwrite far hills for proper layering)
   for (var hx = 0; hx < W; hx++) {
     var hMid = Math.floor(Math.sin(hx * 0.07) * 2 + Math.sin(hx * 0.13 + 1) * 1.5 + Math.cos(hx * 0.03) * 1);
     for (var dy = 0; dy <= Math.max(0, hMid + 2); dy++) {
       var hy = 10 - hMid + dy;
-      if (hy >= 0 && hy < groundY - 8 && getCell(grid, hx, hy).ch === ' ') {
+      if (hy >= 0 && hy < groundY - 8) {
         var isPeak = dy === 0 && hMid > 1;
         setCell(grid, hx, hy, isPeak ? '\u25b4' : '\u25aa', 'c-hill-mid');
       }
@@ -484,9 +484,42 @@ function renderScene(data) {
     var hNear = Math.floor(Math.sin(hx * 0.11) * 1.5 + Math.sin(hx * 0.19 + 3) * 1 + Math.cos(hx * 0.06) * 0.8);
     for (var dy = 0; dy <= Math.max(0, hNear + 1); dy++) {
       var hy = 13 - hNear + dy;
-      if (hy >= 0 && hy < groundY - 6 && getCell(grid, hx, hy).ch === ' ') {
+      if (hy >= 0 && hy < groundY - 6) {
         var isPeak = dy === 0 && hNear > 0;
         setCell(grid, hx, hy, isPeak ? '\u25b2' : '#', 'c-hill-near');
+      }
+    }
+  }
+
+  // Bonsai trees on hills — deterministic placement from world seed
+  var BONSAI_SPRITES = [
+    [[' . ','c-tree'],['(@)','c-tree'],[' | ','c-tree-t']],
+    [[' * ','c-tree'],['/|\\','c-tree'],[' | ','c-tree-t']],
+    [['.~.','c-tree'],['~~~','c-tree'],[' | ','c-tree-t']],
+  ];
+  var wSeedT = Math.abs(world.seed || 42);
+  var treeN = 4 + (wSeedT % 4);
+  var treeXs = [];
+  for (var ti = 0; ti < treeN; ti++) {
+    var th = ((wSeedT * 2654435761 + ti * 7919 + 1327) >>> 0) % 100000;
+    var tx = 5 + (th % (W - 12));
+    var tooClose = false;
+    for (var ci = 0; ci < treeXs.length; ci++) { if (Math.abs(tx - treeXs[ci]) < 6) { tooClose = true; break; } }
+    if (tooClose) continue;
+    treeXs.push(tx);
+    var ttype = th % BONSAI_SPRITES.length;
+    var spr = BONSAI_SPRITES[ttype];
+    var hillH = Math.floor(Math.sin(tx * 0.07) * 2 + Math.sin(tx * 0.13 + 1) * 1.5 + Math.cos(tx * 0.03) * 1);
+    var treeBase = 10 - hillH;
+    for (var tr = 0; tr < spr.length; tr++) {
+      var trow = spr[tr][0], tcls = spr[tr][1];
+      for (var tc = 0; tc < trow.length; tc++) {
+        if (trow[tc] !== ' ') {
+          var tpx = tx + tc, tpy = treeBase - spr.length + tr;
+          if (tpx >= 0 && tpx < W && tpy >= 0 && tpy < groundY) {
+            setCell(grid, tpx, tpy, trow[tc], tcls);
+          }
+        }
       }
     }
   }

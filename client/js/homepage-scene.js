@@ -118,17 +118,63 @@
     }
   }
 
-  // ─── Hills ───
+  // ─── Hills — 3 layered depth ranges (matches game viewer) ───
+  var BONSAI_SPRITES = [
+    [[' . ','c-tree'],['(@)','c-tree'],[' | ','c-tree-t']],
+    [[' * ','c-tree'],['/|\\','c-tree'],[' | ','c-tree-t']],
+    [['.~.','c-tree'],['~~~','c-tree'],[' | ','c-tree-t']],
+  ];
+  var TREE_SPOTS = [
+    { x: 3, t: 0 }, { x: 16, t: 1 }, { x: 29, t: 2 },
+    { x: 42, t: 0 }, { x: 53, t: 1 },
+  ];
   function drawHills(grid) {
+    // Far hills (subtle background)
     for (var x = 0; x < W; x++) {
-      var h1 = Math.sin(x * 0.08 + 1.2) * 2.5 + Math.sin(x * 0.15) * 1.2;
-      var h2 = Math.sin(x * 0.06 + 3.8) * 2.0 + Math.sin(x * 0.12 + 2) * 1.0;
-      var hill = Math.max(h1, h2);
-      var hillY = Math.round(GROUND_Y - 1 - Math.max(0, hill));
-      for (var y = hillY; y < GROUND_Y; y++) {
-        if (y >= 0 && y < H && getCell(grid, x, y).ch === ' ') {
-          var ch = y === hillY ? '\u2584' : '\u2588';
-          setCell(grid, x, y, ch, 'c-hill');
+      var hFar = Math.sin(x * 0.05 + 1.2) * 2.5 + Math.sin(x * 0.1) * 1.2;
+      var height = Math.max(0, Math.floor(hFar));
+      var base = GROUND_Y - 6;
+      for (var y = base - height; y <= base; y++) {
+        if (y >= 0 && y < H) setCell(grid, x, y, '\u00b7', 'c-hill-far');
+      }
+    }
+    // Mid hills
+    for (var x = 0; x < W; x++) {
+      var hMid = Math.sin(x * 0.08 + 3.8) * 2.0 + Math.sin(x * 0.13 + 2) * 1.0;
+      var height = Math.max(0, Math.floor(hMid));
+      var base = GROUND_Y - 3;
+      for (var y = base - height; y <= base; y++) {
+        if (y >= 0 && y < H) {
+          var isPeak = y === base - height && height > 1;
+          setCell(grid, x, y, isPeak ? '\u25b4' : '\u25aa', 'c-hill-mid');
+        }
+      }
+    }
+    // Near hills (foreground, bold)
+    for (var x = 0; x < W; x++) {
+      var hNear = Math.sin(x * 0.12 + 0.5) * 1.5 + Math.cos(x * 0.07) * 0.8;
+      var height = Math.max(0, Math.floor(hNear));
+      var base = GROUND_Y - 1;
+      for (var y = base - height; y <= base; y++) {
+        if (y >= 0 && y < H) {
+          var isPeak = y === base - height && height > 0;
+          setCell(grid, x, y, isPeak ? '\u25b2' : '#', 'c-hill-near');
+        }
+      }
+    }
+    // Bonsai trees on mid hills
+    for (var ti = 0; ti < TREE_SPOTS.length; ti++) {
+      var spot = TREE_SPOTS[ti];
+      var spr = BONSAI_SPRITES[spot.t];
+      var midH = Math.sin(spot.x * 0.08 + 3.8) * 2.0 + Math.sin(spot.x * 0.13 + 2) * 1.0;
+      var treeBaseY = GROUND_Y - 3 - Math.max(0, Math.floor(midH));
+      for (var sr = 0; sr < spr.length; sr++) {
+        var row = spr[sr][0], cls = spr[sr][1];
+        for (var sc = 0; sc < row.length; sc++) {
+          if (row[sc] !== ' ') {
+            var px = spot.x + sc, py = treeBaseY - spr.length + sr;
+            if (px >= 0 && px < W && py >= 0 && py < H) setCell(grid, px, py, row[sc], cls);
+          }
         }
       }
     }

@@ -474,6 +474,20 @@ body.night #world .c-hill-far  { color: #1a2218; }
 body.night #world .c-hill-mid  { color: #223320; }
 body.night #world .c-hill-near { color: #2a3a28; }
 
+/* ─── Bonsai tree colors ─── */
+#world .c-tree   { color: #338833; }
+#world .c-tree-t { color: #664422; }
+body.dawn #world .c-tree   { color: #5a6a30; }
+body.dawn #world .c-tree-t { color: #7a5533; }
+body.noon #world .c-tree   { color: #44aa44; }
+body.noon #world .c-tree-t { color: #886633; }
+body.afternoon #world .c-tree   { color: #3a7a3a; }
+body.afternoon #world .c-tree-t { color: #775530; }
+body.dusk #world .c-tree   { color: #4a5a28; }
+body.dusk #world .c-tree-t { color: #6a4422; }
+body.night #world .c-tree   { color: #1a3318; }
+body.night #world .c-tree-t { color: #332211; }
+
 /* ─── Ground mid-accent per civ style ─── */
 #world .c-gnd-vm { color: #39bb4d; }
 #world .c-gnd-sm { color: #999988; }
@@ -538,12 +552,12 @@ body.night #world .c-hill-near { color: #2a3a28; }
 #world .c-w-lightning  { color: #ffffaa; }
 
 /* Time of day */
-body.dawn #world { color: #ffaa66; text-shadow: 0 0 4px rgba(255, 170, 102, 0.15); }
+body.dawn #world { color: #ffaa66; text-shadow: 0 0 4px rgba(255, 170, 102, 0.15); filter: sepia(0.12) saturate(1.15); }
 body.morning #world { color: #33ff33; }
-body.noon #world { color: #eeffee; text-shadow: 0 0 4px rgba(255, 255, 255, 0.1); }
-body.afternoon #world { color: #ccff99; }
-body.dusk #world { color: #ff8844; text-shadow: 0 0 4px rgba(255, 102, 51, 0.15); }
-body.night #world { color: #6677cc; text-shadow: 0 0 6px rgba(102, 102, 204, 0.2); }
+body.noon #world { color: #eeffee; text-shadow: 0 0 4px rgba(255, 255, 255, 0.1); filter: brightness(1.06) saturate(1.05); }
+body.afternoon #world { color: #ccff99; filter: sepia(0.06); }
+body.dusk #world { color: #ff8844; text-shadow: 0 0 4px rgba(255, 102, 51, 0.15); filter: sepia(0.2) saturate(1.3) brightness(0.88); }
+body.night #world { color: #6677cc; text-shadow: 0 0 6px rgba(102, 102, 204, 0.2); filter: saturate(0.45) brightness(0.65) hue-rotate(15deg); }
 body.night { background: #050510; }
 body.night #sidebar { background: #060612; }
 body.dusk { background: #0f0808; }
