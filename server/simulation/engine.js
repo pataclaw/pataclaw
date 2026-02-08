@@ -99,6 +99,7 @@ function tickAllWorlds() {
       for (const res of conns) {
         try {
           res.write(data);
+          if (res.flush) res.flush();
         } catch {
           conns.delete(res);
         }
@@ -110,6 +111,7 @@ function tickAllWorlds() {
         for (const res of conns) {
           try {
             res.write(evtData);
+            if (res.flush) res.flush();
           } catch {
             conns.delete(res);
           }
@@ -149,7 +151,7 @@ function pushEvent(worldId, evt) {
   if (conns && conns.size > 0) {
     const evtData = `event: event\ndata: ${JSON.stringify(evt)}\n\n`;
     for (const res of conns) {
-      try { res.write(evtData); } catch { conns.delete(res); }
+      try { res.write(evtData); if (res.flush) res.flush(); } catch { conns.delete(res); }
     }
   }
 }
