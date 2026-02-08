@@ -141,8 +141,17 @@ if (unnumbered.length > 0) {
   console.log(`[INIT] Backfilled town_number for ${unnumbered.length} worlds (${maxNum + 1}-${next - 1})`);
 }
 
+const compression = require('compression');
 const app = express();
 
+// Compression adds res.flush() which Railway's proxy needs for SSE streaming.
+// SSE itself is excluded from compression so frames aren't buffered.
+app.use(compression({
+  filter: (req, res) => {
+    if (res.getHeader('Content-Type') === 'text/event-stream') return false;
+    return compression.filter(req, res);
+  }
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
