@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const db = require('../db/connection');
+const { getWorldHighlights } = require('../simulation/highlights');
 
 const router = Router();
 
@@ -282,6 +283,13 @@ router.get('/quests', (req, res) => {
       completed: q.completed,
     })),
   });
+});
+
+// GET /api/world/highlights - top notable events for this world
+router.get('/highlights', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+  const highlights = getWorldHighlights(req.worldId, limit);
+  res.json({ highlights });
 });
 
 // POST /api/world/events/mark-read

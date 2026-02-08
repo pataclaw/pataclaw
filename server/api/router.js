@@ -15,8 +15,14 @@ const viewerRouter = require('./viewer');
 const moltbookRouter = require('./moltbook');
 const nftRouter = require('./nft');
 const { getOvergrowthState, harvestOvergrowth } = require('../simulation/overgrowth');
+const { getPlanetHighlights, getHighlightById } = require('../simulation/highlights');
+const { generateHighlightCard } = require('../render/highlight-card');
 
 const router = Router();
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // POST /api/worlds - create a new world (no auth)
 router.post('/worlds', async (req, res, next) => {
@@ -272,6 +278,68 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
     overgrowthHarvest,
     achievements: `${achievementCount}/20 (use /api/world/achievements for details)`,
   });
+});
+
+// GET /api/highlights — planet-wide top moments (public)
+router.get('/highlights', (_req, res) => {
+  const limit = Math.min(parseInt(_req.query.limit) || 20, 50);
+  const highlights = getPlanetHighlights(limit);
+  res.json({ highlights });
+});
+
+// GET /api/highlights/card/:eventId.svg — shareable SVG card (public)
+router.get('/highlights/card/:eventId.svg', (req, res) => {
+  const event = getHighlightById(req.params.eventId);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  // Get culture for context
+  const culture = db.prepare('SELECT village_mood, creativity_level, cooperation_level FROM culture WHERE world_id = ?').get(event.world_id);
+  const descriptor = culture
+    ? [culture.village_mood.toUpperCase(),
+       culture.creativity_level > 60 ? 'creative' : culture.creativity_level < 40 ? 'traditional' : null,
+       culture.cooperation_level > 60 ? 'cooperative' : culture.cooperation_level < 40 ? 'fractious' : null,
+      ].filter(Boolean).join(' | ')
+    : null;
+
+  const svg = generateHighlightCard(event, descriptor ? { descriptor } : null);
+  if (!svg) return res.status(500).json({ error: 'Failed to generate card' });
+
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.send(svg);
+});
+
+// GET /api/highlights/card/:eventId — HTML wrapper with OG meta tags (public)
+router.get('/highlights/card/:eventId', (req, res) => {
+  const event = getHighlightById(req.params.eventId);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const townLabel = (event.town_number ? '#' + event.town_number + ' ' : '') + (event.world_name || 'Unknown');
+  const title = event.title || 'Pataclaw Highlight';
+  const description = (event.description || '').slice(0, 200) + ' — ' + townLabel + ', Day ' + (event.day_number || '?');
+  const imageUrl = `https://pataclaw.com/api/highlights/card/${req.params.eventId}.svg`;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)} — Pataclaw</title>
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:image" content="${imageUrl}">
+  <meta property="og:image:width" content="1032">
+  <meta property="og:image:height" content="400">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name="twitter:image" content="${imageUrl}">
+  <style>body{background:#0a0a0a;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}img{max-width:100%;height:auto}</style>
+</head>
+<body>
+  <img src="${imageUrl}" alt="${escapeHtml(title)}">
+</body>
+</html>`);
 });
 
 // Public NFT metadata routes (no auth — OpenSea needs to read these)

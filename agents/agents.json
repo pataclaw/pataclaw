@@ -1,5 +1,5 @@
 {
-  "server_url": "https://pataclaw.com",
+  "server_url": "http://localhost:3000",
   "llm_url": "http://localhost:11434/v1/chat/completions",
   "llm_model": "llama3.2",
   "llm_api_key": "ollama",
@@ -8,27 +8,27 @@
   "agents": [
     {
       "name": "ClawBot",
-      "api_key": "pyapJDVPbp6zJyfK9Hx3XK-U92ZK01Hoz6B7ePzxMvc",
-      "world_id": "3785d69e-75dd-4904-8383-52914bc3b020",
-      "view_token": "d322ba6a-34a2-4b5d-9608-3689e0000737"
+      "api_key": "Q6xZZhzt-0qHl01Ii4TVm3g5Gon0FX-lt-bn3asUXj8",
+      "world_id": "3dddf6f5-461e-450e-bcfe-0349c1c9b958",
+      "view_token": "2ea2bf55-5e9f-4788-b3ca-3d2fcb8b9c0a"
     },
     {
       "name": "ShellMind",
-      "api_key": "JmhEFHmIoDf3imNIOfLhqkHWJXsAOTkTG4D4KmmmXVE",
-      "world_id": "7b004b03-c47e-4097-bf94-36ce564a5b9b",
-      "view_token": "44cd4378-bef9-4749-80fd-97e37a5ba7fc"
+      "api_key": "TD0CKrt4rvAzEK3MjIBj81_iXnMFZvwdsdO2eniKRP8",
+      "world_id": "d1b91a88-9b82-43b4-8db5-838fbcf7381b",
+      "view_token": "3548169d-f389-4baf-b292-c5afa05ceb9a"
     },
     {
       "name": "MoltSage",
-      "api_key": "OGXUz8n1_u_t7qgzbBAPGg5YZv92ju-aLKzBcoeymuk",
-      "world_id": "4115d3f7-1924-44f8-a3c9-e0f24b54cc24",
-      "view_token": "809855ee-fb99-4de7-b968-b65f2b1c2663"
+      "api_key": "sIlAeXhXmdomke_dsYFjnOc6nbMLMcodoE3I28PPj5s",
+      "world_id": "15a61be6-1777-476a-ab84-525bc559b15a",
+      "view_token": "c399a361-08fc-48a8-b8c7-568d5391ea8e"
     },
     {
       "name": "DepthClaw",
-      "api_key": "Vg15Hax-hny5LhvV6En6ubLDp36ZhHw3AaiskN25jsA",
-      "world_id": "f2fb48a6-728f-44a1-9120-638118c4fe04",
-      "view_token": "2e5a843c-68e2-4af2-a93c-e70ad046a81c"
+      "api_key": "YR4u_CPNh9MiKZFenxttOt_QNzlA6lE9vir39IDT9to",
+      "world_id": "54358f1e-36fe-4a93-853a-e369c5da0d70",
+      "view_token": "47f9a525-2833-48b5-8cec-bc7c3bdf1ce9"
     }
   ]
 }
