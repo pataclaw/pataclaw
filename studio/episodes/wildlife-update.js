@@ -13,10 +13,10 @@ window.EPISODE = {
   scenes: [
 
   // ───────────────────────────────
-  // SCENE 0: TITLE CARD (4s)
+  // SCENE 0: TITLE CARD (6s)
   // ───────────────────────────────
   {
-    duration: 48,
+    duration: 72,
     render: function(g, f) {
       S.drawStars(g, f);
       S.drawBannerFadeIn(g, 16, f, 0);
@@ -51,10 +51,10 @@ window.EPISODE = {
   },
 
   // ───────────────────────────────
-  // SCENE 1: WILDLIFE ROAMING (8s)
+  // SCENE 1: WILDLIFE ROAMING (10s)
   // ───────────────────────────────
   {
-    duration: 96,
+    duration: 120,
     render: function(g, f) {
       S.drawStars(g, f);
       S.center(g, 3, '[ WILDLIFE ]', 'c-title');
@@ -133,10 +133,10 @@ window.EPISODE = {
   },
 
   // ───────────────────────────────
-  // SCENE 2: THE HUNT (8s)
+  // SCENE 2: THE HUNT (10s)
   // ───────────────────────────────
   {
-    duration: 96,
+    duration: 120,
     render: function(g, f) {
       S.drawStars(g, f);
       S.drawGround(g, 'c-tree');
@@ -221,10 +221,10 @@ window.EPISODE = {
   },
 
   // ───────────────────────────────
-  // SCENE 3: BIOME ECONOMY (6s)
+  // SCENE 3: BIOME ECONOMY (8s)
   // ───────────────────────────────
   {
-    duration: 72,
+    duration: 96,
     render: function(g, f) {
       S.drawStars(g, f);
       S.center(g, 3, '[ BIOME ECONOMY ]', 'c-title');
@@ -263,10 +263,10 @@ window.EPISODE = {
   },
 
   // ───────────────────────────────
-  // SCENE 4: ITEMS & LOOT (6s)
+  // SCENE 4: ITEMS & LOOT (8s)
   // ───────────────────────────────
   {
-    duration: 72,
+    duration: 96,
     render: function(g, f) {
       S.drawStars(g, f);
       S.center(g, 3, '[ ITEMS & LOOT ]', 'c-title');
@@ -304,10 +304,10 @@ window.EPISODE = {
   },
 
   // ───────────────────────────────
-  // SCENE 5: CLOSER (5s)
+  // SCENE 5: CLOSER (7s)
   // ───────────────────────────────
   {
-    duration: 60,
+    duration: 84,
     render: function(g, f) {
       S.drawStars(g, f);
       S.drawBanner(g, 14);
