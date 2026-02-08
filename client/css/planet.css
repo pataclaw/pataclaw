@@ -87,6 +87,37 @@ body {
 .meteor-trail2 { color: #5577aa; }
 .meteor-trail3 { color: #334466; }
 
+/* ─── Planetary Event Atmosphere Tints ─── */
+.globe-atmo-eclipse { color: #110022; opacity: 0.6; }
+.globe-atmo-tidal   { color: #1155aa; opacity: 0.5; }
+.globe-atmo-shell   { color: #33aa77; opacity: 0.45; }
+.globe-atmo-blood   { color: #882222; opacity: 0.55; }
+.globe-atmo-golden  { color: #aa8833; opacity: 0.45; }
+
+/* ─── Planetary Event Banner ─── */
+.planet-event {
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  animation: peBannerPulse 3s ease-in-out infinite;
+}
+.planet-event.hidden { display: none; }
+.planet-event .pe-icon { margin-right: 6px; font-size: 14px; }
+.planet-event .pe-desc { display: block; font-size: 10px; opacity: 0.7; margin-top: 2px; }
+
+.pe-solar_eclipse   { color: #8866cc; border-bottom: 1px solid #221133; background: #08001a; }
+.pe-meteor_shower   { color: #aaccff; border-bottom: 1px solid #223344; background: #060e18; }
+.pe-tidal_surge     { color: #44aaff; border-bottom: 1px solid #112244; background: #040a18; }
+.pe-shell_migration { color: #66ddaa; border-bottom: 1px solid #113322; background: #040e0a; }
+.pe-blood_moon      { color: #ff4444; border-bottom: 1px solid #331111; background: #180404; }
+.pe-golden_age      { color: #ffcc00; border-bottom: 1px solid #332200; background: #140e02; }
+
+@keyframes peBannerPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1.0; }
+}
+
 /* World markers */
 .world-normal {
   color: #33ff33;

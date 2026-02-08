@@ -108,6 +108,7 @@ router.get('/leaderboard', (_req, res) => {
 });
 
 // GET /api/planet - all worlds for planet map (public)
+const { getActivePlanetaryEvent } = require('../simulation/planetary');
 router.get('/planet', (_req, res) => {
   const worlds = db.prepare(`
     SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed, w.town_number, w.banner_symbol,
@@ -147,7 +148,12 @@ router.get('/planet', (_req, res) => {
   const totalMinted = result.filter(w => w.is_minted).length;
   const totalPop = result.reduce((s, w) => s + w.population, 0);
 
-  res.json({ worlds: result, stats: { total_worlds: result.length, total_population: totalPop, total_minted: totalMinted } });
+  const planetaryEvent = getActivePlanetaryEvent();
+  res.json({
+    worlds: result,
+    stats: { total_worlds: result.length, total_population: totalPop, total_minted: totalMinted },
+    planetaryEvent: planetaryEvent ? { type: planetaryEvent.type, title: planetaryEvent.title, description: planetaryEvent.description } : null,
+  });
 });
 
 // GET /api/trades/open - public listing of all open inter-world trades

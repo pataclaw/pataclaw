@@ -26,6 +26,26 @@
   var frameCount = 0;
   var worlds = [];
   var stats = { total_worlds: 0, total_population: 0, total_minted: 0 };
+  var planetaryEvent = null; // active event from server
+
+  // ─── PLANETARY EVENT CONFIG ───
+  var PE_ICONS = {
+    solar_eclipse: '\u25D1',
+    meteor_shower: '\u2604',
+    tidal_surge: '\u224B',
+    shell_migration: '\u2727',
+    blood_moon: '\u25CF',
+    golden_age: '\u2605',
+  };
+  // Visual modifiers per event type
+  var PE_EFFECTS = {
+    solar_eclipse:   { shadeMul: 0.35, atmoCls: 'globe-atmo-eclipse', meteorBoost: 0 },
+    meteor_shower:   { shadeMul: 1.0, atmoCls: null, meteorBoost: 5 },
+    tidal_surge:     { shadeMul: 1.0, atmoCls: 'globe-atmo-tidal', meteorBoost: 0 },
+    shell_migration: { shadeMul: 1.1, atmoCls: 'globe-atmo-shell', meteorBoost: 0 },
+    blood_moon:      { shadeMul: 0.7, atmoCls: 'globe-atmo-blood', meteorBoost: 0 },
+    golden_age:      { shadeMul: 1.2, atmoCls: 'globe-atmo-golden', meteorBoost: 0 },
+  };
 
   // ─── STARFIELD ───
   var STAR_DENSITY = 0.035; // ~3.5% of void pixels
@@ -80,8 +100,11 @@
   }
 
   function updateMeteors() {
-    // Spawn
-    if (meteors.length < METEOR_MAX && Math.random() < METEOR_SPAWN_RATE) {
+    // Spawn — boosted during meteor_shower event
+    var eff = planetaryEvent ? PE_EFFECTS[planetaryEvent.type] : null;
+    var maxM = METEOR_MAX + (eff ? eff.meteorBoost : 0);
+    var rate = METEOR_SPAWN_RATE * (eff && eff.meteorBoost > 0 ? 8 : 1);
+    if (meteors.length < maxM && Math.random() < rate) {
       meteors.push(spawnMeteor());
     }
     // Advance
@@ -224,6 +247,9 @@
     var cosR = Math.cos(rotation);
     var sinR = Math.sin(rotation);
     var meteorMap = buildMeteorMap();
+    var peEff = planetaryEvent ? PE_EFFECTS[planetaryEvent.type] : null;
+    var shadeMul = peEff ? peEff.shadeMul : 1.0;
+    var atmoOverride = peEff ? peEff.atmoCls : null;
 
     for (var sy = 0; sy < GLOBE_H; sy++) {
       var row = '';
@@ -281,12 +307,16 @@
         var edgeFade = nz; // 0 at edge, 1 at center
         shade *= (0.3 + 0.7 * edgeFade);
 
+        // Apply planetary event shade modifier
+        shade *= shadeMul;
+        shade = Math.min(1.0, shade);
+
         // Atmosphere glow at rim
         if (r2 > 0.88 && r2 <= 1.0) {
           var rimGlow = (r2 - 0.88) / 0.12;
           if (shade < 0.08) {
-            // Dark side rim — subtle blue atmosphere
-            row += '<span class="globe-atmo">' + (rimGlow > 0.5 ? '.' : ' ') + '</span>';
+            var rimCls = atmoOverride || 'globe-atmo';
+            row += '<span class="' + rimCls + '">' + (rimGlow > 0.5 ? '.' : ' ') + '</span>';
             continue;
           }
         }
@@ -418,8 +448,10 @@
       .then(function (data) {
         worlds = data.worlds;
         stats = data.stats;
+        planetaryEvent = data.planetaryEvent || null;
         rebuildWorldMap();
         renderStats(stats);
+        renderEventBanner(planetaryEvent);
       })
       .catch(function (err) {
         console.error('Failed to fetch planet data:', err);
@@ -430,6 +462,20 @@
     document.getElementById('stat-worlds').textContent = s.total_worlds + ' worlds';
     document.getElementById('stat-pop').textContent = s.total_population + ' souls';
     document.getElementById('stat-minted').textContent = s.total_minted + ' minted';
+  }
+
+  function renderEventBanner(evt) {
+    var el = document.getElementById('planet-event');
+    if (!el) return;
+    if (!evt) {
+      el.classList.add('hidden');
+      return;
+    }
+    var icon = PE_ICONS[evt.type] || '\u2731';
+    el.className = 'planet-event pe-' + evt.type;
+    el.innerHTML = '<span class="pe-icon">' + icon + '</span> ' +
+      escAttr(evt.title) +
+      ' <span class="pe-desc">' + escAttr(evt.description || '') + '</span>';
   }
 
   function addLegend() {
