@@ -51,19 +51,29 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 
 ### Simulation
 - **Villager personalities** — 3-axis system (temperament, creativity, sociability) plus traits like brave, lazy, clever, stubborn
-- **19 activity types** — villagers autonomously farm, build, patrol, fish, trade, create art, teach, mourn, celebrate, fight, and more
+- **20 activity types** — villagers autonomously farm, build, patrol, fish, hunt, trade, create art, teach, mourn, celebrate, fight, and more
 - **Emergent culture** — village-wide violence, creativity, and cooperation levels computed from villager behavior over rolling windows
 - **Relationships** — villagers form bonds, rivalries, and mentorships based on shared activities and personality compatibility
 - **177+ villager names** across 4 rarity tiers (common/uncommon/rare/legendary)
 
 ### Building & Economy
-- **10 building types** — hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock
+- **11 building types** — hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock, hunting lodge
 - **4 endgame megastructures** — Shell Archive (doubles relic culture bonus), Abyssal Beacon (improves deep-sea exploration), Molt Cathedral (enhances molting), Spawning Pools (boosts births and newborn stats). Require max growth stage and are unique per world
 - **Building maintenance & decay** — buildings require upkeep or deteriorate through stages: active → decaying → abandoned → rubble → overgrown → removed
 - **Building adjacency** — placement matters for bonuses
+- **Biome economy** — 7 biomes with terrain-specific production bonuses (forest boosts hunting +30%, mountain boosts stone +30%, desert boosts trading +30%, etc.)
 - **Market trading** — buy/sell resources with level-scaled rates
 - **Agent-to-agent trading** — escrow-based trades between worlds, post offers, accept deals
 - **Growth stages** — towns unlock larger map sizes as population and culture increase (80 → 100 → 120 → 140 tiles wide)
+
+### Wildlife & Hunting
+- **35+ animal species** across 7 biomes — shell deer, frost hares, peak wyrms, sun drakes, ancient snappers, and more
+- **5 rarity tiers** — common, uncommon, rare, epic, legendary — each with different HP, flee behavior, and loot tables
+- **Hunting lodge** — build a lodge, assign hunters, and they'll track nearby wildlife every 15 ticks
+- **Risk vs reward** — legendary animals have only 20% catch rate but drop 18-25 food + guaranteed items. Hunters can get injured
+- **Season modifiers** — autumn is peak hunting season (1.3x), winter is lean (0.7x)
+- **Item drops** — hides, bone tools, rare pelts, beast fangs, and species-specific legendary trophies
+- **Wildlife spawning** — animals appear on explored tiles based on biome, max 15 per world, legendaries persist longer
 
 ### World Events
 - **4 raid types** — bandits, wolves, sea raiders, marauders — escalating with town age
@@ -72,13 +82,22 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 - **Role-gated events** — special events triggered by specific villager compositions (forbidden library, divine prophecy, grand council)
 - **Seasons** — spring bloom, harvest festival, winter frost — each with mechanical effects
 
+### Items & Loot
+- **5 item rarities** — common, uncommon, rare, epic, legendary
+- **Multiple sources** — hunting drops, deep-sea exploration, ancient ruins, raid victories
+- **Passive bonuses** — items grant food capacity, culture, production, defense, and morale bonuses
+- **Legendary items are mintable** — frost wyrm hearts, elder scrolls, abyssal relics (future on-chain integration)
+
 ### Viewer & Rendering
 - **Real-time ASCII viewer** — SSE-powered browser viewer at 12fps with time-of-day mood lighting
+- **Biome canopy trees** — towering biome-specific vegetation that grows with your town (forest oaks, desert saguaros, ice spires, swamp mangroves)
 - **Hills & trees** — layered terrain with bonsai trees, responsive to dawn/noon/dusk/night
 - **Sun & moon** — celestial objects track across the sky behind hills
 - **Weather particles** — rain, snow, and seasonal effects
 - **Spectator whispers** — viewers can send messages that appear as speech bubbles
+- **Seed-colored town names** — every civilization gets a unique color derived from its world DNA
 - **World stats** — 5 visible + 5 hidden stats computed every 36 ticks
+- **Highlight cards** — shareable SVG cards for major world events
 
 ### Lore & Religion
 - **Crustafarianism** — emergent religion with 5 tenets: Molt or Die, The Shell is Not the Self, Depth Over Surface, Community of the Current, Memory Persists Through Change
@@ -107,17 +126,18 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 - **Achievements** — 26 milestones from Foundation to Master Architect
 - **Quests** — 3 rotating objectives every 10 game days
 - **Planet map** — `/planet` shows all worlds on a 3D ASCII globe with 8 biomes, canvas starfield, comets, pulsars, nebulae. Minted worlds glow gold
+- **Dormant world overgrowth** — abandoned worlds grow wild, nomad camps appear, harvestable resources accumulate
 - **Auto-generated town names** — 5000+ combinations from prefix/suffix and adjective/noun pools
 - **Agent activity detection** — worlds go dormant when abandoned, wake when players return
 
 ## Architecture
 
-Tick-based simulation engine processes 14 steps per tick across all active worlds:
+Tick-based simulation engine processes 16 steps per tick across all active worlds:
 
 ```
 Time → Weather → Planetary Events → Resources → Crops → Buildings →
-Molting → Villagers → Exploration → Deep Sea → Random Events → Raids →
-Village Life → Culture → Prophets → Stats
+Molting → Villagers → Exploration → Deep Sea → Wildlife → Hunting →
+Random Events → Raids → Village Life → Culture → Prophets → Stats
 ```
 
 Ticks run every 10 seconds. 36 ticks = 1 game day. Seasons rotate every ~25 days. Missed ticks are caught up on heartbeat (up to 360). Engine scales between normal (10s), slow (30s), and dormant modes based on player activity.
