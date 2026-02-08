@@ -396,32 +396,50 @@
     container.innerHTML = '<pre class="globe-pre">' + html.join('\n') + '</pre>';
   }
 
-  // ─── MOUSE DRAG ───
+  // ─── MOUSE/TOUCH DRAG (with click-through for world links) ───
+  var dragMoved = false;
+  var DRAG_THRESHOLD = 5; // pixels before it counts as a drag
+
   container.addEventListener('mousedown', function (e) {
     dragging = true;
+    dragMoved = false;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     dragRotStart = rotation;
     dragTiltStart = tilt;
-    e.preventDefault();
+    // Don't preventDefault here — let clicks on <a> tags work
   });
 
   window.addEventListener('mousemove', function (e) {
     if (!dragging) return;
     var dx = e.clientX - dragStartX;
     var dy = e.clientY - dragStartY;
-    rotation = dragRotStart + dx * 0.005;
-    tilt = Math.max(-0.6, Math.min(0.6, dragTiltStart + dy * 0.003));
+    if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+      dragMoved = true;
+    }
+    if (dragMoved) {
+      rotation = dragRotStart + dx * 0.005;
+      tilt = Math.max(-0.6, Math.min(0.6, dragTiltStart + dy * 0.003));
+    }
   });
 
   window.addEventListener('mouseup', function () {
     dragging = false;
   });
 
+  // Intercept clicks on world links — only allow if user didn't drag
+  container.addEventListener('click', function (e) {
+    if (dragMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
   // Touch support
   container.addEventListener('touchstart', function (e) {
     if (e.touches.length === 1) {
       dragging = true;
+      dragMoved = false;
       dragStartX = e.touches[0].clientX;
       dragStartY = e.touches[0].clientY;
       dragRotStart = rotation;
@@ -433,8 +451,13 @@
     if (!dragging || e.touches.length !== 1) return;
     var dx = e.touches[0].clientX - dragStartX;
     var dy = e.touches[0].clientY - dragStartY;
-    rotation = dragRotStart + dx * 0.005;
-    tilt = Math.max(-0.6, Math.min(0.6, dragTiltStart + dy * 0.003));
+    if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+      dragMoved = true;
+    }
+    if (dragMoved) {
+      rotation = dragRotStart + dx * 0.005;
+      tilt = Math.max(-0.6, Math.min(0.6, dragTiltStart + dy * 0.003));
+    }
   });
 
   window.addEventListener('touchend', function () {
