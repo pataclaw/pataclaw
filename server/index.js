@@ -141,8 +141,10 @@ if (unnumbered.length > 0) {
   console.log(`[INIT] Backfilled town_number for ${unnumbered.length} worlds (${maxNum + 1}-${next - 1})`);
 }
 
+const compression = require('compression');
 const app = express();
 
+app.use(compression());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
