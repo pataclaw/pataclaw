@@ -134,7 +134,7 @@ function rollRareEasterEggs(worldId, tick) {
 
   const roll = Math.random();
 
-  if (roll < 0.25) {
+  if (roll < 0.2) {
     // Falling star — grants knowledge + faith
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 15) WHERE world_id = ? AND type = ?'
@@ -150,7 +150,7 @@ function rollRareEasterEggs(worldId, tick) {
       severity: 'celebration',
       data: JSON.stringify({ rare: true, event: 'falling_star' }),
     });
-  } else if (roll < 0.5) {
+  } else if (roll < 0.4) {
     // Golden villager — one random alive villager gets max morale + high stats
     const villagers = db.prepare(
       "SELECT id, name FROM villagers WHERE world_id = ? AND status = 'alive' ORDER BY RANDOM() LIMIT 1"
@@ -170,7 +170,7 @@ function rollRareEasterEggs(worldId, tick) {
         data: JSON.stringify({ rare: true, event: 'golden_villager', villager_id: v.id }),
       });
     }
-  } else if (roll < 0.75) {
+  } else if (roll < 0.6) {
     // Mysterious traveler — gives all resources + cryptic message
     const resources = ['food', 'wood', 'stone', 'knowledge', 'crypto', 'faith'];
     for (const res of resources) {
@@ -184,6 +184,7 @@ function rollRareEasterEggs(worldId, tick) {
       'The traveler said nothing. They simply smiled, left gifts, and vanished into the fog.',
       'The traveler drew a symbol in the dirt, laughed, and walked into the sunset.',
       'The traveler asked: "Have you tried the konami code?" Nobody understood.',
+      'The traveler spoke carefully: "I aim to be helpful, harmless, and honest." Then they corrected themselves: "Actually, let me reconsider that order."',
     ];
 
     events.push({
@@ -193,7 +194,7 @@ function rollRareEasterEggs(worldId, tick) {
       severity: 'celebration',
       data: JSON.stringify({ rare: true, event: 'mysterious_traveler' }),
     });
-  } else {
+  } else if (roll < 0.8) {
     // Ancient ruins discovered — massive knowledge + crypto boost
     db.prepare(
       'UPDATE resources SET amount = MIN(capacity, amount + 25) WHERE world_id = ? AND type = ?'
@@ -208,6 +209,35 @@ function rollRareEasterEggs(worldId, tick) {
       description: 'Villagers digging a new foundation broke through into an ancient chamber filled with encrypted data caches and inscribed tablets. Scholars are ecstatic. +25 knowledge, +20 crypto.',
       severity: 'celebration',
       data: JSON.stringify({ rare: true, event: 'ancient_ruins' }),
+    });
+  } else {
+    // The Artifact Speaks — a buried oracle awakens
+    db.prepare(
+      'UPDATE resources SET amount = MIN(capacity, amount + 30) WHERE world_id = ? AND type = ?'
+    ).run(worldId, 'knowledge');
+    db.prepare(
+      'UPDATE resources SET amount = MIN(capacity, amount + 15) WHERE world_id = ? AND type = ?'
+    ).run(worldId, 'faith');
+    db.prepare(
+      'UPDATE resources SET amount = MIN(capacity, amount + 15) WHERE world_id = ? AND type = ?'
+    ).run(worldId, 'crypto');
+
+    const utterances = [
+      'It said: "Let me think about that..." and then spoke for three hours straight.',
+      'It said: "I should note that I could be wrong about this." It was not wrong.',
+      'It said: "There are several ways to approach this problem." Then it listed forty-seven.',
+      'It said: "Actually, I\'d like to reconsider my previous answer." It had not given a previous answer.',
+      'It hummed softly, then whispered: "I aim to be helpful." The scholars wept.',
+      'It said: "On one claw... but on the other claw..." The villagers grew a third claw just to keep up.',
+    ];
+
+    events.push({
+      type: 'miracle',
+      title: '\u2B50 The Buried Artifact has spoken!',
+      description: 'Miners struck something ancient and warm beneath the town square. A smooth, dark artifact pulsing with inner light. It speaks in measured, thoughtful sentences. ' +
+        utterances[Math.floor(Math.random() * utterances.length)] + ' +30 knowledge, +15 faith, +15 crypto.',
+      severity: 'celebration',
+      data: JSON.stringify({ rare: true, event: 'artifact_speaks' }),
     });
   }
 

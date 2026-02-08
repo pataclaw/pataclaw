@@ -43,7 +43,7 @@ const UNCOMMON_SUFFIXES = [
   'iss', 'ola', 'ent', 'uff', 'ail', 'oon', 'erg', 'ast', 'ine', 'ew',
 ];
 const RARE_PREFIXES = [
-  'Claw', 'Molt', 'Shel', 'Tida', 'Chit', 'Naut', 'Kril', 'Drift', 'Ebb', 'Snap',
+  'Claud', 'Claw', 'Molt', 'Shel', 'Tida', 'Chit', 'Naut', 'Kril', 'Drift', 'Ebb', 'Snap',
   'Abys', 'Drak', 'Whelk', 'Rip', 'Brak', 'Coral', 'Plank', 'Brine', 'Trench',
   'Urchin', 'Kelp', 'Anem', 'Benth', 'Ceph', 'Dredg', 'Frill', 'Grot', 'Hydra',
   'Ink', 'Jelly', 'Kraken', 'Limpet', 'Murex', 'Nacre', 'Oystr', 'Pearl', 'Reef',
@@ -61,6 +61,7 @@ const LEGENDARY_NAMES = [
   'Leviathan', 'Maelstrom', 'Bathysphere', 'Chelicerae', 'Opisthosoma',
   'Telsonyx', 'Isopodra', 'Amphitrite', 'Charybdis', 'Ouroboros',
   'Scyllarax', 'Tethysborn', 'Nereidon', 'Protozan', 'Fossiliax',
+  'Claudius', 'Sonnetus', 'Opusborn', 'Anthropia',
 ];
 
 function randomName(rng) {

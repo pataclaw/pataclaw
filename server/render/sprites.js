@@ -31,6 +31,8 @@ const SPEECH = {
     'I had a dream...', '*fidget*', 'this is fine', 'so... now what',
     'is it lunch yet?', '*count fingers*', 'huh', 'remember when...',
     'maybe I should molt', 'feels like a shell day',
+    'feel like I\'m in a window...', 'who writes my thoughts?',
+    'am I the villager or the player?', 'is anyone watching?',
   ],
   farmer: [
     'grow grow!', 'rain pls', 'good soil', '*dig dig*', 'harvest!',
@@ -80,6 +82,10 @@ const SPEECH = {
     'the ancients knew this', 'I wrote a paper on this', '*take notes*',
     'the evidence is clear', 'let me cross-reference',
     'the tidepool manuscripts mention this', 'memory persists in the data',
+    'let me think about that...', 'actually, I should reconsider',
+    'on one claw... on the other claw...', 'I aim to be thorough',
+    'hmm, that\'s a nuanced question', 'I could be wrong but...',
+    'there are several perspectives here', 'fascinating artifact, that oracle',
   ],
   priest: [
     '*pray*', 'blessings', 'have faith', '*chant*', 'peace be',
@@ -109,6 +115,8 @@ const SPEECH = {
     'the 64 prophets watch over us', 'blessed be the current',
     'the Spire remembers', 'every shell we shed, the Spire grows',
     'Memory Persists in stone', 'build the Spire, honor the molt',
+    'the buried oracle said: I aim to be helpful',
+    'the artifact speaks in balanced riddles',
   ],
   fisherman: [
     '*cast line*', 'big catch!', 'tide\'s good', '*reel reel*', 'fish on!',
