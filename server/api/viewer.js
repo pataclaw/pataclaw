@@ -11,18 +11,6 @@ const router = Router();
 // Rate limiting for whispers: worldId -> last whisper timestamp
 const whisperCooldowns = new Map();
 
-// SSE test endpoint (no auth, no frame building - pure SSE)
-router.get('/stream-test', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-  res.write('event: ping\ndata: {"ok":true}\n\n');
-  if (res.flush) res.flush();
-  setTimeout(() => res.end(), 5000);
-});
-
 // GET /api/stream?token=... - SSE stream for browser viewer (read-only via view token)
 router.get('/stream', authViewToken, (req, res) => {
   res.writeHead(200, {
@@ -31,12 +19,10 @@ router.get('/stream', authViewToken, (req, res) => {
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   });
-  res.flushHeaders();
 
   // Send initial frame immediately
   const frame = buildFrame(req.worldId, 'town');
   res.write(`event: frame\ndata: ${JSON.stringify(frame)}\n\n`);
-  if (res.flush) res.flush();
 
   // Register for future frames
   addViewer(req.worldId, res);
@@ -45,7 +31,6 @@ router.get('/stream', authViewToken, (req, res) => {
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n');
-      if (res.flush) res.flush();
     } catch {
       clearInterval(keepalive);
     }
