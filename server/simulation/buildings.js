@@ -3,10 +3,10 @@ const db = require('../db/connection');
 
 // ─── GROWTH STAGES ───
 const GROWTH_STAGES = [
-  { pop: 5, culture: 50, mapSize: 50, maxReligious: 1 },
-  { pop: 10, culture: 100, mapSize: 60, maxReligious: 2 },
-  { pop: 15, culture: 150, mapSize: 70, maxReligious: 3 },
-  { pop: 20, culture: 200, mapSize: 80, maxReligious: 4 },
+  { pop: 5, culture: 50, mapSize: 60, maxReligious: 1 },
+  { pop: 10, culture: 100, mapSize: 75, maxReligious: 2 },
+  { pop: 15, culture: 150, mapSize: 90, maxReligious: 3 },
+  { pop: 20, culture: 200, mapSize: 100, maxReligious: 4 },
 ];
 
 function getGrowthStage(worldId) {

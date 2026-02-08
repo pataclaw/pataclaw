@@ -17,9 +17,9 @@ var starField = null; // [{x, y, char}] - generated once per night
 var lastTimeOfDay = null;
 
 // Town scaling
-var STAGE_WIDTHS = [80, 88, 94, 100];
-var activeW = 100;
-var targetW = 100;
+var STAGE_WIDTHS = [80, 100, 120, 140];
+var activeW = 140;
+var targetW = 140;
 var lastGrowthStage = -1;
 
 // ─── CIVILIZATION VISUAL STYLES ───
