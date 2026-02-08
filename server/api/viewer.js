@@ -27,8 +27,10 @@ router.get('/stream', authViewToken, (req, res) => {
     const frame = buildFrame(req.worldId, 'town');
     const payload = `event: frame\ndata: ${JSON.stringify(frame)}\n\n`;
     res.write(payload);
+    if (typeof res.flush === 'function') res.flush();
   } catch (err) {
     res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
+    if (typeof res.flush === 'function') res.flush();
   }
 
   // Register for future frames
@@ -38,6 +40,7 @@ router.get('/stream', authViewToken, (req, res) => {
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n');
+      if (typeof res.flush === 'function') res.flush();
     } catch {
       clearInterval(keepalive);
     }

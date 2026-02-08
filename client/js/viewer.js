@@ -189,30 +189,49 @@ function connect() {
   eventSource = new EventSource('/api/stream?token=' + encodeURIComponent(viewToken));
 
   eventSource.addEventListener('frame', function (e) {
-    reconnectAttempts = 0;
-    var data = JSON.parse(e.data);
-    setStatus('connected', 'LIVE');
+    try {
+      reconnectAttempts = 0;
+      var data = JSON.parse(e.data);
+      setStatus('connected', 'LIVE');
 
-    if (data.frame_type === 'map') {
-      document.getElementById('world').textContent = data.composed;
-      return;
-    }
+      if (data.frame_type === 'map') {
+        document.getElementById('world').textContent = data.composed;
+        return;
+      }
 
-    lastWorldData = data;
-    if (data.world.seed !== undefined && !civStyle) {
-      civStyle = CIV_STYLES[Math.abs(data.world.seed) % CIV_STYLES.length];
+      lastWorldData = data;
+      if (data.world.seed !== undefined && !civStyle) {
+        civStyle = CIV_STYLES[Math.abs(data.world.seed) % CIV_STYLES.length];
+      }
+      updateSidebar(data);
+      updatePlanetaryBanner(data.planetaryEvent);
+      syncAgents(data.villagers);
+      document.body.className = data.world.time_of_day || 'morning';
+      document.getElementById('weather-display').textContent = weatherIcon(data.world.weather) + ' ' + data.world.weather;
+      document.getElementById('tick-display').textContent = 'tick ' + data.world.current_tick;
+    } catch (err) {
+      console.error('[viewer] frame handler error:', err);
+      setStatus('connected', 'LIVE (render error)');
     }
-    updateSidebar(data);
-    updatePlanetaryBanner(data.planetaryEvent);
-    syncAgents(data.villagers);
-    document.body.className = data.world.time_of_day || 'morning';
-    document.getElementById('weather-display').textContent = weatherIcon(data.world.weather) + ' ' + data.world.weather;
-    document.getElementById('tick-display').textContent = 'tick ' + data.world.current_tick;
   });
 
   eventSource.addEventListener('event', function (e) {
-    var evt = JSON.parse(e.data);
-    showNotification(evt.title, evt.severity);
+    try {
+      var evt = JSON.parse(e.data);
+      showNotification(evt.title, evt.severity);
+    } catch (err) {
+      console.error('[viewer] event handler error:', err);
+    }
+  });
+
+  eventSource.addEventListener('error', function (e) {
+    try {
+      var err = JSON.parse(e.data);
+      console.error('[viewer] server error:', err);
+      setStatus('connected', 'ERROR: ' + (err.error || 'unknown'));
+    } catch (_) {
+      console.error('[viewer] server error event (unparseable)');
+    }
   });
 
   eventSource.onerror = function () {

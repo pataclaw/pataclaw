@@ -213,12 +213,12 @@ function buildTownFrame(worldId) {
     nomad_camps: db.prepare(
       "SELECT name, x, y FROM villagers WHERE world_id = ? AND status = 'nomad'"
     ).all(worldId),
-    wildlife: db.prepare(
+    wildlife: (() => { try { return db.prepare(
       "SELECT species, rarity, terrain, x, y FROM wildlife WHERE world_id = ? AND status = 'wild' ORDER BY spawned_tick DESC LIMIT 15"
-    ).all(worldId),
-    items: db.prepare(
+    ).all(worldId); } catch { return []; } })(),
+    items: (() => { try { return db.prepare(
       "SELECT item_type, rarity, name, source, properties FROM items WHERE world_id = ? AND status = 'stored' ORDER BY created_tick DESC LIMIT 10"
-    ).all(worldId),
+    ).all(worldId); } catch { return []; } })(),
     timestamp: Date.now(),
   };
 }
