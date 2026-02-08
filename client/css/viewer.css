@@ -782,19 +782,21 @@ body.crt-mode #world {
 
   #scene-container {
     width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
-    min-height: 40vh;
-    align-items: flex-start;
-    justify-content: flex-start;
+    min-height: 35vh;
+    max-height: 55vh;
+    align-items: center;
+    justify-content: center;
   }
 
   #world {
-    font-size: 8px;
-    line-height: 1.1;
-    padding: 4px 6px;
-    transform-origin: top left;
+    font-size: 7px;
+    line-height: 1.05;
+    padding: 2px 4px;
+    transform-origin: center center;
+    max-width: 100vw;
+    overflow: hidden;
   }
 
   #sidebar {
@@ -802,6 +804,7 @@ body.crt-mode #world {
     border-left: none;
     border-top: 1px solid #222;
     overflow-y: visible;
+    max-height: none;
   }
 
   #bottom-bar {
@@ -822,17 +825,37 @@ body.crt-mode #world {
   .panel-title { font-size: 9px; letter-spacing: 2px; }
   .info-header { font-size: 12px; }
   .citizen-row { gap: 4px; }
+
+  /* Book overlay mobile */
+  .book-content {
+    width: 95vw;
+    max-height: 85vh;
+  }
+  .book-header { padding: 6px 10px; font-size: 11px; }
+  .book-entries { font-size: 10px; padding: 8px; }
 }
 
 @media (max-width: 480px) {
   #world {
-    font-size: 6px;
-    line-height: 1.05;
-    padding: 2px 4px;
+    font-size: 5.5px;
+    line-height: 1.0;
+    padding: 1px 2px;
+  }
+
+  #scene-container {
+    min-height: 30vh;
+    max-height: 45vh;
   }
 
   #sidebar { font-size: 10px; }
   .res-row { font-size: 9px; }
   .info-header { font-size: 11px; letter-spacing: 1px; }
   #bottom-bar { height: 28px; font-size: 9px; }
+}
+
+@media (max-width: 380px) {
+  #world {
+    font-size: 4.5px;
+    line-height: 0.95;
+  }
 }
