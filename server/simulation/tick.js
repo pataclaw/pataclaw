@@ -20,6 +20,8 @@ const { processMonolith } = require('./monolith');
 const { processMolting, forceAllMolting } = require('./molting');
 const { processProphets, processProphecies } = require('./prophets');
 const { processDeepSea } = require('./deep-sea');
+const { processWildlife } = require('./wildlife');
+const { processHunting } = require('./hunting');
 const { hasMegastructure } = require('./megastructures');
 const {
   MOLT_FESTIVAL_INTERVAL,
@@ -112,6 +114,12 @@ function processTick(worldId) {
   // 6.5. Deep-sea exploration
   const deepSeaEvents = processDeepSea(worldId, time.tick);
 
+  // 6.6. Wildlife spawning
+  const wildlifeEvents = processWildlife(worldId, time.tick);
+
+  // 6.7. Hunting
+  const huntingEvents = processHunting(worldId, time.tick);
+
   // 7. Random events
   const randomEvents = rollRandomEvents(worldId, time.tick);
 
@@ -123,7 +131,7 @@ function processTick(worldId) {
   const lifeEvents = processVillagerLife(worldId);
 
   // 9.5. Chronicler — write book entries based on events
-  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...randomEvents, ...combatEvents, ...lifeEvents];
+  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...lifeEvents];
   const chroniclerEvents = processChronicler(worldId, time.tick, allEventsForChronicler);
 
   // 9.6. Monolith — Spire of Shells
@@ -201,7 +209,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
+  const allEvents = [...planetaryEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

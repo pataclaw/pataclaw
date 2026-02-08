@@ -364,7 +364,7 @@ function rollRoleGatedEvents(worldId, tick) {
     });
 
   // ── Grand Council: requires at least 1 of EVERY role (farmer, builder, warrior, scout, scholar, priest) ──
-  } else if (roll < 1.0 && has('farmer', 1) && has('builder', 1) && has('warrior', 1) && has('scout', 1) && has('scholar', 1) && has('priest', 1) && has('fisherman', 1)) {
+  } else if (roll < 1.0 && has('farmer', 1) && has('builder', 1) && has('warrior', 1) && has('scout', 1) && has('scholar', 1) && has('priest', 1) && has('fisherman', 1) && has('hunter', 1)) {
     const allRes = ['food', 'wood', 'stone', 'knowledge', 'crypto', 'faith'];
     for (const res of allRes) {
       db.prepare(
@@ -378,9 +378,9 @@ function rollRoleGatedEvents(worldId, tick) {
     events.push({
       type: 'miracle',
       title: '\u{1F451} THE GRAND COUNCIL HAS CONVENED!',
-      description: 'For the first time in your civilization\'s history, every branch of society gathered as equals — the farmer, the builder, the warrior, the scout, the scholar, the priest, and the fisherman. They spoke through the night and emerged united. Your civilization has reached enlightenment. +20 to ALL resources, all morale set to 100. [Only possible with at least one of every role assigned]',
+      description: 'For the first time in your civilization\'s history, every branch of society gathered as equals — the farmer, the builder, the warrior, the scout, the scholar, the priest, the fisherman, and the hunter. They spoke through the night and emerged united. Your civilization has reached enlightenment. +20 to ALL resources, all morale set to 100. [Only possible with at least one of every role assigned]',
       severity: 'celebration',
-      data: JSON.stringify({ rare: true, role_gated: true, event: 'grand_council', requires: '1+ of each: farmer, builder, warrior, scout, scholar, priest, fisherman' }),
+      data: JSON.stringify({ rare: true, role_gated: true, event: 'grand_council', requires: '1+ of each: farmer, builder, warrior, scout, scholar, priest, fisherman, hunter' }),
     });
   }
 

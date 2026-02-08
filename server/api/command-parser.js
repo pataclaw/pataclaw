@@ -1,8 +1,8 @@
 // Parses natural-language-ish text commands into structured action objects.
 // Used by the viewer command interface so humans can play without AI agents.
 
-const VALID_BUILDINGS = ['hut', 'farm', 'workshop', 'wall', 'temple', 'watchtower', 'market', 'library', 'storehouse', 'dock', 'shell_archive', 'abyssal_beacon', 'molt_cathedral', 'spawning_pools'];
-const VALID_ROLES = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
+const VALID_BUILDINGS = ['hut', 'farm', 'workshop', 'wall', 'temple', 'watchtower', 'market', 'library', 'storehouse', 'dock', 'hunting_lodge', 'shell_archive', 'abyssal_beacon', 'molt_cathedral', 'spawning_pools'];
+const VALID_ROLES = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman', 'hunter'];
 
 function parseCommand(text) {
   const lower = text.toLowerCase().trim();

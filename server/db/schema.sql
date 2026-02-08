@@ -400,3 +400,38 @@ CREATE TABLE IF NOT EXISTS shell_relics (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shell_relics_world ON shell_relics(world_id);
+
+-- ============================================================
+-- WILDLIFE: Spawned animals per world
+-- ============================================================
+CREATE TABLE IF NOT EXISTS wildlife (
+    id TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    species TEXT NOT NULL,
+    rarity TEXT NOT NULL,
+    terrain TEXT NOT NULL,
+    x INTEGER NOT NULL,
+    y INTEGER NOT NULL,
+    hp INTEGER NOT NULL DEFAULT 20,
+    status TEXT NOT NULL DEFAULT 'wild',
+    spawned_tick INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_wildlife_world ON wildlife(world_id, status);
+
+-- ============================================================
+-- ITEMS: Drops from hunting, deep-sea, exploration, raids
+-- ============================================================
+CREATE TABLE IF NOT EXISTS items (
+    id TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL REFERENCES worlds(id),
+    item_type TEXT NOT NULL,
+    rarity TEXT NOT NULL,
+    name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    properties TEXT DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'stored',
+    created_tick INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_world ON items(world_id, status);

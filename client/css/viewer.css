@@ -533,6 +533,43 @@ body.dusk #world .c-tree-t { color: #6a4422; }
 body.night #world .c-tree   { color: #1a3318; }
 body.night #world .c-tree-t { color: #332211; }
 
+/* ─── Canopy trees (biome-tinted) ─── */
+#world .c-canopy-forest   { color: #22aa44; }
+#world .c-canopy-plains   { color: #88aa44; }
+#world .c-canopy-swamp    { color: #558844; }
+#world .c-canopy-mountain { color: #668866; }
+#world .c-canopy-desert   { color: #aaaa44; }
+#world .c-canopy-ice      { color: #88ccee; }
+#world .c-canopy-tundra   { color: #99aabb; }
+body.dawn #world .c-canopy-forest   { color: #3a7a30; }
+body.dawn #world .c-canopy-plains   { color: #6a8a30; }
+body.dawn #world .c-canopy-swamp    { color: #4a6a30; }
+body.dawn #world .c-canopy-mountain { color: #5a7a5a; }
+body.dawn #world .c-canopy-desert   { color: #8a8a30; }
+body.dawn #world .c-canopy-ice      { color: #6a9aaa; }
+body.dawn #world .c-canopy-tundra   { color: #7a8a99; }
+body.noon #world .c-canopy-forest   { color: #33cc55; }
+body.noon #world .c-canopy-plains   { color: #99cc55; }
+body.noon #world .c-canopy-swamp    { color: #66aa55; }
+body.noon #world .c-canopy-mountain { color: #77aa77; }
+body.noon #world .c-canopy-desert   { color: #cccc55; }
+body.noon #world .c-canopy-ice      { color: #aaddff; }
+body.noon #world .c-canopy-tundra   { color: #aabbcc; }
+body.dusk #world .c-canopy-forest   { color: #2a5a22; }
+body.dusk #world .c-canopy-plains   { color: #5a6a22; }
+body.dusk #world .c-canopy-swamp    { color: #3a4a22; }
+body.dusk #world .c-canopy-mountain { color: #4a5a4a; }
+body.dusk #world .c-canopy-desert   { color: #6a6a22; }
+body.dusk #world .c-canopy-ice      { color: #5a7a88; }
+body.dusk #world .c-canopy-tundra   { color: #5a6a77; }
+body.night #world .c-canopy-forest   { color: #112a11; }
+body.night #world .c-canopy-plains   { color: #2a3311; }
+body.night #world .c-canopy-swamp    { color: #1a2a11; }
+body.night #world .c-canopy-mountain { color: #223322; }
+body.night #world .c-canopy-desert   { color: #333311; }
+body.night #world .c-canopy-ice      { color: #2a3a44; }
+body.night #world .c-canopy-tundra   { color: #2a3344; }
+
 /* ─── Ground mid-accent per civ style ─── */
 #world .c-gnd-vm { color: #39bb4d; }
 #world .c-gnd-sm { color: #999988; }
@@ -594,6 +631,8 @@ body.night #world .c-tree-t { color: #332211; }
 #world .c-n-priest-hi  { color: #dd99ff; }
 #world .c-n-fisherman     { color: #44bbaa; }
 #world .c-n-fisherman-hi  { color: #66ddcc; }
+#world .c-n-hunter        { color: #aa8844; }
+#world .c-n-hunter-hi     { color: #ccaa66; }
 
 /* ─── Weather color classes ─── */
 #world .c-w-rain      { color: #5588cc; }

@@ -71,6 +71,11 @@ module.exports = {
   // Prophecy
   PROPHECY_CHANCE: 0.02,
 
+  // Hunting & Wildlife
+  HUNT_CHECK_INTERVAL: 15,
+  WILDLIFE_CHECK_INTERVAL: 18,
+  MAX_WILDLIFE_PER_WORLD: 15,
+
   // Megastructures
   ARCHIVE_CULTURE_MULTIPLIER: 2,        // Shell Archive doubles relic culture bonus
   BEACON_SILENCE_REDUCTION: 20,         // Abyssal Beacon: silence chance drops from 40% to 20%

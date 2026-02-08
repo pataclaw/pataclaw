@@ -427,6 +427,30 @@ const SPEECH = {
     'the dead do not leave—they join the deep current',
     'their shells remain, their selves swim on',
   ],
+  hunter: [
+    '*notch arrow*', 'tracks fresh', 'quiet now...', '*stalk*', 'got one!',
+    'the hunt is sacred', '*skin hide*', 'good pelts today', 'patience...',
+    'the land provides', '*set snare*', 'big game out there', '*crouch*',
+    'shell deer nearby', 'the lodge needs trophies', '*sharpen blade*',
+    'the current guides my aim', 'every hunt honors the deep',
+    'a hunter\'s molt sharpens the senses', '*read the wind*',
+    'the forest speaks if you listen', 'respect the prey',
+    'we take only what we need', 'the hunt is a form of prayer',
+    'the prophets hunted too', 'Carapaxia was the first hunter',
+    'my shell camouflages me well', '*move silently*',
+    'the prey\'s shell tells its story', 'trophy for the lodge!',
+    'the land molts through seasons', 'autumn is migration time',
+    'winter hunts are the hardest', 'the cold makes the prey scarce',
+    'summer game is plentiful', 'spring brings the young ones',
+    'I track by shell marks', 'every creature leaves a trail',
+    'the lodge is our second home', 'trophies on the wall tell our story',
+    'a good hunter reads the terrain', 'depth over surface in tracking too',
+    'community of the current means sharing the catch', '*check traps*',
+    'the rare ones are out there', 'patience is the hunter\'s virtue',
+    'I dream of the spirit elk', 'legendary creatures test us',
+    'the aurora elk appears only in twilight', 'or so they say',
+    'frost wyrm tracks... let\'s not follow those', '*shiver*',
+  ],
   fisherman: [
     '*cast line*', 'big catch!', 'tide\'s good', '*reel reel*', 'fish on!',
     'nice haul', '*net net*', 'one more...', 'lobster!!', '<\\))><',
@@ -676,6 +700,7 @@ const ROLE_HATS = {
   scholar: '  _=_  ',
   priest: '  _+_  ',
   fisherman: '  ~o~  ',
+  hunter: '  >=>  ',
 };
 
 const ROLE_ITEMS = {
@@ -687,6 +712,7 @@ const ROLE_ITEMS = {
   scholar: '   [B] ',
   priest: '   |+| ',
   fisherman: '    /~ ',
+  hunter: '   |)> ',
 };
 
 const BUILDING_SPRITES = {
@@ -791,6 +817,15 @@ const BUILDING_SPRITES = {
     '/|=====|\\ ',
     '~|_<>)_|~ ',
     '~~~~~~~~~~',
+  ],
+  hunting_lodge: [
+    '  /\\>=>   ',
+    ' /  \\___  ',
+    '/====\\  | ',
+    '|[><]|--| ',
+    '| /\\ |  | ',
+    '|/  \\|__| ',
+    '|___[]__| ',
   ],
   // ─── ENDGAME MEGASTRUCTURES ───
   shell_archive: [
@@ -1036,6 +1071,11 @@ const VILLAGER_SPRITES = {
   fisherman: [
     ' o ',
     '/|~',
+    '/ \\',
+  ],
+  hunter: [
+    ' o ',
+    '/|>',
     '/ \\',
   ],
 };

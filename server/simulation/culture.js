@@ -606,6 +606,14 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
       'the Archive values work above all', 'every brick a testament',
       'my ancestors worked these same fields', 'memory persists in the labor',
     ],
+    hunting: [
+      '*stalk prey*', 'tracks here...', 'quiet!', '*ready bow*', 'got the scent',
+      'the land provides', 'patience...', 'steady now', '*notch arrow*',
+      'big game today', 'for the lodge!', 'the current guides my aim',
+      'respect the prey', 'the hunt is sacred', '*crouch low*',
+      'easy now...', 'the prophets hunted too', 'shell deer spotted',
+      'the forest speaks', 'a hunter\'s patience is their molt',
+    ],
     molting: MOLTING_SPEECH,
   };
 

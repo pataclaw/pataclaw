@@ -16,10 +16,28 @@ const SEASON_FISH_MODIFIER = {
   winter: 0.8,
 };
 
+const SEASON_HUNT_MODIFIER = {
+  spring: 1.0,
+  summer: 1.1,
+  autumn: 1.3,
+  winter: 0.7,
+};
+
+// Biome production bonuses: [building_type] → multiplier
+const BIOME_BONUSES = {
+  forest:   { hunting_lodge: 1.3, workshop: 1.2 },
+  mountain: { workshop: 1.3 },
+  desert:   { market: 1.3 },
+  swamp:    { farm: 1.2 },
+  ice:      { hunting_lodge: 1.2 },
+  tundra:   { hunting_lodge: 1.2 },
+};
+
 function processResources(worldId, weather, season, planetaryEffects) {
   const wMod = getWeatherModifier(weather);
   const sMod = SEASON_FOOD_MODIFIER[season] || 1.0;
   const sFishMod = SEASON_FISH_MODIFIER[season] || 1.0;
+  const sHuntMod = SEASON_HUNT_MODIFIER[season] || 1.0;
   const culture = getCulture(worldId);
   const workEthic = 1 + (culture.work_ethic_modifier || 0);
   const pEffects = planetaryEffects || {};
@@ -27,6 +45,13 @@ function processResources(worldId, weather, season, planetaryEffects) {
   const pFishMul = pEffects.fishMul || 1.0;
   const pFaithMul = pEffects.faithMul || 1.0;
   const pProdMul = pEffects.productionMul || 1.0;
+
+  // Determine dominant biome for production bonuses
+  const biomeRow = db.prepare(
+    "SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain ORDER BY c DESC LIMIT 1"
+  ).get(worldId);
+  const dominantBiome = biomeRow ? biomeRow.terrain : 'plains';
+  const biomeBonuses = BIOME_BONUSES[dominantBiome] || {};
 
   // Get active and decaying buildings with assigned workers
   const buildings = db.prepare(
@@ -46,16 +71,21 @@ function processResources(worldId, weather, season, planetaryEffects) {
 
     const decayMul = b.status === 'decaying' ? 0.5 : 1.0;
 
+    const bMul = biomeBonuses[b.type] || 1.0;
+
     switch (b.type) {
       case 'farm':
-        foodProd += 2 * workers * wMod.food * sMod * workEthic * decayMul * pFoodMul * pProdMul;
+        foodProd += 2 * workers * wMod.food * sMod * workEthic * decayMul * pFoodMul * pProdMul * bMul;
         break;
       case 'dock':
         foodProd += 1.5 * workers * wMod.fish * sFishMod * workEthic * decayMul * pFishMul * pProdMul;
         break;
+      case 'hunting_lodge':
+        foodProd += 1.2 * workers * wMod.food * sHuntMod * workEthic * decayMul * pProdMul * bMul;
+        break;
       case 'workshop':
-        woodProd += 0.5 * workers * wMod.wood * workEthic * decayMul * pProdMul;
-        stoneProd += 0.3 * workers * wMod.stone * workEthic * decayMul * pProdMul;
+        woodProd += 0.5 * workers * wMod.wood * workEthic * decayMul * pProdMul * bMul;
+        stoneProd += 0.3 * workers * wMod.stone * workEthic * decayMul * pProdMul * bMul;
         break;
       case 'temple':
         faithProd += 1 * workers * workEthic * decayMul * pFaithMul * pProdMul;

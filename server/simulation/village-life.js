@@ -7,7 +7,7 @@ const ACTIVITIES = [
   'idle', 'working', 'fighting', 'building_project', 'making_art',
   'playing_music', 'arguing', 'celebrating', 'mourning', 'sparring',
   'meditating', 'feasting', 'praying', 'teaching', 'brooding',
-  'socializing', 'wandering', 'sleeping', 'fishing', 'molting',
+  'socializing', 'wandering', 'sleeping', 'fishing', 'hunting', 'molting',
 ];
 
 // ─── MEMORY TYPES ───
@@ -239,6 +239,7 @@ function resolveActivities(worldId, villagers, world) {
       weights.wandering = 8;
       weights.praying = 3;
       weights.fishing = v.role === 'fisherman' ? 12 : 2;
+      weights.hunting = v.role === 'hunter' ? 12 : 2;
       weights.idle = 5;
     }
 

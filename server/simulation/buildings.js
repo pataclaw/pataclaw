@@ -33,6 +33,7 @@ const BUILDING_DEFS = {
   library:    { wood: 15, stone: 20, crypto: 10, ticks: 25, hp: 130 },
   storehouse: { wood: 25, stone: 10, crypto: 0, ticks: 12, hp: 150 },
   dock:       { wood: 12, stone: 5, crypto: 0, ticks: 10, hp: 90 },
+  hunting_lodge: { wood: 15, stone: 8, crypto: 0, ticks: 12, hp: 100 },
   // Endgame megastructures — require growth stage 3
   shell_archive:   { wood: 40, stone: 50, crypto: 20, ticks: 40, hp: 300 },
   abyssal_beacon:  { wood: 30, stone: 40, crypto: 25, ticks: 35, hp: 250 },
@@ -48,6 +49,7 @@ const MAINTENANCE_COSTS = {
   watchtower: { wood: 1, stone: 0, crypto: 0 },
   storehouse: { wood: 1, stone: 0, crypto: 0 },
   dock:       { wood: 1, stone: 0, crypto: 0 },
+  hunting_lodge: { wood: 1, stone: 0, crypto: 0 },
   workshop:   { wood: 1, stone: 1, crypto: 0 },
   wall:       { wood: 0, stone: 1, crypto: 0 },
   temple:     { wood: 0, stone: 0, crypto: 1 },

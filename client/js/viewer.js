@@ -36,13 +36,13 @@ var civStyle = null;
 const ROLE_HATS = {
   idle: '       ', farmer: '  ,^,  ', warrior: ' ]=+=[ ',
   builder: '  _n_  ', scout: '  />   ', scholar: '  _=_  ', priest: '  _+_  ',
-  fisherman: '  ~o~  ',
+  fisherman: '  ~o~  ', hunter: '  >=>  ',
 };
 
 var ROLE_NAME_COLORS = {
   idle: 'c-n-idle', farmer: 'c-n-farmer', warrior: 'c-n-warrior',
   builder: 'c-n-builder', scout: 'c-n-scout', scholar: 'c-n-scholar',
-  priest: 'c-n-priest', fisherman: 'c-n-fisherman',
+  priest: 'c-n-priest', fisherman: 'c-n-fisherman', hunter: 'c-n-hunter',
 };
 
 // ─── CLOUD SYSTEM ───
@@ -497,20 +497,89 @@ function renderScene(data) {
     }
   }
 
-  // Bonsai trees on hills — deterministic placement from world seed
+  // ─── CANOPY TREES (biome-specific) + small bonsai background detail ───
+  var biomeKey = (data.biome && data.biome.dominant) || 'plains';
+  var growthStage = data.growth_stage || 0;
+
+  // Canopy sprites keyed by biome — each has rows of [text, cssClass]
+  // Size scales: rows = 4 + growthStage (max 8)
+  var CANOPY_SPRITES = {
+    forest: {
+      small: [['   .   ','c-canopy-forest'],['  /|\\  ','c-canopy-forest'],[' /|||\\','c-canopy-forest'],['   |   ','c-tree-t']],
+      full:  [['    .    ','c-canopy-forest'],['   /*\\   ','c-canopy-forest'],['  /***\\  ','c-canopy-forest'],[' /*****\\ ','c-canopy-forest'],['/***@***\\','c-canopy-forest'],[' \\**|**/ ','c-canopy-forest'],['  \\*|*/  ','c-canopy-forest'],['   |||   ','c-tree-t']],
+    },
+    plains: {
+      small: [['  .  ','c-canopy-plains'],[' (~) ','c-canopy-plains'],['  |  ','c-tree-t']],
+      full:  [['   ~   ','c-canopy-plains'],['  .~.  ','c-canopy-plains'],[' (~*~) ','c-canopy-plains'],['(~*Y*~)','c-canopy-plains'],[' (~*~) ','c-canopy-plains'],['   |   ','c-tree-t']],
+    },
+    swamp: {
+      small: [['  \u00a7  ','c-canopy-swamp'],[' /|\\ ','c-canopy-swamp'],['/|~|\\','c-canopy-swamp'],['  |  ','c-tree-t']],
+      full:  [['   \u00a7   ','c-canopy-swamp'],['  /~\\  ','c-canopy-swamp'],[' /\u00a7~\u00a7\\ ','c-canopy-swamp'],['/~~\u00a7~~\\','c-canopy-swamp'],['\\~/|\\~/','c-canopy-swamp'],[' /|||\\','c-canopy-swamp'],['  |||  ','c-tree-t']],
+    },
+    mountain: {
+      small: [['  \u25b2  ','c-canopy-mountain'],[' /|\\ ','c-canopy-mountain'],['  |  ','c-tree-t']],
+      full:  [['    \u25b2    ','c-canopy-mountain'],['   /^\\   ','c-canopy-mountain'],['  /^^^\\  ','c-canopy-mountain'],[' /^^^^^\\ ','c-canopy-mountain'],['  \\^^^/  ','c-canopy-mountain'],['   \\|/   ','c-canopy-mountain'],['    |    ','c-tree-t']],
+    },
+    desert: {
+      small: [['  }  ','c-canopy-desert'],[' }|{ ','c-canopy-desert'],['  |  ','c-tree-t']],
+      full:  [['   }   ','c-canopy-desert'],['  }|}  ','c-canopy-desert'],[' } | } ','c-canopy-desert'],['  }|}  ','c-canopy-desert'],['   |   ','c-canopy-desert'],['   |   ','c-tree-t']],
+    },
+    ice: {
+      small: [['  \u25c7  ','c-canopy-ice'],[' \u2588|\u2588 ','c-canopy-ice'],['  |  ','c-tree-t']],
+      full:  [['    \u25c7    ','c-canopy-ice'],['   \u25bd\u2588\u25bd   ','c-canopy-ice'],['  \u2588\u25c7\u25c7\u2588  ','c-canopy-ice'],[' \u25bd\u2588\u25c7\u2588\u25bd ','c-canopy-ice'],['  \u2588|\u2588  ','c-canopy-ice'],['   |   ','c-canopy-ice'],['   |   ','c-tree-t']],
+    },
+    tundra: {
+      small: [['  *  ','c-canopy-tundra'],[' /|\\ ','c-canopy-tundra'],[' \u2591|\u2591 ','c-canopy-tundra'],['  |  ','c-tree-t']],
+      full:  [['   *   ','c-canopy-tundra'],['  /*\\  ','c-canopy-tundra'],[' /\u2591*\u2591\\ ','c-canopy-tundra'],['/\u2591*\u2591*\u2591\\','c-canopy-tundra'],[' \\*\u2591*/ ','c-canopy-tundra'],['   |   ','c-tree-t']],
+    },
+    water: {
+      small: [['  .  ','c-canopy-plains'],[' (~) ','c-canopy-plains'],['  |  ','c-tree-t']],
+      full:  [['   ~   ','c-canopy-plains'],['  .~.  ','c-canopy-plains'],[' (~*~) ','c-canopy-plains'],['(~*Y*~)','c-canopy-plains'],[' (~*~) ','c-canopy-plains'],['   |   ','c-tree-t']],
+    },
+  };
+
   var BONSAI_SPRITES = [
     [[' . ','c-tree'],['(@)','c-tree'],[' | ','c-tree-t']],
     [[' * ','c-tree'],['/|\\','c-tree'],[' | ','c-tree-t']],
     [['.~.','c-tree'],['~~~','c-tree'],[' | ','c-tree-t']],
   ];
+
   var wSeedT = Math.abs(world.seed || 42);
-  var treeN = 4 + (wSeedT % 4);
   var treeXs = [];
-  for (var ti = 0; ti < treeN; ti++) {
-    var th = ((wSeedT * 2654435761 + ti * 7919 + 1327) >>> 0) % 100000;
+  var canopyDef = CANOPY_SPRITES[biomeKey] || CANOPY_SPRITES.plains;
+
+  // Canopy trees: 2-4 large trees based on growth stage
+  var canopyN = 2 + Math.min(growthStage, 2);
+  for (var ci = 0; ci < canopyN; ci++) {
+    var th = ((wSeedT * 2654435761 + ci * 13331 + 4217) >>> 0) % 100000;
+    var tx = 8 + (th % (W - 18));
+    var tooClose = false;
+    for (var xi = 0; xi < treeXs.length; xi++) { if (Math.abs(tx - treeXs[xi]) < 10) { tooClose = true; break; } }
+    if (tooClose) continue;
+    treeXs.push(tx);
+    var spr = growthStage >= 2 ? canopyDef.full : canopyDef.small;
+    var hillH = Math.floor(Math.sin(tx * 0.07) * 2 + Math.sin(tx * 0.13 + 1) * 1.5 + Math.cos(tx * 0.03) * 1);
+    var treeBase = 10 - hillH;
+    for (var tr = 0; tr < spr.length; tr++) {
+      var trow = spr[tr][0], tcls = spr[tr][1];
+      for (var tc = 0; tc < trow.length; tc++) {
+        if (trow[tc] !== ' ') {
+          var tpx = tx - Math.floor(trow.length / 2) + tc, tpy = treeBase - spr.length + tr;
+          if (tpx >= 0 && tpx < W && tpy >= 0 && tpy < groundY) {
+            setCell(grid, tpx, tpy, trow[tc], tcls);
+          }
+        }
+      }
+    }
+  }
+
+  // Bonsai trees: smaller background detail between canopy trees
+  var bonsaiN = 3 + (wSeedT % 3);
+  for (var ti = 0; ti < bonsaiN; ti++) {
+    var th = ((wSeedT * 2654435761 + (ti + canopyN + 10) * 7919 + 1327) >>> 0) % 100000;
     var tx = 5 + (th % (W - 12));
     var tooClose = false;
-    for (var ci = 0; ci < treeXs.length; ci++) { if (Math.abs(tx - treeXs[ci]) < 6) { tooClose = true; break; } }
+    for (var xi = 0; xi < treeXs.length; xi++) { if (Math.abs(tx - treeXs[xi]) < 6) { tooClose = true; break; } }
     if (tooClose) continue;
     treeXs.push(tx);
     var ttype = th % BONSAI_SPRITES.length;

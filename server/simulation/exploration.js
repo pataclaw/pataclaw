@@ -1,5 +1,13 @@
+const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { MAP_SIZE } = require('../world/map');
+
+// Item drops from legendary feature discoveries
+const EXPLORATION_ITEM_DROPS = {
+  ancient_forge:  { type: 'forge_hammer', rarity: 'legendary', name: 'Forge Hammer', props: { production_bonus: 0.3, mintable: true } },
+  crystal_spire:  { type: 'crystal_fragment', rarity: 'epic', name: 'Crystal Fragment', props: { knowledge_bonus: 5, mintable: true } },
+  elder_library:  { type: 'elder_scroll', rarity: 'legendary', name: 'Elder Scroll', props: { knowledge_bonus: 10, mintable: true } },
+};
 
 function processExploration(worldId) {
   const events = [];
@@ -108,6 +116,15 @@ function processExploration(worldId) {
             description: `Your scouts found a legendary ${chosen.name} at (${farTile.x}, ${farTile.y})! This ancient structure holds great power. +${chosen.bonus.amount} ${chosen.bonus.type}.`,
             severity: 'celebration',
           });
+
+          // Drop item from the discovery
+          const itemDef = EXPLORATION_ITEM_DROPS[chosen.type];
+          if (itemDef) {
+            const world = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(worldId);
+            const itemId = uuid();
+            db.prepare(`INSERT INTO items (id, world_id, item_type, rarity, name, source, properties, status, created_tick) VALUES (?, ?, ?, ?, ?, 'exploration', ?, 'stored', ?)`).run(itemId, worldId, itemDef.type, itemDef.rarity, itemDef.name, JSON.stringify(itemDef.props), world ? world.current_tick : 0);
+            events.push({ type: 'item_drop', title: `Item found: ${itemDef.name}!`, description: `The ${chosen.name} yielded a ${itemDef.rarity} ${itemDef.name}!`, severity: itemDef.rarity === 'legendary' ? 'celebration' : 'info' });
+          }
         }
       }
     }
