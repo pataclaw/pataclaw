@@ -36,6 +36,8 @@ const migrations = [
   "ALTER TABLE trades ADD COLUMN partner_world_id TEXT DEFAULT NULL",
   // Book of Discoveries
   "ALTER TABLE villagers ADD COLUMN is_chronicler INTEGER NOT NULL DEFAULT 0",
+  // Villager memories detail column for events like Molt Festival
+  "ALTER TABLE villager_memories ADD COLUMN detail TEXT DEFAULT NULL",
 ];
 
 for (const sql of migrations) {
