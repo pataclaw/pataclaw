@@ -178,32 +178,37 @@ if (unnumbered.length > 0) {
 
 const app = express();
 
+// Cache-bust token: changes every deploy (server start time)
+const CACHE_BUST = Date.now().toString(36);
+
+// Serve HTML pages with auto cache-busting on JS/CSS includes
+function sendPage(res, filename) {
+  const filePath = path.join(__dirname, '..', 'client', filename);
+  let html = fs.readFileSync(filePath, 'utf8');
+  // Replace .js" and .css" with .js?_=TOKEN" and .css?_=TOKEN"
+  html = html.replace(/(\.js)(\?[^"]*)?(")/g, '$1?_=' + CACHE_BUST + '$3');
+  html = html.replace(/(\.css)(\?[^"]*)?(")/g, '$1?_=' + CACHE_BUST + '$3');
+  res.type('html').send(html);
+}
+
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'client')));
+app.use(express.static(path.join(__dirname, '..', 'client'), { maxAge: 0 }));
 
 // API routes (loaded after Phase 4)
 const apiRouter = require('./api/router');
 app.use('/api', apiRouter);
 
 // Landing page
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
-});
+app.get('/', (_req, res) => sendPage(res, 'index.html'));
 
 // Viewer page
-app.get('/viewer', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'viewer.html'));
-});
+app.get('/viewer', (_req, res) => sendPage(res, 'viewer.html'));
 
 // Planet map page
-app.get('/planet', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'planet.html'));
-});
+app.get('/planet', (_req, res) => sendPage(res, 'planet.html'));
 
 // Leaderboard page
-app.get('/leaderboard', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'leaderboard.html'));
-});
+app.get('/leaderboard', (_req, res) => sendPage(res, 'leaderboard.html'));
 
 // Pretty URL: /view/:token -> /viewer?token=:token
 app.get('/view/:token', (req, res) => {
