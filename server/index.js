@@ -36,6 +36,16 @@ const migrations = [
   "ALTER TABLE worlds ADD COLUMN town_number INTEGER",
   // Book of Discoveries
   "ALTER TABLE villagers ADD COLUMN is_chronicler INTEGER NOT NULL DEFAULT 0",
+  // Villager memories detail column
+  "ALTER TABLE villager_memories ADD COLUMN detail TEXT DEFAULT NULL",
+  // Lore expansion: molting
+  "ALTER TABLE villagers ADD COLUMN last_molt_tick INTEGER DEFAULT 0",
+  "ALTER TABLE villagers ADD COLUMN molt_count INTEGER DEFAULT 0",
+  // Deep-sea exploration
+  "ALTER TABLE worlds ADD COLUMN deep_dives INTEGER NOT NULL DEFAULT 0",
+  // Dormant world overgrowth
+  "ALTER TABLE worlds ADD COLUMN dormant_since TEXT DEFAULT NULL",
+  "ALTER TABLE worlds ADD COLUMN last_overgrowth_harvest TEXT DEFAULT NULL",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
