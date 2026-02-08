@@ -10,9 +10,6 @@
     width: 1080px;
     height: 1080px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   #scene {
     font-family: 'Courier New', Courier, monospace;
@@ -20,11 +17,10 @@
     line-height: 1.18;
     white-space: pre;
     color: #33ff33;
-    width: 1080px;
-    height: 1080px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transform-origin: top left;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 
   /* ─── Color palette ─── */
@@ -284,8 +280,32 @@ function render() {
   setTimeout(render, 1000 / FPS);
 }
 
+// Scale the pre to fill 1080x1080
+function scaleToFit() {
+  // Render one frame to measure natural size
+  var testLine = '';
+  for (var i = 0; i < W; i++) testLine += 'X';
+  var lines = [];
+  for (var j = 0; j < H; j++) lines.push(testLine);
+  sceneEl.textContent = lines.join('\n');
+
+  var natW = sceneEl.offsetWidth;
+  var natH = sceneEl.offsetHeight;
+  var scaleX = 1080 / natW;
+  var scaleY = 1080 / natH;
+  var scale = Math.min(scaleX, scaleY);
+
+  // Center within 1080x1080
+  var offX = Math.round((1080 - natW * scale) / 2);
+  var offY = Math.round((1080 - natH * scale) / 2);
+
+  sceneEl.style.transform = 'translate(' + offX + 'px, ' + offY + 'px) scale(' + scale + ')';
+  sceneEl.textContent = '';
+}
+
 // Start when episode is ready
 window.addEventListener('load', function() {
+  scaleToFit();
   setTimeout(render, 100);
 });
 </script>
