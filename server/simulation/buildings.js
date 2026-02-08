@@ -202,9 +202,10 @@ function processBuildings(worldId) {
 
       // Storehouses increase capacity
       if (b.type === 'storehouse') {
+        const { STOREHOUSE_CAPACITY_BONUS } = require('./constants');
         db.prepare(
-          'UPDATE resources SET capacity = capacity + 100 WHERE world_id = ?'
-        ).run(worldId);
+          'UPDATE resources SET capacity = capacity + ? WHERE world_id = ?'
+        ).run(STOREHOUSE_CAPACITY_BONUS, worldId);
       }
     } else {
       updateProgress.run(b.id);

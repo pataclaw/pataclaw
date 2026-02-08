@@ -242,7 +242,7 @@ function renderStatusBar(worldId) {
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
   const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
   const popAlive = db.prepare('SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = ?').get(worldId, 'alive');
-  const buildingCap = db.prepare("SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'").get(worldId);
+  const buildingCap = db.prepare("SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'").get(worldId);
 
   if (!world) return '';
 

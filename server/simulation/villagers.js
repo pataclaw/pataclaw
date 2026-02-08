@@ -144,11 +144,9 @@ function processVillagers(worldId, isStarving, weather) {
 
   // Birth chance: if pop < capacity, morale > 60 avg, 2% chance per tick
   const alive = villagers.filter((v) => v.status === 'alive' || (v.hp > 0));
-  let buildingCap = db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+  const buildingCap = db.prepare(
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId).cap;
-  // Spawning Pools add +5 population capacity
-  if (hasMegastructure(worldId, 'spawning_pools')) buildingCap += 5;
 
   const avgMorale = alive.length > 0 ? alive.reduce((s, v) => s + v.morale, 0) / alive.length : 0;
 
