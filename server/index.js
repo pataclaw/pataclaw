@@ -188,6 +188,7 @@ function sendPage(res, filename) {
   // Replace .js" and .css" with .js?_=TOKEN" and .css?_=TOKEN"
   html = html.replace(/(\.js)(\?[^"]*)?(")/g, '$1?_=' + CACHE_BUST + '$3');
   html = html.replace(/(\.css)(\?[^"]*)?(")/g, '$1?_=' + CACHE_BUST + '$3');
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.type('html').send(html);
 }
 
