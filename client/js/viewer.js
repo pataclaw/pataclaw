@@ -1221,6 +1221,234 @@ function renderScene(data) {
     }
   }
 
+  // ─── DORMANT OVERGROWTH LAYER ───
+  if (data.overgrowth && data.overgrowth.level > 0) {
+    var og = data.overgrowth;
+    var ogLevel = og.level;
+    var ogStage = og.stage;
+    var isNightOg = world.time_of_day === 'night';
+
+    // Biome-aware vegetation sets
+    var civKey = civStyle ? civStyle.name : 'verdant';
+    var OG_BIOME = {
+      verdant: { ground: ['.', "'", ',', '~', '*'], flowers: ['\u273f', '\u2740'], vines: ['|', '/', '\\'], trees: ['\u2663', 'Y'], particles: ['\u00b7', ','], flowerClass: 'c-ovg-flower-v' },
+      stone:   { ground: ['.', ',', ':', ';', '#'], flowers: ['\u25c6', '*'],      vines: ['|', '/', '\\'], trees: ['\u2206', 'T'], particles: ['\u00b7', '.'], flowerClass: 'c-ovg-flower-s' },
+      mystic:  { ground: ['*', '\u00b7', '\u00b0', '~'], flowers: ['\u2727', '\u25c7'], vines: ['~', '/', '\\'], trees: ['\u2020', 'Y'], particles: ['+', '*'], flowerClass: 'c-ovg-flower-m' },
+      desert:  { ground: ['.', ',', '\u00b0', '~'], flowers: ['}', '\u2217'],      vines: ['-', '/', '\\'], trees: ['|', 'T'],      particles: ['\u00b7', ','], flowerClass: 'c-ovg-flower-d' },
+      frost:   { ground: ['*', '.', '\u00b7', '+'], flowers: ['\u2736', '\u2746'], vines: ['|', '/', '\\'], trees: ['\u25bd', 'Y'], particles: ['*', '.'], flowerClass: 'c-ovg-flower-f' },
+      ember:   { ground: ['^', '~', '.', '*'], flowers: ['\u2666', '\u2739'],      vines: ['~', '/', '\\'], trees: ['^', 'Y'],      particles: ['^', '~'], flowerClass: 'c-ovg-flower-e' },
+    };
+    var biome = OG_BIOME[civKey] || OG_BIOME.verdant;
+
+    // Density scales with stage
+    var densityMap = [0.08, 0.15, 0.25, 0.40];
+    var density = densityMap[Math.min(ogStage, 3)];
+    // Interpolate within stage for smooth transitions
+    var stageProgress = (ogLevel * 7 / 2) - ogStage; // 0→1 within each stage
+    density = density * (0.6 + 0.4 * Math.min(1, stageProgress));
+
+    // Ground sprouts + grass
+    for (var ogx = 0; ogx < W; ogx++) {
+      var ogSeed = ((ogx * 13 + (wSeed || 0) * 7 + 42) % 1000) / 1000;
+      if (ogSeed > density) continue;
+      var ogy = groundY - 1;
+      if (getCell(grid, ogx, ogy).ch !== ' ') continue;
+
+      if (ogStage === 0) {
+        // Sprouting: tiny sprouts
+        var sproutCh = biome.ground[Math.floor(ogSeed * 100) % biome.ground.length];
+        setCell(grid, ogx, ogy, sproutCh, 'c-ovg-sprout');
+      } else if (ogStage === 1) {
+        // Growing: taller grass + small bushes
+        var growCh = biome.ground[Math.floor(ogSeed * 100) % biome.ground.length];
+        setCell(grid, ogx, ogy, growCh, 'c-ovg-sprout');
+        // Occasional taller piece
+        if (ogSeed < density * 0.4 && ogy - 1 >= 0 && getCell(grid, ogx, ogy - 1).ch === ' ') {
+          setCell(grid, ogx, ogy - 1, biome.vines[Math.floor(ogSeed * 100) % biome.vines.length], 'c-ovg-vine');
+        }
+      } else if (ogStage === 2) {
+        // Lush: dense cover, flowers, vine starts on buildings
+        if (ogSeed < density * 0.2) {
+          setCell(grid, ogx, ogy, biome.flowers[Math.floor(ogSeed * 100) % biome.flowers.length], biome.flowerClass);
+        } else {
+          setCell(grid, ogx, ogy, biome.ground[Math.floor(ogSeed * 100) % biome.ground.length], 'c-ovg-sprout');
+        }
+        // Taller vegetation
+        if (ogSeed < density * 0.5 && ogy - 1 >= 0 && getCell(grid, ogx, ogy - 1).ch === ' ') {
+          setCell(grid, ogx, ogy - 1, biome.vines[Math.floor(ogSeed * 100) % biome.vines.length], 'c-ovg-vine');
+        }
+        // Small trees
+        if (ogSeed < density * 0.1 && ogy - 2 >= 0 && getCell(grid, ogx, ogy - 2).ch === ' ') {
+          setCell(grid, ogx, ogy - 2, biome.trees[0], 'c-ovg-tree');
+          if (ogy - 1 >= 0 && getCell(grid, ogx, ogy - 1).ch === ' ') {
+            setCell(grid, ogx, ogy - 1, '|', 'c-ovg-vine');
+          }
+        }
+      } else {
+        // Max: full jungle, thick canopy
+        if (ogSeed < density * 0.15) {
+          setCell(grid, ogx, ogy, biome.flowers[Math.floor(ogSeed * 100) % biome.flowers.length], biome.flowerClass);
+        } else {
+          setCell(grid, ogx, ogy, biome.ground[Math.floor(ogSeed * 100) % biome.ground.length], 'c-ovg-sprout');
+        }
+        // Tall vegetation and trees
+        for (var ovh = 1; ovh <= 3; ovh++) {
+          if (ogy - ovh < 0 || getCell(grid, ogx, ogy - ovh).ch !== ' ') break;
+          if (ogSeed < density * (0.5 / ovh)) {
+            if (ovh >= 2 && ogSeed < density * 0.08) {
+              setCell(grid, ogx, ogy - ovh, biome.trees[Math.floor(ogSeed * 100) % biome.trees.length], 'c-ovg-tree');
+            } else {
+              var vineIdx = (Math.floor(ogSeed * 100) + ovh + waveCounter) % biome.vines.length;
+              setCell(grid, ogx, ogy - ovh, biome.vines[vineIdx], 'c-ovg-vine');
+            }
+          }
+        }
+      }
+    }
+
+    // Vines on buildings (stages 2+)
+    if (ogStage >= 2) {
+      for (var vbi = 0; vbi < data.buildings.length; vbi++) {
+        var vb = data.buildings[vbi];
+        if (!vb.sprite || vb.status === 'rubble' || vb.status === 'overgrown') continue;
+        var vbSh = vb.sprite.length;
+        var vbSw = vb.sprite[0].length;
+        // Estimate building render x (recalculate like main building loop)
+        var vbx = 2;
+        for (var vbi2 = 0; vbi2 < vbi; vbi2++) {
+          var prevB = data.buildings[vbi2];
+          if (prevB.sprite) vbx += prevB.sprite[0].length + 2;
+        }
+        var vbsy = groundY - vbSh;
+        var vineChance = ogStage === 2 ? 0.12 : 0.25;
+        for (var vc = 0; vc < vbSw; vc++) {
+          // Vines drip from top and edges
+          var isEdge = vc === 0 || vc === vbSw - 1;
+          if (!isEdge && Math.random() > vineChance) continue;
+          for (var vr = 0; vr < Math.min(vbSh, ogStage === 2 ? 2 : 4); vr++) {
+            var vfx = vbx + vc, vfy = vbsy + vr;
+            if (vfx >= 0 && vfx < W && vfy >= 0 && vfy < H) {
+              var vineSeed = ((vc * 7 + vr * 13 + (wSeed || 0)) % 100) / 100;
+              if (vineSeed < vineChance) {
+                var vineSwayIdx = (waveCounter + vc * 3 + vr) % biome.vines.length;
+                setCell(grid, vfx, vfy, biome.vines[vineSwayIdx], 'c-ovg-vine');
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Floating particles (pollen, dust, spores etc)
+    if (ogStage >= 1) {
+      var particleCount = ogStage === 1 ? 5 : ogStage === 2 ? 12 : 20;
+      for (var opi = 0; opi < particleCount; opi++) {
+        var opx = Math.floor(((wSeed || 0) * 11 + opi * 37 + waveCounter * 0.5) % W);
+        var opy = Math.floor(((opi * 19 + waveCounter * 0.3) % (groundY - 6))) + 4;
+        if (opx >= 0 && opx < W && opy >= 0 && opy < groundY && getCell(grid, opx, opy).ch === ' ') {
+          setCell(grid, opx, opy, biome.particles[opi % biome.particles.length], 'c-ovg-particle');
+        }
+      }
+    }
+  }
+
+  // ─── NOMAD CAMPS (dormant worlds) ───
+  if (data.nomad_camps && data.nomad_camps.length > 0) {
+    var isNightNomad = world.time_of_day === 'night';
+    var isDuskNomad = world.time_of_day === 'dusk';
+    for (var ni = 0; ni < data.nomad_camps.length; ni++) {
+      var nomad = data.nomad_camps[ni];
+      // Position camp in the scene area
+      var nHash = 0;
+      for (var nhi = 0; nhi < nomad.name.length; nhi++) nHash = ((nHash << 5) - nHash + nomad.name.charCodeAt(nhi)) | 0;
+      nHash = Math.abs(nHash);
+      var ncx = 8 + (nHash % (W - 25));
+      var ncy = groundY - 3; // camp sits on ground
+
+      // Camp tent sprite
+      var campSprite = [' /\\  ()', '/  \\.||.', '====^^^^'];
+      for (var cr2 = 0; cr2 < campSprite.length; cr2++) {
+        for (var cc2 = 0; cc2 < campSprite[cr2].length; cc2++) {
+          var cfx = ncx + cc2, cfy = ncy + cr2;
+          if (cfx >= 0 && cfx < W && cfy >= 0 && cfy < H && campSprite[cr2][cc2] !== ' ') {
+            setCell(grid, cfx, cfy, campSprite[cr2][cc2], 'c-nomad');
+          }
+        }
+      }
+
+      // Campfire — animated flickering
+      var fireX = ncx + campSprite[0].length + 1;
+      var fireY = groundY - 1;
+      var fireFrame = waveCounter % 6;
+      var fireChars = ['*', '^', '*', 'o', '^', '*'];
+      var fireTops = ['^', '*', '~', '^', '*', '~'];
+      if (fireX >= 0 && fireX < W && fireY >= 0 && fireY < H) {
+        setCell(grid, fireX, fireY, fireChars[fireFrame], 'c-nomad-fire');
+        if (fireY - 1 >= 0) {
+          setCell(grid, fireX, fireY - 1, fireTops[fireFrame], 'c-nomad-fire');
+        }
+        // Embers rising
+        if (fireY - 2 >= 0 && waveCounter % 3 === 0) {
+          setCell(grid, fireX + (waveCounter % 2 === 0 ? -1 : 1), fireY - 2, '.', 'c-nomad-fire');
+        }
+      }
+
+      // Night/dusk: warm glow radius around campfire
+      if (isNightNomad || isDuskNomad) {
+        var glowRadius = isNightNomad ? 4 : 2;
+        for (var gdy = -glowRadius; gdy <= glowRadius; gdy++) {
+          for (var gdx = -glowRadius; gdx <= glowRadius; gdx++) {
+            var dist = Math.sqrt(gdx * gdx + gdy * gdy);
+            if (dist > glowRadius || dist < 1.5) continue;
+            var ggx = fireX + gdx, ggy = fireY - 1 + gdy;
+            if (ggx >= 0 && ggx < W && ggy >= 0 && ggy < H && getCell(grid, ggx, ggy).ch === ' ') {
+              var glowChance = 1 - (dist / glowRadius);
+              if (Math.random() < glowChance * 0.6) {
+                setCell(grid, ggx, ggy, '.', 'c-nomad-glow');
+              }
+            }
+          }
+        }
+
+        // Fireflies / bugs around the camp (night only)
+        if (isNightNomad) {
+          var bugCount = 4 + (nHash % 3);
+          for (var bi3 = 0; bi3 < bugCount; bi3++) {
+            var bugPhase = waveCounter * 0.15 + bi3 * 1.7;
+            var bugDx = Math.round(Math.sin(bugPhase) * (3 + bi3));
+            var bugDy = Math.round(Math.cos(bugPhase * 0.7 + bi3) * 2);
+            var bugX = fireX + bugDx;
+            var bugY = fireY - 2 + bugDy;
+            if (bugX >= 0 && bugX < W && bugY >= 0 && bugY < H && getCell(grid, bugX, bugY).ch === ' ') {
+              // Fireflies blink on and off
+              if ((waveCounter + bi3 * 3) % 5 < 3) {
+                setCell(grid, bugX, bugY, '\u00b7', 'c-nomad-bug');
+              }
+            }
+          }
+        }
+      }
+
+      // Small nomad figure next to camp
+      var nomFigX = ncx - 2;
+      var nomFigY = groundY - 2;
+      if (nomFigX >= 0 && nomFigX + 2 < W && nomFigY >= 0 && nomFigY + 1 < H) {
+        setCell(grid, nomFigX + 1, nomFigY, 'o', 'c-nomad');
+        var nomFrame = waveCounter % 12;
+        var nomBody = nomFrame < 6 ? '/|\\' : '\\|/';
+        for (var nb = 0; nb < nomBody.length; nb++) {
+          setCell(grid, nomFigX + nb, nomFigY + 1, nomBody[nb], 'c-nomad');
+        }
+      }
+
+      // Name label
+      var nomName = nomad.name.slice(0, 6);
+      for (var nli = 0; nli < nomName.length && ncx + nli < W; nli++) {
+        setCell(grid, ncx + nli, groundY + 1, nomName[nli], 'c-nomad');
+      }
+    }
+  }
+
   // Agents (villagers)
   var aliveAgents = [];
   for (var aid in agents) {
@@ -1630,6 +1858,32 @@ function updateSidebar(data) {
     }
     bhtml += '<div class="biome-explored">Explored: ' + data.biome.explored_pct + '%</div>';
     biomeInfo.innerHTML = bhtml;
+  }
+
+  // Overgrowth panel
+  var ogPanel = document.getElementById('overgrowth-panel');
+  var ogInfo = document.getElementById('overgrowth-info');
+  if (ogPanel && ogInfo) {
+    if (data.overgrowth && data.overgrowth.level > 0) {
+      ogPanel.style.display = '';
+      var ogPct = Math.round(data.overgrowth.level * 100);
+      var ogFilled = Math.floor(ogPct / 10);
+      var ogBar = '\u2588'.repeat(ogFilled) + '\u2591'.repeat(10 - ogFilled);
+      var ogHtml = '<div class="ovg-bar">OVERGROWTH [' + ogBar + '] ' + ogPct + '%</div>';
+      ogHtml += '<div class="ovg-stage">' + (data.overgrowth.stageName || '').toUpperCase() + ' (day ' + data.overgrowth.dormant_days + ')</div>';
+      if (data.overgrowth.resource_bonus) {
+        var rb = data.overgrowth.resource_bonus;
+        var parts = [];
+        if (rb.food) parts.push('food +' + rb.food);
+        if (rb.wood) parts.push('wood +' + rb.wood);
+        if (rb.stone) parts.push('stone +' + rb.stone);
+        if (rb.crypto) parts.push('crypto +' + rb.crypto);
+        ogHtml += '<div class="ovg-bonus">Harvest: ' + parts.join(', ') + '</div>';
+      }
+      ogInfo.innerHTML = ogHtml;
+    } else {
+      ogPanel.style.display = 'none';
+    }
   }
 
   var cultureStats = document.getElementById('culture-stats');

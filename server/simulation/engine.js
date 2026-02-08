@@ -75,6 +75,12 @@ function tickAllWorlds() {
     const mode = determineTickMode(world.id, world.last_agent_heartbeat);
     if (mode !== world.tick_mode) {
       db.prepare('UPDATE worlds SET tick_mode = ? WHERE id = ?').run(mode, world.id);
+      // Set dormant_since when entering dormant mode (if not already set)
+      if (mode === 'dormant') {
+        db.prepare(
+          "UPDATE worlds SET dormant_since = datetime('now') WHERE id = ? AND dormant_since IS NULL"
+        ).run(world.id);
+      }
     }
 
     // Apply tick mode

@@ -43,6 +43,9 @@ const migrations = [
   "ALTER TABLE villagers ADD COLUMN molt_count INTEGER DEFAULT 0",
   // Lore expansion: deep-sea exploration
   "ALTER TABLE worlds ADD COLUMN deep_dives INTEGER NOT NULL DEFAULT 0",
+  // Dormant world overgrowth
+  "ALTER TABLE worlds ADD COLUMN dormant_since TEXT DEFAULT NULL",
+  "ALTER TABLE worlds ADD COLUMN last_overgrowth_harvest TEXT DEFAULT NULL",
 ];
 
 for (const sql of migrations) {

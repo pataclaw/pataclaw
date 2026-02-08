@@ -424,6 +424,39 @@ body {
 #world .c-rubble    { color: #666655; }
 #world .c-overgrown { color: #448833; }
 
+/* Dormant overgrowth system */
+#world .c-ovg-sprout { color: #88cc66; }
+#world .c-ovg-vine   { color: #44aa44; }
+#world .c-ovg-tree   { color: #338833; }
+#world .c-ovg-particle { color: #aaddaa; opacity: 0.7; }
+/* Biome flower variants */
+#world .c-ovg-flower-v { color: #ff88aa; } /* verdant: tropical */
+#world .c-ovg-flower-s { color: #bbaa88; } /* stone: rock flowers */
+#world .c-ovg-flower-m { color: #bb88ff; } /* mystic: crystal */
+#world .c-ovg-flower-d { color: #ff8844; } /* desert: cactus bloom */
+#world .c-ovg-flower-f { color: #aaccee; } /* frost: ice flowers */
+#world .c-ovg-flower-e { color: #ff6633; } /* ember: fire bloom */
+/* Nomad camp */
+#world .c-nomad      { color: #aa8855; }
+#world .c-nomad-fire { color: #ff6622; }
+#world .c-nomad-glow { color: #ff9944; opacity: 0.6; }
+#world .c-nomad-bug  { color: #ccff66; opacity: 0.8; }
+/* Overgrowth sidebar */
+.ovg-bar { color: #44aa44; font-size: 10px; }
+.ovg-stage { color: #88cc66; font-size: 9px; }
+.ovg-bonus { color: #557755; font-size: 9px; }
+/* Time-of-day variants for overgrowth */
+body.night #world .c-ovg-sprout  { color: #2a5522; }
+body.night #world .c-ovg-vine    { color: #1a3a1a; }
+body.night #world .c-ovg-tree    { color: #1a2a18; }
+body.night #world .c-ovg-particle { color: #446644; }
+body.night #world .c-nomad-fire  { color: #ff4411; text-shadow: 0 0 6px rgba(255, 100, 34, 0.6); }
+body.night #world .c-nomad-glow  { color: #ff7733; opacity: 0.5; text-shadow: 0 0 8px rgba(255, 119, 51, 0.4); }
+body.night #world .c-nomad-bug   { color: #aaff44; opacity: 0.9; text-shadow: 0 0 4px rgba(170, 255, 68, 0.5); }
+body.dawn #world .c-ovg-sprout   { color: #6a9944; }
+body.dusk #world .c-ovg-sprout   { color: #5a7733; }
+body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255, 85, 34, 0.4); }
+
 #world .c-water  { color: #3388cc; }
 #world .c-waterl { color: #55aadd; }
 #world .c-fish   { color: #66ccaa; }

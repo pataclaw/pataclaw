@@ -21,8 +21,42 @@ function processVillagers(worldId, isStarving, weather) {
 
   // Auto-refugee: when population is 0, a wanderer arrives every 10 ticks
   if (villagers.length === 0) {
-    const world = db.prepare('SELECT current_tick, day_number, seed FROM worlds WHERE id = ?').get(worldId);
+    const world = db.prepare('SELECT current_tick, day_number, seed, tick_mode, last_agent_heartbeat FROM worlds WHERE id = ?').get(worldId);
     if (world && world.current_tick % 10 === 0) {
+      // Check if world is dormant (nomad mode)
+      const heartbeatAge = world.last_agent_heartbeat
+        ? Date.now() - new Date(world.last_agent_heartbeat).getTime()
+        : Infinity;
+      const isDormant = world.tick_mode === 'dormant' || heartbeatAge > 6 * 60 * 60 * 1000;
+
+      if (isDormant) {
+        // Nomad camps: max 3 nomads, they don't settle permanently
+        const nomadCount = db.prepare(
+          "SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'nomad'"
+        ).get(worldId).c;
+        if (nomadCount < 3) {
+          const center = getCenter(world.seed);
+          const rng = () => Math.random();
+          const name = randomName(rng);
+          const trait = randomTrait(rng);
+          const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
+          const nomadX = center.x + Math.floor(Math.random() * 10) - 5;
+          const nomadY = center.y + Math.floor(Math.random() * 4) - 1;
+          db.prepare(`
+            INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
+            VALUES (?, ?, ?, 'idle', ?, ?, 80, 100, 50, 0, 0, 'nomad', ?, 'idle', NULL, ?, ?, ?)
+          `).run(uuid(), worldId, name, nomadX, nomadY, trait, basePers.temperament, basePers.creativity, basePers.sociability);
+        }
+        // Age out existing nomads: after 20 ticks, they depart
+        const oldNomads = db.prepare(
+          "SELECT id FROM villagers WHERE world_id = ? AND status = 'nomad' AND created_at <= datetime('now', '-200 seconds')"
+        ).all(worldId);
+        for (const n of oldNomads) {
+          db.prepare("DELETE FROM villagers WHERE id = ?").run(n.id);
+        }
+        return events;
+      }
+
       const center = getCenter(world.seed);
       const rng = () => Math.random();
       const name = randomName(rng);

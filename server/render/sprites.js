@@ -1091,6 +1091,12 @@ const OVERGROWN_SPRITE = [
   '*~.=.~*',
 ];
 
+const NOMAD_CAMP_SPRITE = [
+  ' /\\  ()',
+  '/  \\.||.',
+  '====^^^^',
+];
+
 module.exports = {
   villagerAppearance,
   SPEECH,
@@ -1107,4 +1113,5 @@ module.exports = {
   FEATURE_CHARS,
   RUBBLE_SPRITE,
   OVERGROWN_SPRITE,
+  NOMAD_CAMP_SPRITE,
 };

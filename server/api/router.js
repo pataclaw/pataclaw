@@ -14,6 +14,7 @@ const commandRouter = require('./commands');
 const viewerRouter = require('./viewer');
 const moltbookRouter = require('./moltbook');
 const nftRouter = require('./nft');
+const { getOvergrowthState, harvestOvergrowth } = require('../simulation/overgrowth');
 
 const router = Router();
 
@@ -194,6 +195,22 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
     catchupSummary = processCatchup(req.worldId, ticksToProcess);
   }
 
+  // Overgrowth harvest: if world was dormant and overgrown, grant bonus resources
+  let overgrowthHarvest = null;
+  const ogState = getOvergrowthState(req.worldId);
+  if (ogState.level >= 0.25) {
+    overgrowthHarvest = harvestOvergrowth(req.worldId);
+    if (overgrowthHarvest) {
+      // Create an event for the harvest
+      const { v4: evtUuid } = require('uuid');
+      const w = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(req.worldId);
+      const bonusDesc = Object.entries(overgrowthHarvest).map(([k, v]) => `${k}: +${v}`).join(', ');
+      db.prepare(
+        "INSERT INTO events (id, world_id, tick, type, title, description, severity) VALUES (?, ?, ?, 'harvest', ?, ?, 'celebration')"
+      ).run(evtUuid(), req.worldId, w ? w.current_tick : 0, "Nature's bounty", `Overgrown vegetation cleared. Harvested: ${bonusDesc}`);
+    }
+  }
+
   // Get current alerts
   const unreadEvents = db.prepare(
     'SELECT * FROM events WHERE world_id = ? AND read = 0 ORDER BY tick DESC LIMIT 10'
@@ -252,6 +269,7 @@ router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
     alerts,
     unreadEvents,
     catchupSummary,
+    overgrowthHarvest,
     achievements: `${achievementCount}/20 (use /api/world/achievements for details)`,
   });
 });

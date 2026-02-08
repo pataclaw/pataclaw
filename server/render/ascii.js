@@ -1,11 +1,12 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
 const { hasMegastructure } = require('../simulation/megastructures');
 const { MAP_SIZE } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
 const { getActivePlanetaryEvent } = require('../simulation/planetary');
 const { getGrowthStage } = require('../simulation/buildings');
 const { getMonolithData } = require('../simulation/monolith');
+const { getOvergrowthState } = require('../simulation/overgrowth');
 
 // Build structured world state for the client to animate
 function buildFrame(worldId, viewType = 'town') {
@@ -205,6 +206,13 @@ function buildTownFrame(worldId) {
     moltFestival: db.prepare(
       "SELECT 1 FROM events WHERE world_id = ? AND type = 'festival' AND tick >= ? LIMIT 1"
     ).get(worldId, world.current_tick - 3) != null,
+    overgrowth: (() => {
+      const og = getOvergrowthState(worldId);
+      return og.level > 0 ? og : null;
+    })(),
+    nomad_camps: db.prepare(
+      "SELECT name, x, y FROM villagers WHERE world_id = ? AND status = 'nomad'"
+    ).all(worldId),
     timestamp: Date.now(),
   };
 }
