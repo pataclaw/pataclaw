@@ -13,12 +13,11 @@ const whisperCooldowns = new Map();
 
 // GET /api/stream?token=... - SSE stream for browser viewer (read-only via view token)
 router.get('/stream', authViewToken, (req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
 
   // Send initial frame immediately
   const frame = buildFrame(req.worldId, 'town');
