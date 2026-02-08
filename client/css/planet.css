@@ -1,7 +1,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: #050510;
+  background: #030308;
   color: #33ff33;
   font-family: 'Courier New', Courier, monospace;
   min-height: 100vh;
@@ -12,7 +12,7 @@ body {
 #header {
   text-align: center;
   padding: 16px 12px 8px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #181818;
 }
 
 .header-title {
@@ -47,14 +47,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 8px;
+  overflow: hidden;
 }
 
 #planet-grid pre,
 #planet-grid .globe-pre {
-  font-size: 14px;
-  line-height: 1.3;
-  text-shadow: 0 0 4px rgba(51, 255, 51, 0.1);
+  font-size: 12px;
+  line-height: 1.15;
+  letter-spacing: 0px;
   cursor: grab;
   user-select: none;
 }
@@ -63,28 +64,30 @@ body {
   cursor: grabbing;
 }
 
-/* Terrain colors */
-.terrain-plains  { color: #224422; }
-.terrain-water   { color: #1a3355; }
-.terrain-mountain{ color: #333322; }
-.terrain-forest  { color: #1a3a1a; }
-.terrain-ice     { color: #667788; }
+/* Terrain colors — rich, saturated */
+.terrain-plains  { color: #2d5a2d; }
+.terrain-water   { color: #1a4488; }
+.terrain-mountain{ color: #6b6b4a; }
+.terrain-forest  { color: #1e551e; }
+.terrain-ice     { color: #8899aa; }
 
 /* Globe shading */
-.globe-bg  { color: #0a0a12; }
-.globe-dim { opacity: 0.5; }
+.globe-shadow { color: #0c0c18; }
+.globe-dim    { opacity: 0.55; }
+.globe-atmo   { color: #223366; opacity: 0.4; }
 
 /* World markers */
 .world-normal {
   color: #33ff33;
   text-decoration: none;
   cursor: pointer;
+  text-shadow: 0 0 6px rgba(51, 255, 51, 0.4);
   transition: color 0.2s, text-shadow 0.2s;
 }
 
 .world-normal:hover {
   color: #88ff88;
-  text-shadow: 0 0 8px rgba(51, 255, 51, 0.5);
+  text-shadow: 0 0 12px rgba(51, 255, 51, 0.7);
 }
 
 .world-minted {
@@ -97,12 +100,12 @@ body {
 
 .world-minted:hover {
   color: #ffee66;
-  text-shadow: 0 0 12px rgba(255, 204, 0, 0.7);
+  text-shadow: 0 0 14px rgba(255, 204, 0, 0.8);
 }
 
 @keyframes mintGlow {
   0%, 100% { text-shadow: 0 0 4px rgba(255, 204, 0, 0.3); }
-  50% { text-shadow: 0 0 10px rgba(255, 204, 0, 0.6); }
+  50% { text-shadow: 0 0 12px rgba(255, 204, 0, 0.7); }
 }
 
 .planet-legend {
@@ -117,15 +120,17 @@ body {
 .planet-legend .terrain-plains,
 .planet-legend .terrain-water,
 .planet-legend .terrain-mountain,
-.planet-legend .terrain-forest {
+.planet-legend .terrain-forest,
+.planet-legend .terrain-ice {
   animation: none;
   cursor: default;
+  text-shadow: none;
 }
 
 #footer {
   text-align: center;
   padding: 12px;
-  border-top: 1px solid #222;
+  border-top: 1px solid #181818;
   font-size: 11px;
 }
 
@@ -140,16 +145,18 @@ body {
 .footer-sep { color: #333; margin: 0 8px; }
 
 @media (max-width: 768px) {
-  #planet-grid pre {
-    font-size: 8px;
-    line-height: 1.1;
+  #planet-grid pre,
+  #planet-grid .globe-pre {
+    font-size: 7px;
+    line-height: 1.05;
   }
   .header-title { font-size: 16px; }
 }
 
 @media (max-width: 480px) {
-  #planet-grid pre {
-    font-size: 6px;
-    line-height: 1.05;
+  #planet-grid pre,
+  #planet-grid .globe-pre {
+    font-size: 5px;
+    line-height: 1.0;
   }
 }
