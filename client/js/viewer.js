@@ -360,8 +360,10 @@ function updateAgent(a, world) {
 function renderScene(data) {
   // Town scaling: interpolate activeW toward target
   if (data.growth_stage !== undefined && data.growth_stage !== lastGrowthStage) {
+    var isFirstFrame = lastGrowthStage === -1;
     lastGrowthStage = data.growth_stage;
     targetW = STAGE_WIDTHS[Math.min(data.growth_stage, STAGE_WIDTHS.length - 1)];
+    if (isFirstFrame) activeW = targetW; // snap on initial load, don't animate
   }
   if (activeW !== targetW) {
     var diff = targetW - activeW;
