@@ -126,7 +126,7 @@ async function loadWorlds() {
       return '<a class="world-card" href="/viewer?token=' + encodeURIComponent(w.view_token) + '">' +
         '<div class="wc-header">' +
           '<span class="wc-rank' + rankClass + '">' + rankLabel + '</span>' +
-          '<span class="wc-name">' + name + '</span>' +
+          '<span class="wc-name" style="color:' + seedColor(w.seed || 0) + '">' + name + '</span>' +
           (townId ? '<span class="wc-town-id">' + townId + '</span>' : '') +
           '<span class="wc-score">' + score + ' pts</span>' +
         '</div>' +
@@ -147,6 +147,11 @@ function weatherIcon(w) {
 
 function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function seedColor(seed) {
+  var h = ((seed * 2654435761) >>> 0) % 360;
+  return 'hsl(' + h + ', 80%, 65%)';
 }
 
 // Fun spinner animation

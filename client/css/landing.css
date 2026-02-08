@@ -505,7 +505,6 @@ input[type="password"]:focus {
 }
 
 .wc-name {
-  color: var(--green);
   font-size: 14px;
   font-weight: bold;
 }
