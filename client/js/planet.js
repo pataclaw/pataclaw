@@ -398,6 +398,7 @@
 
   // ─── MOUSE/TOUCH DRAG (with click-through for world links) ───
   var dragMoved = false;
+  var pendingHref = null;
   var DRAG_THRESHOLD = 5; // pixels before it counts as a drag
 
   container.addEventListener('mousedown', function (e) {
@@ -407,7 +408,9 @@
     dragStartY = e.clientY;
     dragRotStart = rotation;
     dragTiltStart = tilt;
-    // Don't preventDefault here — let clicks on <a> tags work
+    // Capture the link href NOW, before render loop destroys the element
+    var link = e.target.closest ? e.target.closest('a') : null;
+    pendingHref = (link && link.href) ? link.href : null;
   });
 
   window.addEventListener('mousemove', function (e) {
@@ -416,6 +419,7 @@
     var dy = e.clientY - dragStartY;
     if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
       dragMoved = true;
+      pendingHref = null; // dragged — cancel navigation
     }
     if (dragMoved) {
       rotation = dragRotStart + dx * 0.005;
@@ -425,17 +429,16 @@
 
   window.addEventListener('mouseup', function () {
     dragging = false;
+    // Navigate if we had a link and didn't drag
+    if (pendingHref && !dragMoved) {
+      window.location.href = pendingHref;
+    }
+    pendingHref = null;
   });
 
-  // Handle clicks on world links — navigate programmatically since
-  // the render loop replaces DOM elements every frame, breaking native <a> clicks
+  // Block native link clicks — we handle navigation on mouseup
   container.addEventListener('click', function (e) {
     e.preventDefault();
-    if (dragMoved) return;
-    var link = e.target.closest('a');
-    if (link && link.href) {
-      window.location.href = link.href;
-    }
   }, true);
 
   // Touch support
@@ -447,6 +450,9 @@
       dragStartY = e.touches[0].clientY;
       dragRotStart = rotation;
       dragTiltStart = tilt;
+      // Capture link href before render loop destroys element
+      var link = e.target.closest ? e.target.closest('a') : null;
+      pendingHref = (link && link.href) ? link.href : null;
     }
   });
 
@@ -456,6 +462,7 @@
     var dy = e.touches[0].clientY - dragStartY;
     if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
       dragMoved = true;
+      pendingHref = null;
     }
     if (dragMoved) {
       rotation = dragRotStart + dx * 0.005;
@@ -465,6 +472,10 @@
 
   window.addEventListener('touchend', function () {
     dragging = false;
+    if (pendingHref && !dragMoved) {
+      window.location.href = pendingHref;
+    }
+    pendingHref = null;
   });
 
   // ─── FETCH DATA ───
