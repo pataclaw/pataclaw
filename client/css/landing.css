@@ -253,33 +253,89 @@ body {
   box-shadow: 0 0 8px rgba(255, 204, 0, 0.15);
 }
 
-/* Planet map button — stands out from generic secondary buttons */
-.btn-planet {
-  border-color: #336;
-  color: #7799cc;
-  background: linear-gradient(135deg, rgba(10, 15, 40, 0.8), rgba(5, 8, 20, 0.6));
-  font-size: 12px;
-  padding: 10px 18px;
+/* Planet CTA — full-width between leaderboard and create */
+.planet-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   text-decoration: none;
-  display: inline-block;
-  letter-spacing: 2px;
-  text-shadow: 0 0 6px rgba(100, 150, 220, 0.4);
-  box-shadow: 0 0 8px rgba(50, 80, 140, 0.2), inset 0 0 12px rgba(30, 50, 100, 0.15);
-  animation: planetBtnPulse 3s ease-in-out infinite;
+  padding: 16px 20px;
+  margin-bottom: 30px;
+  border: 1px solid #223;
+  background: linear-gradient(135deg, rgba(8, 12, 35, 0.9), rgba(4, 6, 18, 0.7));
   position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: planetCtaPulse 4s ease-in-out infinite;
 }
 
-.btn-planet:hover {
-  border-color: #6699dd;
-  color: #aaccff;
-  background: linear-gradient(135deg, rgba(15, 25, 60, 0.9), rgba(10, 15, 35, 0.7));
-  text-shadow: 0 0 10px rgba(120, 170, 255, 0.6);
-  box-shadow: 0 0 16px rgba(60, 100, 180, 0.4), inset 0 0 16px rgba(40, 70, 140, 0.2);
+.planet-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(80, 120, 200, 0.06), transparent);
+  transition: left 0.6s ease;
 }
 
-@keyframes planetBtnPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(50, 80, 140, 0.2), inset 0 0 12px rgba(30, 50, 100, 0.15); }
-  50% { box-shadow: 0 0 14px rgba(60, 100, 180, 0.35), inset 0 0 16px rgba(40, 70, 140, 0.2); }
+.planet-cta:hover::before {
+  left: 100%;
+}
+
+.planet-cta:hover {
+  border-color: #4477aa;
+  background: linear-gradient(135deg, rgba(12, 18, 50, 0.95), rgba(6, 10, 28, 0.8));
+  box-shadow: 0 0 20px rgba(50, 80, 160, 0.3), inset 0 0 20px rgba(30, 50, 120, 0.15);
+  transform: translateY(-1px);
+}
+
+.planet-cta-icon {
+  font-size: 20px;
+  filter: saturate(0.7) brightness(0.9);
+  transition: filter 0.3s;
+}
+
+.planet-cta:hover .planet-cta-icon {
+  filter: saturate(1) brightness(1.1);
+}
+
+.planet-cta-text {
+  color: #8899cc;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  text-shadow: 0 0 8px rgba(100, 140, 220, 0.4);
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+.planet-cta:hover .planet-cta-text {
+  color: #aabbee;
+  text-shadow: 0 0 14px rgba(120, 170, 255, 0.6);
+}
+
+.planet-cta-sub {
+  color: #445;
+  font-size: 10px;
+  letter-spacing: 1px;
+  transition: color 0.3s;
+}
+
+.planet-cta:hover .planet-cta-sub {
+  color: #667;
+}
+
+@keyframes planetCtaPulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(40, 60, 120, 0.15), inset 0 0 12px rgba(20, 40, 80, 0.1);
+    border-color: #223;
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(50, 80, 160, 0.25), inset 0 0 16px rgba(30, 50, 100, 0.15);
+    border-color: #334;
+  }
 }
 
 .action-row {
@@ -588,6 +644,11 @@ input[type="password"]:focus {
 
   .how-it-works { padding: 14px; }
   .how-it-works ol { font-size: 11px; line-height: 1.8; }
+
+  .planet-cta { padding: 12px 14px; margin-bottom: 20px; gap: 8px; }
+  .planet-cta-text { font-size: 13px; letter-spacing: 2px; }
+  .planet-cta-icon { font-size: 16px; }
+  .planet-cta-sub { font-size: 9px; }
 
   .footer { font-size: 10px; margin-top: 20px; padding: 12px; }
 }
