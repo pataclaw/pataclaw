@@ -427,11 +427,14 @@
     dragging = false;
   });
 
-  // Intercept clicks on world links — only allow if user didn't drag
+  // Handle clicks on world links — navigate programmatically since
+  // the render loop replaces DOM elements every frame, breaking native <a> clicks
   container.addEventListener('click', function (e) {
-    if (dragMoved) {
-      e.preventDefault();
-      e.stopPropagation();
+    e.preventDefault();
+    if (dragMoved) return;
+    var link = e.target.closest('a');
+    if (link && link.href) {
+      window.location.href = link.href;
     }
   }, true);
 
