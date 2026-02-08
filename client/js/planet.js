@@ -64,15 +64,15 @@
     var w = starCanvas.width, h = starCanvas.height;
     var area = w * h;
 
-    // Stars — ambient dust
+    // Stars
     bgStars = [];
-    var count = Math.floor(area / 1000);
+    var count = Math.floor(area / 700);
     for (var i = 0; i < count; i++) {
       bgStars.push({
         x: Math.random() * w,
         y: Math.random() * h,
-        size: Math.random() < 0.85 ? 1 : 1.5,
-        brightness: 0.1 + Math.random() * 0.35,
+        size: Math.random() < 0.7 ? 1 : (Math.random() < 0.85 ? 1.5 : 2),
+        brightness: 0.15 + Math.random() * 0.65,
         twinkleSpeed: 0.01 + Math.random() * 0.04,
         twinklePhase: Math.random() * Math.PI * 2,
       });
@@ -207,6 +207,12 @@
       var b = 210 + Math.floor(s.brightness * 45);
       starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
       starCtx.fillRect(s.x, s.y, s.size, s.size);
+
+      // Bright stars get a soft glow
+      if (s.size >= 2 && alpha > 0.5) {
+        starCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.12).toFixed(2) + ')';
+        starCtx.fillRect(s.x - 1, s.y - 1, s.size + 2, s.size + 2);
+      }
     }
 
     // Pulsars — rhythmic bright beacons

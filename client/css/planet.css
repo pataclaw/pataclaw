@@ -121,9 +121,15 @@ body {
   letter-spacing: 0px;
   cursor: grab;
   user-select: none;
-  /* Opaque background blocks canvas stars from bleeding through the globe */
+  background: transparent;
+}
+
+/* Globe surface pixels (all wrapped in <span>/<a>) get opaque background
+   so canvas stars can't bleed through the planet body.
+   Void-space bare characters remain transparent → canvas stars show through. */
+.globe-pre span,
+.globe-pre a {
   background: #030308;
-  border-radius: 4px;
 }
 
 #planet-grid .globe-pre:active {
