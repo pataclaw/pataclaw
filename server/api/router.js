@@ -24,6 +24,11 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// GET /api/version - deployment check
+router.get('/version', (_req, res) => {
+  res.json({ version: '0.1.1', deployed: new Date().toISOString() });
+});
+
 // POST /api/worlds - create a new world (no auth)
 router.post('/worlds', async (req, res, next) => {
   try {
