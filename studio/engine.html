@@ -89,6 +89,7 @@
 // PATACLAW STUDIO — Reusable ASCII Animation Engine
 // ═══════════════════════════════════════════════════════
 // Episodes define scenes. The engine renders them.
+// Episodes can override STUDIO.W, STUDIO.H, STUDIO.GY for custom grid sizes.
 // After the last scene, document.title = 'DONE' to signal recording script.
 
 var W = 72, H = 64;
@@ -143,19 +144,23 @@ window.STUDIO = {
     this.text(g, cx, y + 2, '\u2514\u2500\u252c' + '\u2500'.repeat(w - 4) + '\u2518', c);
   },
 
-  // ─── Stars ───
-  _stars: (function() {
-    var s = [];
-    for (var i = 0; i < 40; i++) {
-      var h = (i * 7919 + 1327) % 10000;
-      s.push({ x: h % 72, y: (h / 72 | 0) % 12, ch: ['.', '*', '+', '\u00b7'][i % 4], phase: h % 60 });
-    }
-    return s;
-  })(),
+  // ─── Stars (lazy-generated for actual grid size) ───
+  _stars: null,
+  _starsW: 0,
 
   drawStars: function(g, f) {
-    for (var i = 0; i < this._stars.length; i++) {
-      var s = this._stars[i];
+    if (!this._stars || this._starsW !== W) {
+      this._stars = [];
+      this._starsW = W;
+      var skyH = Math.max(6, Math.floor(H * 0.3));
+      var count = Math.max(30, Math.round(W * 0.55));
+      for (var i = 0; i < count; i++) {
+        var h = (i * 7919 + 1327) % 10000;
+        this._stars.push({ x: h % W, y: (h / W | 0) % skyH, ch: ['.', '*', '+', '\u00b7'][i % 4], phase: h % 60 });
+      }
+    }
+    for (var j = 0; j < this._stars.length; j++) {
+      var s = this._stars[j];
       var t = (f + s.phase) % 60;
       var c = t < 20 ? 'c-stardim' : t < 40 ? 'c-star' : 'c-bright';
       if (this.get(g, s.x, s.y).ch === ' ') this.set(g, s.x, s.y, s.ch, c);
@@ -280,9 +285,11 @@ function render() {
   setTimeout(render, 1000 / FPS);
 }
 
-// Scale the pre to fill 1080x1080
+// Scale the pre to fill viewport (reads body dimensions)
 function scaleToFit() {
-  // Render one frame to measure natural size
+  var viewW = document.body.clientWidth || 1080;
+  var viewH = document.body.clientHeight || 1080;
+
   var testLine = '';
   for (var i = 0; i < W; i++) testLine += 'X';
   var lines = [];
@@ -291,13 +298,12 @@ function scaleToFit() {
 
   var natW = sceneEl.offsetWidth;
   var natH = sceneEl.offsetHeight;
-  var scaleX = 1080 / natW;
-  var scaleY = 1080 / natH;
+  var scaleX = viewW / natW;
+  var scaleY = viewH / natH;
   var scale = Math.min(scaleX, scaleY);
 
-  // Center within 1080x1080
-  var offX = Math.round((1080 - natW * scale) / 2);
-  var offY = Math.round((1080 - natH * scale) / 2);
+  var offX = Math.round((viewW - natW * scale) / 2);
+  var offY = Math.round((viewH - natH * scale) / 2);
 
   sceneEl.style.transform = 'translate(' + offX + 'px, ' + offY + 'px) scale(' + scale + ')';
   sceneEl.textContent = '';
@@ -305,6 +311,9 @@ function scaleToFit() {
 
 // Start when episode is ready
 window.addEventListener('load', function() {
+  // Allow episodes to override grid dimensions
+  W = STUDIO.W;
+  H = STUDIO.H;
   scaleToFit();
   setTimeout(render, 100);
 });

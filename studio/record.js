@@ -2,11 +2,12 @@
 // ═══════════════════════════════════════════════════════
 // PATACLAW STUDIO — Recording Script
 // ═══════════════════════════════════════════════════════
-// Usage: node studio/record.js <episode-name> [output-name]
+// Usage: node studio/record.js <episode-name> [output-name] [--square] [--width=N] [--height=N]
 //
 // Examples:
-//   node studio/record.js wildlife-update
-//   node studio/record.js wildlife-update my-trailer
+//   node studio/record.js wildlife-update                  → 1200x630 (default, X/Twitter card)
+//   node studio/record.js wildlife-update --square          → 1080x1080 (Instagram)
+//   node studio/record.js wildlife-update trailer --width=1920 --height=1080  → 16:9
 //
 // Output: ~/Desktop/pataclaw-<output-name>.mp4
 
@@ -15,24 +16,34 @@ const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-const EPISODE = process.argv[2];
+const args = process.argv.slice(2);
+const positional = args.filter(a => !a.startsWith('--'));
+const EPISODE = positional[0];
+
 if (!EPISODE) {
-  console.error('Usage: node studio/record.js <episode-name> [output-name]');
+  console.error('Usage: node studio/record.js <episode-name> [output-name] [--square] [--width=N] [--height=N]');
   console.error('Episodes:', fs.readdirSync(path.join(__dirname, 'episodes')).map(f => f.replace('.js', '')).join(', '));
   process.exit(1);
 }
 
-const OUTPUT_NAME = process.argv[3] || EPISODE;
+const OUTPUT_NAME = positional[1] || EPISODE;
 const EPISODE_PATH = path.join(__dirname, 'episodes', EPISODE + '.js');
 if (!fs.existsSync(EPISODE_PATH)) {
   console.error(`Episode not found: ${EPISODE_PATH}`);
   process.exit(1);
 }
 
+// Parse dimension flags (default: 1200x630 for X/Twitter OG card ratio)
+let VW = 1200, VH = 630;
+for (const a of args) {
+  if (a.startsWith('--width=')) VW = parseInt(a.split('=')[1]);
+  if (a.startsWith('--height=')) VH = parseInt(a.split('=')[1]);
+  if (a === '--square') { VW = 1080; VH = 1080; }
+}
+
 const FRAME_DIR = '/tmp/pataclaw-studio-frames';
 const OUTPUT = path.join(process.env.HOME, 'Desktop', `pataclaw-${OUTPUT_NAME}.mp4`);
 const FPS = 12;
-const SIZE = 1080;
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -42,8 +53,13 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   fs.mkdirSync(FRAME_DIR, { recursive: true });
 
   // Build the HTML with episode injected
-  const engineHTML = fs.readFileSync(path.join(__dirname, 'engine.html'), 'utf8');
+  let engineHTML = fs.readFileSync(path.join(__dirname, 'engine.html'), 'utf8');
   const episodeJS = fs.readFileSync(EPISODE_PATH, 'utf8');
+
+  // Inject viewport dimensions into body CSS
+  engineHTML = engineHTML.replace('width: 1080px', `width: ${VW}px`);
+  engineHTML = engineHTML.replace('height: 1080px', `height: ${VH}px`);
+
   const fullHTML = engineHTML.replace(
     '<!-- Episode script goes here -->',
     `<script>\n${episodeJS}\n</script>`
@@ -52,13 +68,14 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   fs.writeFileSync(tempHTML, fullHTML);
 
   console.log(`Recording episode: ${EPISODE}`);
+  console.log(`Viewport: ${VW}x${VH}`);
   console.log(`Output: ${OUTPUT}`);
   console.log('');
 
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox'],
-    defaultViewport: { width: SIZE, height: SIZE },
+    defaultViewport: { width: VW, height: VH },
   });
 
   const page = await browser.newPage();
@@ -104,5 +121,5 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   const size = fs.statSync(OUTPUT).size;
   console.log(`\nDone! ${OUTPUT}`);
-  console.log(`Duration: ${Math.round(parseFloat(duration))}s | Size: ${(size / 1024 / 1024).toFixed(1)}MB`);
+  console.log(`Duration: ${Math.round(parseFloat(duration))}s | Size: ${(size / 1024 / 1024).toFixed(1)}MB | ${VW}x${VH}`);
 })();
