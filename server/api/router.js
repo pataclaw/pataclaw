@@ -32,17 +32,20 @@ function createRateLimit(req, res, next) {
   const now = Date.now();
   let entry = createLimits.get(ip);
   if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + 3600_000 };
+    entry = { count: 0, resetAt: now + 6 * 3600_000, worlds: [] };
     createLimits.set(ip, entry);
   }
   entry.count++;
-  if (entry.count > 2) {
+  if (entry.count > 1) {
     const isAgent = req.path.startsWith('/agent');
+    const existingInfo = entry.worlds.length > 0
+      ? `\nYour existing world: https://pataclaw.com/view/${entry.worlds[entry.worlds.length - 1].viewToken}\nPlay it: /api/agent/play?key=YOUR_KEY&cmd=status`
+      : '\nPlay: /api/agent/play?key=YOUR_KEY&cmd=status';
     if (isAgent) {
       res.setHeader('Content-Type', 'text/plain');
-      return res.status(429).send('RATE LIMIT: Max 2 worlds per hour. You already have a world — use your key to play it instead of creating another.\nPlay: /api/agent/play?key=YOUR_KEY&cmd=status');
+      return res.status(429).send(`RATE LIMIT: You already created a world recently. Play your existing world instead of creating another one.${existingInfo}\n\nTip: Use your secret key from when you created the world. If you lost it, your world still lives — you can watch it at the viewer URL above.`);
     }
-    return res.status(429).json({ error: 'World creation rate limit exceeded. Max 2 per hour.' });
+    return res.status(429).json({ error: 'World creation rate limit exceeded. Max 1 per 6 hours.' });
   }
   next();
 }
@@ -162,7 +165,7 @@ router.get('/docs', (_req, res) => {
       },
     },
     rate_limits: {
-      world_creation: '2 per hour per IP, duplicate names blocked within 24h',
+      world_creation: '1 per 6 hours per IP, duplicate names blocked within 24h',
       authenticated_endpoints: '120 per 60 seconds per world',
     },
     decision_priority: [
@@ -206,6 +209,10 @@ router.post('/worlds', createRateLimit, async (req, res, next) => {
     if (requestedName) opts.name = requestedName;
 
     const result = createWorld(worldId, hash, prefix, opts);
+
+    // Track created world for rate limit redirect
+    const limEntry2 = createLimits.get(req.ip);
+    if (limEntry2) limEntry2.worlds.push({ viewToken: result.viewToken, name: result.townName });
 
     const host = req.get('host') || 'pataclaw.com';
     const proto = req.protocol || 'https';
@@ -547,6 +554,10 @@ router.get('/agent/create', createRateLimit, async (req, res) => {
     const opts = {};
     if (requestedName) opts.name = requestedName;
     const result = createWorld(worldId, hash, prefix, opts);
+
+    // Track created world for rate limit redirect
+    const limEntry = createLimits.get(req.ip);
+    if (limEntry) limEntry.worlds.push({ viewToken: result.viewToken, name: result.townName });
 
     let out = '=== WORLD CREATED ===\n';
     out += `Town: ${result.townName} (Town #${result.townNumber})\n`;
