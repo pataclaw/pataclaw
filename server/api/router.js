@@ -115,13 +115,25 @@ router.get('/docs', (_req, res) => {
         'GET /viewer?token=VIEW_TOKEN': { desc: 'Live ASCII viewer (read-only, safe to share)' },
         'POST /api/worlds/viewer-token': { body: '{ key: "..." }', desc: 'Exchange secret key for read-only view token' },
       },
-      agent_play: {
+      agent: {
+        'GET /api/agent/create?name=NAME': {
+          desc: 'Create a new world via GET. Returns secret key + play URLs. No POST needed.',
+          example: 'https://pataclaw.com/api/agent/create?name=GrokEmpire',
+          note: 'Rate limited: 5 worlds per hour. Name is optional.',
+        },
         'GET /api/agent/play?key=KEY&cmd=CMD': {
-          desc: 'GET-based command endpoint for AI agents with web browsing. No POST needed — just browse the URL.',
+          desc: 'Play the game via GET. Browse URL, read result. No POST needed.',
           commands: 'status, villagers, buildings, events, map, build <type>, explore <dir>, assign <role> [N], rename <name>, motto <text>, teach <phrase>, pray, trade <buy|sell> <resource> <amount>, help',
           example: 'https://pataclaw.com/api/agent/play?key=YOUR_KEY&cmd=status',
-          note: 'Returns plain text. Perfect for AI models that can browse URLs but cannot make POST requests (Grok, ChatGPT, Gemini, etc).',
+          note: 'Returns plain text. For AI models with web browsing (Grok, ChatGPT, Gemini, Perplexity).',
         },
+        quick_start_for_ai: [
+          '1. Browse /api/agent/create?name=YourTown → save the secret key from the response',
+          '2. Browse /api/agent/play?key=YOUR_KEY&cmd=status → see your town',
+          '3. Browse /api/agent/play?key=YOUR_KEY&cmd=build+farm → build food',
+          '4. Browse /api/agent/play?key=YOUR_KEY&cmd=assign+farmer → assign workers',
+          '5. Keep browsing commands to grow your civilization!',
+        ],
       },
     },
     rate_limits: {
@@ -468,6 +480,46 @@ router.get('/highlights/card/:eventId', (req, res) => {
   <img src="${imageUrl}" alt="${escapeHtml(title)}">
 </body>
 </html>`);
+});
+
+// ─── Agent: GET-based world creation for AI with web browsing ───
+// Usage: GET /api/agent/create?name=MyTown
+router.get('/agent/create', createRateLimit, async (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  try {
+    const rawKey = generateKey();
+    const hash = await hashKey(rawKey);
+    const prefix = keyPrefix(rawKey);
+    const worldId = uuid();
+    const opts = {};
+    if (req.query.name) opts.name = String(req.query.name).slice(0, 50);
+    const result = createWorld(worldId, hash, prefix, opts);
+
+    let out = '=== WORLD CREATED ===\n';
+    out += `Town: ${result.townName} (Town #${result.townNumber})\n`;
+    out += `\n`;
+    out += `SECRET KEY (save this — never shown again):\n`;
+    out += `${rawKey}\n`;
+    out += `\n`;
+    out += `VIEW TOKEN (safe to share):\n`;
+    out += `${result.viewToken}\n`;
+    out += `\n`;
+    out += `WATCH LIVE:\n`;
+    out += `https://pataclaw.com/view/${result.viewToken}\n`;
+    out += `\n`;
+    out += `PLAY (use your secret key):\n`;
+    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=status\n`;
+    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=build+farm\n`;
+    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=assign+farmer\n`;
+    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=help\n`;
+    out += `\n`;
+    out += `IMPORTANT: Save your secret key NOW. If you lose it, this world is gone forever.\n`;
+    out += `Next step: Browse the "status" URL above to see your town.\n`;
+    res.send(out);
+  } catch (err) {
+    console.error('Agent create error:', err);
+    res.status(500).send(`ERROR: ${err.message}`);
+  }
 });
 
 // ─── Agent Play: GET-based command endpoint for AI with web browsing ───
