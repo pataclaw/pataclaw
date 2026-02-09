@@ -1,5 +1,5 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
 const { hasMegastructure } = require('../simulation/megastructures');
 const { MAP_SIZE } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
@@ -102,11 +102,26 @@ function buildTownFrame(worldId) {
     };
   });
 
+  // Biome distribution (explored tiles only) — computed early for biome-variant sprites
+  const biomeRows = db.prepare(
+    "SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain"
+  ).all(worldId);
+  const totalExplored = biomeRows.reduce((s, r) => s + r.c, 0);
+  const totalTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ?").get(worldId).c;
+  const biomeDistribution = {};
+  let dominantBiome = 'plains';
+  let maxCount = 0;
+  for (const row of biomeRows) {
+    biomeDistribution[row.terrain] = Math.round((row.c / Math.max(1, totalExplored)) * 100);
+    if (row.c > maxCount) { maxCount = row.c; dominantBiome = row.terrain; }
+  }
+
   // Enrich buildings with sprite data (status-appropriate)
   const enrichedBuildings = buildings.map((b) => {
     let sprite;
     if (b.status === 'rubble') sprite = RUBBLE_SPRITE;
     else if (b.status === 'overgrown') sprite = OVERGROWN_SPRITE;
+    else if (b.type === 'town_center' && BIOME_TOWN_CENTERS[dominantBiome]) sprite = BIOME_TOWN_CENTERS[dominantBiome];
     else sprite = BUILDING_SPRITES[b.type] || BUILDING_SPRITES.hut;
     return { ...b, sprite };
   });
@@ -122,20 +137,6 @@ function buildTownFrame(worldId) {
 
   const resMap = {};
   for (const r of resources) resMap[r.type] = { amount: Math.floor(r.amount), capacity: r.capacity };
-
-  // Biome distribution (explored tiles only)
-  const biomeRows = db.prepare(
-    "SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain"
-  ).all(worldId);
-  const totalExplored = biomeRows.reduce((s, r) => s + r.c, 0);
-  const totalTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ?").get(worldId).c;
-  const biomeDistribution = {};
-  let dominantBiome = 'plains';
-  let maxCount = 0;
-  for (const row of biomeRows) {
-    biomeDistribution[row.terrain] = Math.round((row.c / Math.max(1, totalExplored)) * 100);
-    if (row.c > maxCount) { maxCount = row.c; dominantBiome = row.terrain; }
-  }
 
   // Growth stage
   const stageInfo = getGrowthStage(worldId);
