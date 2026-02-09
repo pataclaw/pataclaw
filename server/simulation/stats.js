@@ -38,14 +38,12 @@ function recalculateStats(worldId) {
   const fishermen = villagers.filter(v => v.role === 'fisherman').length;
   const scholars = villagers.filter(v => v.role === 'scholar').length;
   const priests = villagers.filter(v => v.role === 'priest').length;
-  const workshopWorkers = buildings
-    .filter(b => b.type === 'workshop')
-    .reduce((s, b) => {
-      const w = db.prepare(
-        "SELECT COUNT(*) as c FROM villagers WHERE assigned_building_id = ? AND status = 'alive'"
-      ).get(b.id).c;
-      return s + w;
-    }, 0);
+  const workshopIds = buildings.filter(b => b.type === 'workshop').map(b => b.id);
+  const workshopWorkers = workshopIds.length > 0
+    ? db.prepare(
+        `SELECT COUNT(*) as c FROM villagers WHERE assigned_building_id IN (${workshopIds.map(() => '?').join(',')}) AND status = 'alive'`
+      ).get(...workshopIds).c
+    : 0;
   const economic_output = Math.round((farmers * 0.8 + fishermen * 0.6 + workshopWorkers * 0.4 + scholars * 0.4 + priests * 0.4) * 10) / 10;
 
   // Exploration %

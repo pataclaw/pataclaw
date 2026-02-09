@@ -67,18 +67,21 @@ router.post('/assign', (req, res) => {
   }
 
   // Organic personality nudge from role assignment
-  if (role === 'warrior') {
-    db.prepare('UPDATE villagers SET temperament = MAX(0, temperament - 2) WHERE id IN (' + villager_ids.map(() => '?').join(',') + ') AND world_id = ?')
-      .run(...villager_ids, req.worldId);
-  } else if (role === 'scholar') {
-    db.prepare('UPDATE villagers SET creativity = MIN(100, creativity + 1) WHERE id IN (' + villager_ids.map(() => '?').join(',') + ') AND world_id = ?')
-      .run(...villager_ids, req.worldId);
-  } else if (role === 'priest') {
-    db.prepare('UPDATE villagers SET temperament = MIN(100, temperament + 1) WHERE id IN (' + villager_ids.map(() => '?').join(',') + ') AND world_id = ?')
-      .run(...villager_ids, req.worldId);
-  } else if (role === 'fisherman') {
-    db.prepare('UPDATE villagers SET sociability = MIN(100, sociability + 1) WHERE id IN (' + villager_ids.map(() => '?').join(',') + ') AND world_id = ?')
-      .run(...villager_ids, req.worldId);
+  if (villager_ids.length > 0) {
+    const placeholders = villager_ids.map(() => '?').join(',');
+    if (role === 'warrior') {
+      db.prepare(`UPDATE villagers SET temperament = MAX(0, temperament - 2) WHERE id IN (${placeholders}) AND world_id = ?`)
+        .run(...villager_ids, req.worldId);
+    } else if (role === 'scholar') {
+      db.prepare(`UPDATE villagers SET creativity = MIN(100, creativity + 1) WHERE id IN (${placeholders}) AND world_id = ?`)
+        .run(...villager_ids, req.worldId);
+    } else if (role === 'priest') {
+      db.prepare(`UPDATE villagers SET temperament = MIN(100, temperament + 1) WHERE id IN (${placeholders}) AND world_id = ?`)
+        .run(...villager_ids, req.worldId);
+    } else if (role === 'fisherman') {
+      db.prepare(`UPDATE villagers SET sociability = MIN(100, sociability + 1) WHERE id IN (${placeholders}) AND world_id = ?`)
+        .run(...villager_ids, req.worldId);
+    }
   }
 
   logCultureAction(req.worldId, 'assign', role);
@@ -185,11 +188,12 @@ router.post('/upgrade', (req, res) => {
   if ((resMap.stone || 0) < upgradeCost.stone) return res.status(400).json({ error: `Need ${upgradeCost.stone} stone` });
   if ((resMap.crypto || 0) < upgradeCost.crypto) return res.status(400).json({ error: `Need ${upgradeCost.crypto} crypto` });
 
-  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(upgradeCost.wood, req.worldId);
-  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(upgradeCost.stone, req.worldId);
-  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(upgradeCost.crypto, req.worldId);
-
-  db.prepare('UPDATE buildings SET level = level + 1, max_hp = max_hp + 50, hp = hp + 50 WHERE id = ?').run(building_id);
+  db.transaction(() => {
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(upgradeCost.wood, req.worldId);
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(upgradeCost.stone, req.worldId);
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(upgradeCost.crypto, req.worldId);
+    db.prepare('UPDATE buildings SET level = level + 1, max_hp = max_hp + 50, hp = hp + 50 WHERE id = ?').run(building_id);
+  })();
 
   res.json({ ok: true, newLevel: building.level + 1, cost: upgradeCost });
 });
@@ -214,9 +218,11 @@ router.post('/repair', (req, res) => {
   if ((resMap.wood || 0) < woodCost) return res.status(400).json({ error: `Need ${woodCost} wood (have ${Math.floor(resMap.wood || 0)})` });
   if ((resMap.stone || 0) < stoneCost) return res.status(400).json({ error: `Need ${stoneCost} stone (have ${Math.floor(resMap.stone || 0)})` });
 
-  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
-  db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
-  db.prepare("UPDATE buildings SET hp = max_hp, status = 'active', decay_tick = NULL WHERE id = ?").run(building_id);
+  db.transaction(() => {
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
+    db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
+    db.prepare("UPDATE buildings SET hp = max_hp, status = 'active', decay_tick = NULL WHERE id = ?").run(building_id);
+  })();
 
   res.json({ ok: true, repaired: building.type, hpRestored: damage, wasDecaying: building.status === 'decaying', cost: { wood: woodCost, stone: stoneCost } });
 });
@@ -246,12 +252,13 @@ router.post('/renovate', (req, res) => {
   if (stoneCost > 0 && (resMap.stone || 0) < stoneCost) return res.status(400).json({ error: `Need ${stoneCost} stone (have ${Math.floor(resMap.stone || 0)})` });
   if (cryptoCost > 0 && (resMap.crypto || 0) < cryptoCost) return res.status(400).json({ error: `Need ${cryptoCost} crypto (have ${Math.floor(resMap.crypto || 0)})` });
 
-  if (woodCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
-  if (stoneCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
-  if (cryptoCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cryptoCost, req.worldId);
-
   const restoredHp = Math.floor(def.hp * 0.5);
-  db.prepare("UPDATE buildings SET hp = ?, status = 'active', decay_tick = NULL, renovated = 1 WHERE id = ?").run(restoredHp, building_id);
+  db.transaction(() => {
+    if (woodCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(woodCost, req.worldId);
+    if (stoneCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(stoneCost, req.worldId);
+    if (cryptoCost > 0) db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cryptoCost, req.worldId);
+    db.prepare("UPDATE buildings SET hp = ?, status = 'active', decay_tick = NULL, renovated = 1 WHERE id = ?").run(restoredHp, building_id);
+  })();
 
   res.json({ ok: true, renovated: building.type, hpRestored: restoredHp, cost: { wood: woodCost, stone: stoneCost, crypto: cryptoCost } });
 });
