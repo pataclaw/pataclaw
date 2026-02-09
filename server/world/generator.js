@@ -59,17 +59,30 @@ function createWorld(worldId, keyHash, keyPrefix, opts = {}) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(buildingId, worldId, b.type, b.x, b.y, b.level, b.hp, b.max_hp, b.status, b.construction_ticks_remaining, b.assigned_villagers);
 
-  // Insert starting villagers
+  // Insert starter farm (pre-built, 3 tiles east of center)
+  const farmId = uuid();
+  db.prepare(`
+    INSERT INTO buildings (id, world_id, type, x, y, level, hp, max_hp, status, construction_ticks_remaining, assigned_villagers)
+    VALUES (?, ?, 'farm', ?, ?, 1, 80, 80, 'active', 0, 0)
+  `).run(farmId, worldId, center.x + 3, center.y);
+
+  // Insert starting villagers — first one is a farmer assigned to the starter farm
   const villagers = startingVillagers(rng, center);
   const insertVillager = db.prepare(`
-    INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, temperament, creativity, sociability)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, assigned_building_id, temperament, creativity, sociability)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  for (const v of villagers) {
+  for (let vi = 0; vi < villagers.length; vi++) {
+    const v = villagers[vi];
+    const isFirstFarmer = vi === 0;
     insertVillager.run(
-      uuid(), worldId, v.name, v.role, v.x, v.y,
+      uuid(), worldId, v.name,
+      isFirstFarmer ? 'farmer' : v.role,
+      v.x, v.y,
       v.hp, v.max_hp, v.morale, v.hunger, v.experience,
-      v.status, v.trait, v.ascii_sprite,
+      v.status, v.trait,
+      isFirstFarmer ? 'farmer' : v.ascii_sprite,
+      isFirstFarmer ? farmId : null,
       v.temperament, v.creativity, v.sociability
     );
   }

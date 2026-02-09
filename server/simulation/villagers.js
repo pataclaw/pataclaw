@@ -64,13 +64,14 @@ function processVillagers(worldId, isStarving, weather) {
       const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
       // Survival instinct: auto-assign as farmer if food is 0, otherwise idle
       const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
-      const hasFarm = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c > 0;
-      const survivalRole = (food && food.amount <= 5 && hasFarm) ? 'farmer' : 'idle';
+      const farmBuilding = db.prepare("SELECT id FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active' LIMIT 1").get(worldId);
+      const survivalRole = (food && food.amount <= 5 && farmBuilding) ? 'farmer' : 'idle';
+      const survivalBuildingId = survivalRole === 'farmer' ? farmBuilding.id : null;
       // Refugee arrives with hunger 0 (they brought scraps) + grant 10 food to survive
       db.prepare(`
-        INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
-        VALUES (?, ?, ?, ?, ?, ?, 80, 100, 50, 0, 0, 'alive', ?, ?, NULL, ?, ?, ?)
-      `).run(uuid(), worldId, name, survivalRole, center.x, center.y + 1, trait, survivalRole, basePers.temperament, basePers.creativity, basePers.sociability);
+        INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, assigned_building_id, cultural_phrase, temperament, creativity, sociability)
+        VALUES (?, ?, ?, ?, ?, ?, 80, 100, 50, 0, 0, 'alive', ?, ?, ?, NULL, ?, ?, ?)
+      `).run(uuid(), worldId, name, survivalRole, center.x, center.y + 1, trait, survivalRole, survivalBuildingId, basePers.temperament, basePers.creativity, basePers.sociability);
       db.prepare("UPDATE resources SET amount = MIN(capacity, amount + 10) WHERE world_id = ? AND type = 'food'").run(worldId);
       events.push({
         type: 'birth',
@@ -85,13 +86,13 @@ function processVillagers(worldId, isStarving, weather) {
   // Survival auto-assign: idle villagers become farmers when food is critically low
   const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
   if (food && food.amount <= 5) {
-    const hasFarm = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c > 0;
-    if (hasFarm) {
+    const survFarm = db.prepare("SELECT id FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active' LIMIT 1").get(worldId);
+    if (survFarm) {
       const idleVillagers = villagers.filter(v => v.role === 'idle');
       if (idleVillagers.length > 0) {
-        const autoAssign = db.prepare("UPDATE villagers SET role = 'farmer', ascii_sprite = 'farmer' WHERE id = ? AND world_id = ?");
+        const autoAssign = db.prepare("UPDATE villagers SET role = 'farmer', assigned_building_id = ?, ascii_sprite = 'farmer' WHERE id = ? AND world_id = ?");
         for (const v of idleVillagers) {
-          autoAssign.run(v.id, worldId);
+          autoAssign.run(survFarm.id, v.id, worldId);
           v.role = 'farmer';
         }
         events.push({

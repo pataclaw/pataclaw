@@ -181,7 +181,7 @@ function startingVillagers(rng, center) {
 }
 
 const STARTING_RESOURCES = [
-  { type: 'food', amount: 30, capacity: 100, production_rate: 0, consumption_rate: 0 },
+  { type: 'food', amount: 50, capacity: 100, production_rate: 0, consumption_rate: 0 },
   { type: 'wood', amount: 20, capacity: 100, production_rate: 0, consumption_rate: 0 },
   { type: 'stone', amount: 10, capacity: 100, production_rate: 0, consumption_rate: 0 },
   { type: 'knowledge', amount: 0, capacity: 100, production_rate: 0, consumption_rate: 0 },

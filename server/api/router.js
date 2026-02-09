@@ -742,7 +742,7 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
 
       case 'assign': {
         const role = args[0];
-        const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
+        const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman', 'hunter'];
         if (!role || !validRoles.includes(role)) {
           return res.send(`ERROR: Specify role.\nUsage: assign farmer\nRoles: ${validRoles.join(', ')}`);
         }
@@ -752,16 +752,37 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
         const idle = db.prepare("SELECT id, name FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle' LIMIT ?").all(worldId, count);
         if (idle.length === 0) return res.send('ERROR: No idle villagers to assign. All villagers already have roles.');
 
-        const updateStmt = db.prepare('UPDATE villagers SET role = ?, ascii_sprite = ? WHERE id = ? AND world_id = ?');
+        // Auto-find matching building for production roles
+        const ROLE_BUILDING_MAP = {
+          farmer: ['farm'], fisherman: ['dock'], hunter: ['hunting_lodge'],
+          builder: ['workshop'], scholar: ['library'], priest: ['temple'],
+          warrior: ['wall', 'watchtower'],
+        };
+        let buildingId = null;
+        let buildingWarning = '';
+        const buildingTypes = ROLE_BUILDING_MAP[role];
+        if (buildingTypes) {
+          const placeholders = buildingTypes.map(() => '?').join(',');
+          const building = db.prepare(
+            `SELECT id FROM buildings WHERE world_id = ? AND type IN (${placeholders}) AND status = 'active' LIMIT 1`
+          ).get(worldId, ...buildingTypes);
+          if (building) {
+            buildingId = building.id;
+          } else {
+            buildingWarning = `\nNote: No active ${buildingTypes[0]} found. Build one for this role to be productive.`;
+          }
+        }
+
+        const updateStmt = db.prepare('UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ? WHERE id = ? AND world_id = ?');
         const names = [];
         for (const v of idle) {
-          updateStmt.run(role, role, v.id, worldId);
+          updateStmt.run(role, buildingId, role, v.id, worldId);
           names.push(v.name);
         }
 
         const { logCultureAction } = require('../simulation/culture');
         logCultureAction(worldId, 'assign', role);
-        return res.send(`OK: Assigned ${names.length} villager(s) as ${role}: ${names.join(', ')}`);
+        return res.send(`OK: Assigned ${names.length} villager(s) as ${role}: ${names.join(', ')}${buildingWarning}`);
       }
 
       case 'rename': {
