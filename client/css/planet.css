@@ -223,16 +223,6 @@ body {
   text-shadow: 0 0 14px rgba(255, 204, 0, 0.8);
 }
 
-/* Biome-tinted world markers (non-minted only) */
-.world-normal.world-biome-water    { color: #44aaff; text-shadow: 0 0 6px rgba(68, 170, 255, 0.4); }
-.world-normal.world-biome-swamp    { color: #77aa44; text-shadow: 0 0 6px rgba(119, 170, 68, 0.4); }
-.world-normal.world-biome-plains   { color: #33ff33; text-shadow: 0 0 6px rgba(51, 255, 51, 0.4); }
-.world-normal.world-biome-forest   { color: #22cc44; text-shadow: 0 0 6px rgba(34, 204, 68, 0.4); }
-.world-normal.world-biome-mountain { color: #aaaacc; text-shadow: 0 0 6px rgba(170, 170, 204, 0.4); }
-.world-normal.world-biome-desert   { color: #ddaa44; text-shadow: 0 0 6px rgba(221, 170, 68, 0.4); }
-.world-normal.world-biome-ice      { color: #aaeeff; text-shadow: 0 0 6px rgba(170, 238, 255, 0.4); }
-.world-normal.world-biome-tundra   { color: #99ccdd; text-shadow: 0 0 6px rgba(153, 204, 221, 0.4); }
-
 @keyframes mintGlow {
   0%, 100% { text-shadow: 0 0 4px rgba(255, 204, 0, 0.3); }
   50% { text-shadow: 0 0 12px rgba(255, 204, 0, 0.7); }

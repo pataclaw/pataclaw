@@ -591,15 +591,12 @@
         var world = worldMap[worldKey];
 
         if (world && shade > 0.1) {
-          var sparkle = (frameCount + sx + sy) % 10 < 5;
-          var biomeCls = world.dominant_biome ? ' world-biome-' + world.dominant_biome : '';
-          if (world.is_minted) {
-            var ch = sparkle ? '\u2666' : '\u2727';
-            row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="world-minted' + biomeCls + '" title="' + escAttr(world.name + ' (Pop: ' + world.population + ') [MINTED]') + '">' + escHtml(ch) + '</a>';
-          } else {
-            var sym = world.banner_symbol || '\u25cf';
-            row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="world-normal' + biomeCls + '" title="' + escAttr(world.name + ' (Pop: ' + world.population + ')') + '">' + escHtml(sym) + '</a>';
-          }
+          // Use the biome's terrain character as the world marker
+          var BIOME_CHARS = { water:'~', swamp:'%', plains:'.', forest:'^', mountain:'#', desert:'~', ice:'*', tundra:':' };
+          var ch = BIOME_CHARS[world.dominant_biome] || '.';
+          var cls = world.is_minted ? 'world-minted' : 'world-normal';
+          var label = world.name + ' (Pop: ' + world.population + ')' + (world.is_minted ? ' [MINTED]' : '');
+          row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="' + cls + '" title="' + escAttr(label) + '">' + escHtml(ch) + '</a>';
         } else {
           var terrain = terrainGrid[gy][gx];
           var shadeIdx = Math.floor(shade * (SHADE_CHARS.length - 1));
