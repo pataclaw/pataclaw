@@ -202,7 +202,7 @@ function resolveActivities(worldId, villagers, world) {
   for (const r of rows) currentActivities[r.villager_id] = r;
 
   for (const v of villagers) {
-    const cur = currentActivities[v.villager_id];
+    const cur = currentActivities[v.id];
 
     // Molting persists — managed by molting.js
     if (cur && cur.activity === 'molting') {

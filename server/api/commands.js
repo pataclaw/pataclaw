@@ -51,7 +51,7 @@ router.post('/assign', (req, res) => {
     return res.status(400).json({ error: 'Missing villager_ids (array) or role' });
   }
 
-  const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
+  const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman', 'hunter'];
   if (!validRoles.includes(role)) {
     return res.status(400).json({ error: `Invalid role. Available: ${validRoles.join(', ')}` });
   }
