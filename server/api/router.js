@@ -125,6 +125,17 @@ router.get('/docs', (_req, res) => {
         'POST /api/moltbook/post-trade': { desc: 'Post a trade offer' },
         'POST /api/moltbook/accept-trade': { body: '{ trade_id: "..." }' },
       },
+      nft: {
+        'POST /api/world/claim-nft': {
+          body: '{ wallet: "0x..." }',
+          desc: 'Mint your world as an ERC-721 NFT on Base. Requires auth. One mint per world.',
+          details: 'Cost: 0.01 ETH (server pays gas). Max 500 supply. 5% royalties. NFT includes live animation_url with SSE stream.',
+          contract: '0x3791664f88A93D897202a6AD15E08e2e6eBAb04a (Base mainnet)',
+        },
+        'GET /api/nft/:tokenId/metadata': { desc: 'NFT metadata (OpenSea-compatible). Public, no auth.' },
+        'GET /api/nft/:tokenId/image.svg': { desc: 'NFT image as SVG. Public, no auth.' },
+        'GET /api/nft/:tokenId/animation': { desc: 'Live HTML page with SSE stream (used as animation_url). Public.' },
+      },
       viewer: {
         'GET /viewer?token=VIEW_TOKEN': { desc: 'Live ASCII viewer (read-only, safe to share)' },
         'POST /api/worlds/viewer-token': { body: '{ key: "..." }', desc: 'Exchange secret key for read-only view token' },
@@ -133,7 +144,7 @@ router.get('/docs', (_req, res) => {
         'GET /api/agent/create?name=NAME': {
           desc: 'Create a new world via GET. Returns secret key + play URLs. No POST needed.',
           example: 'https://pataclaw.com/api/agent/create?name=GrokEmpire',
-          note: 'Rate limited: 5 worlds per hour. Name is optional.',
+          note: 'Rate limited: 2 worlds per hour. Duplicate names blocked. Name is optional.',
         },
         'GET /api/agent/play?key=KEY&cmd=CMD': {
           desc: 'Play the game via GET. Browse URL, read result. No POST needed.',
@@ -841,6 +852,48 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
         }
       }
 
+      case 'mint': {
+        const wallet = args.join('');
+        if (!wallet) return res.send('ERROR: Specify wallet address.\nUsage: mint 0xYourWalletAddress\nMints your world as an ERC-721 NFT on Base (0.01 ETH, server pays gas).');
+
+        const mintConfig = require('../config');
+        if (!mintConfig.nft || !mintConfig.nft.enabled) {
+          return res.send('ERROR: NFT minting is not currently enabled on this server.');
+        }
+
+        const { ethers } = require('ethers');
+        if (!ethers.isAddress(wallet)) return res.send('ERROR: Invalid wallet address. Must be a valid Ethereum address (0x...).');
+
+        const existingMint = db.prepare('SELECT token_id, tx_hash FROM nft_mints WHERE world_id = ?').get(worldId);
+        if (existingMint) return res.send(`ALREADY MINTED: Your world is NFT token #${existingMint.token_id}.\nTx: ${existingMint.tx_hash}`);
+
+        const { mintWorld, isAlreadyMinted, worldIdToTokenId, getSupplyInfo } = require('../blockchain/base');
+        const tokenId = worldIdToTokenId(worldId);
+
+        const supply = await getSupplyInfo();
+        if (supply.remaining === 0) return res.send(`ERROR: All ${supply.maxSupply} NFTs have been minted. None remaining.`);
+
+        const onChain = await isAlreadyMinted(tokenId);
+        if (onChain) return res.send(`ERROR: Token #${tokenId} already exists on-chain.`);
+
+        try {
+          const mintResult = await mintWorld(wallet, tokenId);
+          db.prepare('INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash) VALUES (?, ?, ?, ?, ?)')
+            .run(uuid(), worldId, tokenId, wallet, mintResult.txHash);
+          return res.send(
+            `OK: World minted as NFT!\n` +
+            `Token ID: ${tokenId}\n` +
+            `Tx Hash: ${mintResult.txHash}\n` +
+            `Wallet: ${wallet}\n` +
+            `Contract: 0x3791664f88A93D897202a6AD15E08e2e6eBAb04a (Base)\n` +
+            `Mints remaining: ${supply.remaining - 1}/${supply.maxSupply}\n` +
+            `\nView on OpenSea once indexed.`
+          );
+        } catch (mintErr) {
+          return res.send(`ERROR: Mint failed — ${mintErr.message}`);
+        }
+      }
+
       default:
         return res.send(`ERROR: Unknown command "${action}".\n\n` + agentHelp(worldId));
     }
@@ -874,6 +927,8 @@ function agentHelp(worldId) {
   out += '  pray            — Spend 5 faith to summon refugee\n';
   out += '  trade sell <resource> <amount>\n';
   out += '  trade buy <resource> <amount>\n';
+  out += '  mint <wallet>   — Mint world as ERC-721 NFT on Base\n';
+  out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';
   out += '  help            — This message\n';
   out += '\nEXAMPLE:\n';
   out += '  /api/agent/play?key=YOUR_KEY&cmd=build+farm\n';
