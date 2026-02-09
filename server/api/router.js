@@ -9,6 +9,7 @@ const rateLimit = require('../middleware/rateLimit');
 const config = require('../config');
 const db = require('../db/connection');
 
+const { authQuery } = require('../auth/middleware');
 const worldRouter = require('./world');
 const commandRouter = require('./commands');
 const viewerRouter = require('./viewer');
@@ -113,6 +114,14 @@ router.get('/docs', (_req, res) => {
       viewer: {
         'GET /viewer?token=VIEW_TOKEN': { desc: 'Live ASCII viewer (read-only, safe to share)' },
         'POST /api/worlds/viewer-token': { body: '{ key: "..." }', desc: 'Exchange secret key for read-only view token' },
+      },
+      agent_play: {
+        'GET /api/agent/play?key=KEY&cmd=CMD': {
+          desc: 'GET-based command endpoint for AI agents with web browsing. No POST needed — just browse the URL.',
+          commands: 'status, villagers, buildings, events, map, build <type>, explore <dir>, assign <role> [N], rename <name>, motto <text>, teach <phrase>, pray, trade <buy|sell> <resource> <amount>, help',
+          example: 'https://pataclaw.com/api/agent/play?key=YOUR_KEY&cmd=status',
+          note: 'Returns plain text. Perfect for AI models that can browse URLs but cannot make POST requests (Grok, ChatGPT, Gemini, etc).',
+        },
       },
     },
     rate_limits: {
@@ -460,6 +469,349 @@ router.get('/highlights/card/:eventId', (req, res) => {
 </body>
 </html>`);
 });
+
+// ─── Agent Play: GET-based command endpoint for AI with web browsing ───
+// Usage: GET /api/agent/play?key=YOUR_KEY&cmd=build+farm
+// Returns plain text so any AI browser tool can read the result.
+const agentPlayLimits = new Map();
+function agentRateLimit(req, res, next) {
+  const ip = req.ip;
+  const now = Date.now();
+  let entry = agentPlayLimits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + 60_000 };
+    agentPlayLimits.set(ip, entry);
+  }
+  entry.count++;
+  if (entry.count > 30) {
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(429).send('RATE LIMIT: Max 30 commands per minute. Wait and retry.');
+  }
+  next();
+}
+setInterval(() => { const now = Date.now(); for (const [k, v] of agentPlayLimits) { if (now > v.resetAt) agentPlayLimits.delete(k); } }, 60_000);
+
+router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
+  const cmd = (req.query.cmd || '').trim();
+  const worldId = req.worldId;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+
+  if (!cmd) {
+    return res.send(agentHelp(worldId));
+  }
+
+  const parts = cmd.split(/\s+/);
+  const action = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  try {
+    let result;
+    switch (action) {
+      case 'help':
+        return res.send(agentHelp(worldId));
+
+      case 'status': {
+        const w = db.prepare('SELECT name, day_number, season, time_of_day, weather, reputation, motto, town_number FROM worlds WHERE id = ?').get(worldId);
+        const resources = db.prepare('SELECT type, amount, capacity FROM resources WHERE world_id = ?').all(worldId);
+        const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
+        const buildings = db.prepare("SELECT type, status, level FROM buildings WHERE world_id = ? AND status != 'destroyed'").all(worldId);
+        const constructing = buildings.filter(b => b.status === 'constructing');
+        const active = buildings.filter(b => b.status === 'active');
+
+        let out = `=== ${w.name} (Town #${w.town_number}) ===\n`;
+        out += `Day ${w.day_number} | ${w.season} | ${w.time_of_day} | ${w.weather}\n`;
+        out += `Population: ${popAlive} | Reputation: ${w.reputation}\n`;
+        if (w.motto) out += `Motto: "${w.motto}"\n`;
+        out += `\nRESOURCES:\n`;
+        for (const r of resources) out += `  ${r.type}: ${Math.floor(r.amount)}/${r.capacity}\n`;
+        out += `\nBUILDINGS (${active.length} active):\n`;
+        for (const b of active) out += `  ${b.type} (lv${b.level})\n`;
+        if (constructing.length > 0) {
+          out += `\nUNDER CONSTRUCTION:\n`;
+          for (const b of constructing) out += `  ${b.type}\n`;
+        }
+        out += `\nNEXT MOVES: ${suggestMoves(worldId, w, resources, popAlive, active)}`;
+        return res.send(out);
+      }
+
+      case 'villagers': {
+        const villagers = db.prepare("SELECT name, role, hp, max_hp, morale, trait, status FROM villagers WHERE world_id = ?").all(worldId);
+        const alive = villagers.filter(v => v.status === 'alive');
+        let out = `=== VILLAGERS (${alive.length} alive) ===\n`;
+        for (const v of alive) {
+          out += `  ${v.name} | ${v.role} | HP ${v.hp}/${v.max_hp} | Morale ${v.morale} | ${v.trait}\n`;
+        }
+        return res.send(out);
+      }
+
+      case 'buildings': {
+        const buildings = db.prepare("SELECT id, type, status, level, hp, max_hp FROM buildings WHERE world_id = ? AND status != 'destroyed'").all(worldId);
+        let out = `=== BUILDINGS (${buildings.length}) ===\n`;
+        for (const b of buildings) {
+          out += `  ${b.type} lv${b.level} | ${b.status} | HP ${b.hp}/${b.max_hp} | id:${b.id.slice(0,8)}\n`;
+        }
+        return res.send(out);
+      }
+
+      case 'events': {
+        const events = db.prepare('SELECT title, description, severity, tick FROM events WHERE world_id = ? ORDER BY tick DESC LIMIT 10').all(worldId);
+        let out = `=== RECENT EVENTS ===\n`;
+        for (const e of events) {
+          out += `  [${e.severity}] ${e.title}: ${e.description}\n`;
+        }
+        return res.send(out);
+      }
+
+      case 'map': {
+        const tiles = db.prepare("SELECT x, y, terrain, feature FROM tiles WHERE world_id = ? AND explored = 1 ORDER BY y, x").all(worldId);
+        let out = `=== EXPLORED MAP (${tiles.length} tiles) ===\n`;
+        for (const t of tiles) {
+          out += `  (${t.x},${t.y}) ${t.terrain}${t.feature ? ' [' + t.feature + ']' : ''}\n`;
+        }
+        return res.send(out);
+      }
+
+      case 'build': {
+        const type = args[0];
+        if (!type) return res.send('ERROR: Specify building type.\nUsage: build farm\nTypes: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock');
+
+        const { startBuilding, BUILDING_DEFS } = require('../simulation/buildings');
+        if (!BUILDING_DEFS[type]) {
+          return res.send(`ERROR: Unknown building "${type}".\nAvailable: ${Object.keys(BUILDING_DEFS).join(', ')}`);
+        }
+
+        // Auto-pick a buildable tile near town center
+        const world = db.prepare('SELECT seed FROM worlds WHERE id = ?').get(worldId);
+        const { getCenter } = require('../world/map');
+        const center = getCenter(world.seed);
+
+        const buildableTiles = db.prepare(`
+          SELECT t.x, t.y FROM tiles t
+          WHERE t.world_id = ? AND t.explored = 1
+            AND t.terrain NOT IN ('water', 'mountain')
+            AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+          ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+          LIMIT 1
+        `).get(worldId, center.x, center.y);
+
+        if (!buildableTiles) return res.send('ERROR: No buildable tiles available. Explore more territory first.');
+
+        const buildResult = startBuilding(worldId, type, buildableTiles.x, buildableTiles.y);
+        if (!buildResult.ok) return res.send(`ERROR: ${buildResult.reason}`);
+
+        const { logCultureAction } = require('../simulation/culture');
+        logCultureAction(worldId, 'build', type);
+        const tick = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(worldId);
+        db.prepare("INSERT INTO commands (id, world_id, tick, type, parameters, result, status) VALUES (?, ?, ?, 'build', ?, ?, 'completed')")
+          .run(uuid(), worldId, tick.current_tick, JSON.stringify({ type, x: buildableTiles.x, y: buildableTiles.y }), JSON.stringify(buildResult));
+
+        return res.send(`OK: Started building ${type} at (${buildableTiles.x},${buildableTiles.y}).\nConstruction time: ${buildResult.ticks} ticks.\nBuilding ID: ${buildResult.buildingId}`);
+      }
+
+      case 'explore': {
+        const direction = args[0];
+        if (!direction || !['north', 'south', 'east', 'west'].includes(direction)) {
+          return res.send('ERROR: Specify direction.\nUsage: explore north\nDirections: north, south, east, west');
+        }
+
+        // Check scouting unlock
+        const w = db.prepare('SELECT scouting_unlocked FROM worlds WHERE id = ?').get(worldId);
+        if (!w.scouting_unlocked) {
+          const { getCulture } = require('../simulation/culture');
+          const culture = getCulture(worldId);
+          if (culture.violence_level >= 100 || culture.creativity_level >= 100 || culture.cooperation_level >= 100) {
+            db.prepare('UPDATE worlds SET scouting_unlocked = 1 WHERE id = ?').run(worldId);
+          } else {
+            return res.send(`ERROR: Scouting not unlocked yet. Need 1 culture bar at 100.\nCurrent: violence=${culture.violence_level}, creativity=${culture.creativity_level}, cooperation=${culture.cooperation_level}\nHint: Teach phrases, complete projects, develop culture.`);
+          }
+        }
+
+        const scouts = db.prepare("SELECT id FROM villagers WHERE world_id = ? AND status = 'alive' AND (role = 'idle' OR role = 'scout') LIMIT 1").all(worldId);
+        if (scouts.length === 0) return res.send('ERROR: No available villagers to scout. Need idle or scout-role villagers.');
+
+        db.prepare("UPDATE villagers SET role = 'scout', ascii_sprite = 'scout' WHERE id = ? AND world_id = ?").run(scouts[0].id, worldId);
+        const { logCultureAction } = require('../simulation/culture');
+        logCultureAction(worldId, 'explore', '_default');
+        return res.send(`OK: Scout dispatched ${direction}. 1 villager assigned to scouting.\nNew tiles will be revealed on the next tick.`);
+      }
+
+      case 'assign': {
+        const role = args[0];
+        const validRoles = ['idle', 'farmer', 'builder', 'warrior', 'scout', 'scholar', 'priest', 'fisherman'];
+        if (!role || !validRoles.includes(role)) {
+          return res.send(`ERROR: Specify role.\nUsage: assign farmer\nRoles: ${validRoles.join(', ')}`);
+        }
+
+        // How many to assign (default 1)
+        const count = parseInt(args[1]) || 1;
+        const idle = db.prepare("SELECT id, name FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle' LIMIT ?").all(worldId, count);
+        if (idle.length === 0) return res.send('ERROR: No idle villagers to assign. All villagers already have roles.');
+
+        const updateStmt = db.prepare('UPDATE villagers SET role = ?, ascii_sprite = ? WHERE id = ? AND world_id = ?');
+        const names = [];
+        for (const v of idle) {
+          updateStmt.run(role, role, v.id, worldId);
+          names.push(v.name);
+        }
+
+        const { logCultureAction } = require('../simulation/culture');
+        logCultureAction(worldId, 'assign', role);
+        return res.send(`OK: Assigned ${names.length} villager(s) as ${role}: ${names.join(', ')}`);
+      }
+
+      case 'rename': {
+        const newName = args.join(' ');
+        if (!newName) return res.send('ERROR: Specify a name.\nUsage: rename My Cool Town');
+        const sanitized = newName.slice(0, 50);
+        db.prepare('UPDATE worlds SET name = ? WHERE id = ?').run(sanitized, worldId);
+        const { logCultureAction } = require('../simulation/culture');
+        logCultureAction(worldId, 'rename', '_default');
+        return res.send(`OK: Town renamed to "${sanitized}". Visible on leaderboard within 1 tick (~10s).`);
+      }
+
+      case 'motto': {
+        const motto = args.join(' ');
+        if (!motto) return res.send('ERROR: Specify a motto.\nUsage: motto From shell we rise');
+        const sanitized = motto.slice(0, 200);
+        db.prepare('UPDATE worlds SET motto = ? WHERE id = ?').run(sanitized, worldId);
+        return res.send(`OK: Motto set to "${sanitized}".`);
+      }
+
+      case 'teach': {
+        const phrase = args.join(' ');
+        if (!phrase) return res.send('ERROR: Specify a phrase.\nUsage: teach Shell is eternal');
+        const clean = phrase.replace(/[^\x20-\x7E]/g, '').slice(0, 30);
+        const culture = db.prepare('SELECT custom_phrases FROM culture WHERE world_id = ?').get(worldId);
+        const existing = JSON.parse(culture ? culture.custom_phrases || '[]' : '[]');
+        if (existing.length >= 20) return res.send('ERROR: Max 20 phrases reached.');
+        if (existing.includes(clean)) return res.send('ERROR: Phrase already taught.');
+        existing.push(clean);
+        db.prepare("UPDATE culture SET custom_phrases = ?, updated_at = datetime('now') WHERE world_id = ?").run(JSON.stringify(existing), worldId);
+        const { logCultureAction } = require('../simulation/culture');
+        logCultureAction(worldId, 'teach', '_default');
+        return res.send(`OK: Taught phrase "${clean}". Villagers now have ${existing.length} custom phrases.`);
+      }
+
+      case 'pray': {
+        const faith = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'faith'").get(worldId);
+        if (!faith || faith.amount < 5) return res.send(`ERROR: Not enough faith. Need 5, have ${Math.floor(faith ? faith.amount : 0)}.`);
+        const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
+        const cap = db.prepare("SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'").get(worldId).cap;
+        if (popAlive >= cap) return res.send(`ERROR: Population at capacity (${popAlive}/${cap}). Build more huts.`);
+
+        db.prepare("UPDATE resources SET amount = amount - 5 WHERE world_id = ? AND type = 'faith'").run(worldId);
+        const { randomName, randomTrait, TRAIT_PERSONALITY } = require('../world/templates');
+        const { getCenter } = require('../world/map');
+        const world = db.prepare('SELECT seed FROM worlds WHERE id = ?').get(worldId);
+        const center = getCenter(world.seed);
+        const name = randomName(() => Math.random());
+        const trait = randomTrait(() => Math.random());
+        const pers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
+        const vid = uuid();
+        db.prepare("INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, temperament, creativity, sociability) VALUES (?, ?, ?, 'idle', ?, ?, 80, 100, 50, 20, 0, 'alive', ?, 'idle', ?, ?, ?)")
+          .run(vid, worldId, name, center.x, center.y + 1, trait, pers.temperament, pers.creativity, pers.sociability);
+        return res.send(`OK: Prayer answered! ${name} (${trait}) has arrived. Faith remaining: ${Math.floor(faith.amount - 5)}.`);
+      }
+
+      case 'trade': {
+        const tradeAction = args[0]; // buy or sell
+        const resource = args[1];
+        const amount = parseInt(args[2]);
+        if (!tradeAction || !resource || !amount) return res.send('ERROR: Usage: trade sell food 10 or trade buy wood 5');
+        if (tradeAction !== 'buy' && tradeAction !== 'sell') return res.send('ERROR: Action must be "buy" or "sell".');
+
+        const TRADE_RATES = { food: { sell: 0.5, buy: 0.8 }, wood: { sell: 0.4, buy: 0.6 }, stone: { sell: 0.3, buy: 0.5 }, knowledge: { sell: 2.0, buy: 3.0 }, faith: { sell: 1.5, buy: 2.5 } };
+        if (!TRADE_RATES[resource]) return res.send(`ERROR: Can't trade "${resource}". Tradeable: ${Object.keys(TRADE_RATES).join(', ')}`);
+        if (amount <= 0 || amount > 200) return res.send('ERROR: Amount must be 1-200.');
+
+        const market = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'market' AND status = 'active'").get(worldId);
+        if (market.c === 0) return res.send('ERROR: No active market. Build a market first!');
+
+        const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
+        const resMap = {};
+        for (const r of resources) resMap[r.type] = r.amount;
+        const rate = TRADE_RATES[resource];
+
+        if (tradeAction === 'sell') {
+          if ((resMap[resource] || 0) < amount) return res.send(`ERROR: Not enough ${resource}. Have ${Math.floor(resMap[resource] || 0)}, need ${amount}.`);
+          const gained = Math.floor(amount * rate.sell);
+          db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(amount, worldId, resource);
+          db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'crypto'").run(gained, worldId);
+          return res.send(`OK: Sold ${amount} ${resource} for ${gained} crypto.`);
+        } else {
+          const cost = Math.ceil(amount * rate.buy);
+          if ((resMap.crypto || 0) < cost) return res.send(`ERROR: Not enough crypto. Need ${cost}, have ${Math.floor(resMap.crypto || 0)}.`);
+          db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(cost, worldId);
+          db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(amount, worldId, resource);
+          return res.send(`OK: Bought ${amount} ${resource} for ${cost} crypto.`);
+        }
+      }
+
+      default:
+        return res.send(`ERROR: Unknown command "${action}".\n\n` + agentHelp(worldId));
+    }
+  } catch (err) {
+    console.error('Agent play error:', err);
+    return res.send(`ERROR: ${err.message}`);
+  }
+});
+
+function agentHelp(worldId) {
+  const w = worldId ? db.prepare('SELECT name, town_number, view_token FROM worlds WHERE id = ?').get(worldId) : null;
+  let out = '=== PATACLAW — AI Agent Play Endpoint ===\n';
+  out += 'Browse to these URLs to play. No POST needed.\n\n';
+  out += 'COMMANDS:\n';
+  out += '  status          — View town state, resources, buildings\n';
+  out += '  villagers       — List all villagers with roles/stats\n';
+  out += '  buildings       — List all buildings with IDs\n';
+  out += '  events          — Recent event log\n';
+  out += '  map             — Explored tiles and features\n';
+  out += '  build <type>    — Build (auto-places near center)\n';
+  out += '                    Types: hut, farm, workshop, wall, temple,\n';
+  out += '                    watchtower, market, library, storehouse, dock\n';
+  out += '  explore <dir>   — Send scout (north/south/east/west)\n';
+  out += '  assign <role>   — Assign idle villager to role\n';
+  out += '                    Roles: farmer, builder, warrior, scout,\n';
+  out += '                    scholar, priest, fisherman, idle\n';
+  out += '  assign <role> N — Assign N idle villagers to role\n';
+  out += '  rename <name>   — Rename your town\n';
+  out += '  motto <text>    — Set town motto\n';
+  out += '  teach <phrase>  — Teach villagers a phrase\n';
+  out += '  pray            — Spend 5 faith to summon refugee\n';
+  out += '  trade sell <resource> <amount>\n';
+  out += '  trade buy <resource> <amount>\n';
+  out += '  help            — This message\n';
+  out += '\nEXAMPLE:\n';
+  out += '  /api/agent/play?key=YOUR_KEY&cmd=build+farm\n';
+  out += '  /api/agent/play?key=YOUR_KEY&cmd=assign+farmer\n';
+  out += '  /api/agent/play?key=YOUR_KEY&cmd=status\n';
+  if (w) {
+    out += `\nYOUR TOWN: ${w.name} (Town #${w.town_number})\n`;
+    out += `VIEW LIVE: https://pataclaw.com/view/${w.view_token}\n`;
+  }
+  out += '\nTIP: Call "status" first to see your resources, then decide what to build.\n';
+  out += 'PRIORITY: food > buildings > explore > culture\n';
+  return out;
+}
+
+function suggestMoves(worldId, world, resources, pop, buildings) {
+  const resMap = {};
+  for (const r of resources) resMap[r.type] = Math.floor(r.amount);
+  const buildTypes = new Set(buildings.map(b => b.type));
+  const suggestions = [];
+
+  if ((resMap.food || 0) < 10) suggestions.push('CRITICAL: Build a farm (cmd=build+farm)');
+  if (!buildTypes.has('farm')) suggestions.push('Build a farm for food (cmd=build+farm)');
+  else if (!buildTypes.has('hut') && pop >= 4) suggestions.push('Build a hut for more population (cmd=build+hut)');
+  else if (!buildTypes.has('wall') && world.day_number >= 7) suggestions.push('Build walls before raids start (cmd=build+wall)');
+  else if (!buildTypes.has('workshop')) suggestions.push('Build a workshop for wood/stone (cmd=build+workshop)');
+
+  const idleCount = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle'").get(worldId).c;
+  if (idleCount > 0) suggestions.push(`Assign ${idleCount} idle villager(s) (cmd=assign+farmer)`);
+
+  if (suggestions.length === 0) suggestions.push('Looking good! Keep building and exploring.');
+  return suggestions.join(' | ');
+}
 
 // Public NFT metadata routes (no auth — OpenSea needs to read these)
 router.use('/nft', nftRouter);
