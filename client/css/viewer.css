@@ -641,6 +641,7 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-w-fog       { color: #889999; }
 #world .c-w-heat      { color: #ff6622; }
 #world .c-w-fog-dense { color: #667777; }
+#world .c-w-fog-wisp  { color: #99aabb; }
 #world .c-w-lightning  { color: #ffffaa; }
 
 /* Time of day */

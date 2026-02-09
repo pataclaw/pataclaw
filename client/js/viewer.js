@@ -7,6 +7,18 @@ const MAX_RECONNECT = 10;
 
 // Animation state - persists between server frames
 const agents = {}; // villager id -> { x, targetX, state, speechTimer, currentSpeech, bobFrame, ... }
+var nomadAgents = {}; // name -> { x, baseX, targetX, state, stateTimer, speechTimer, currentSpeech, bobFrame, facing }
+
+var NOMAD_SPEECH = [
+  'long road behind...', 'this place feels empty',
+  'remember greener days', 'anyone still here?',
+  '*warms hands*', 'shells guided me',
+  'once a town stood here', 'just passing through',
+  'current brought me', 'my home is gone',
+  'nice fire at least', 'stars look different',
+  '*stares into flames*', 'the deep remembers',
+  'heard life was here once', 'maybe someone returns',
+];
 let lastWorldData = null;
 let animFrameId = null;
 let waveCounter = 0; // For ground wave + cloud drift
@@ -79,7 +91,7 @@ var WEATHER_CLOUDS = {
   rain:   { count: [2, 3], types: ['medium', 'large'], speedRange: [0.040, 0.080], yRange: [1, 4] },
   storm:  { count: [3, 4], types: ['large', 'full'],   speedRange: [0.067, 0.133], yRange: [0, 3] },
   snow:   { count: [2, 3], types: ['medium', 'small'],  speedRange: [0.020, 0.040], yRange: [1, 4] },
-  fog:    { count: [3, 4], types: ['large', 'full'],    speedRange: [0.007, 0.020], yRange: [4, 8] },
+  fog:    { count: [4, 5], types: ['large', 'full'],    speedRange: [0.005, 0.015], yRange: [6, 12] },
   heat:   { count: [0, 0], types: [],                   speedRange: [0, 0],       yRange: [0, 0] },
 };
 
@@ -294,6 +306,12 @@ function startAnimLoop() {
         updateAgent(a, lastWorldData.world);
       }
 
+      // Update nomad agents
+      syncNomads(lastWorldData.nomad_camps, activeW);
+      for (var nid in nomadAgents) {
+        updateNomad(nomadAgents[nid], activeW);
+      }
+
       renderScene(lastWorldData);
     } catch (err) {
       console.error('[viewer] render error:', err);
@@ -382,6 +400,89 @@ function updateAgent(a, world) {
 
   if (a.state === 'sleeping') {
     a.sleepFrame = (a.sleepFrame + 1) % 30;
+  }
+}
+
+// ─── NOMAD ANIMATION ───
+function syncNomads(camps, W) {
+  if (!camps || !camps.length) { nomadAgents = {}; return; }
+  var seen = {};
+  for (var i = 0; i < camps.length; i++) {
+    var name = camps[i].name;
+    seen[name] = true;
+    if (!nomadAgents[name]) {
+      var nHash = 0;
+      for (var h = 0; h < name.length; h++) nHash = ((nHash << 5) - nHash + name.charCodeAt(h)) | 0;
+      nHash = Math.abs(nHash);
+      var baseX = 8 + (nHash % (W - 25));
+      nomadAgents[name] = {
+        x: baseX - 2,
+        baseX: baseX,
+        targetX: baseX - 2,
+        state: 'sitting',
+        stateTimer: Math.floor(Math.random() * 30),
+        speechTimer: 0,
+        currentSpeech: '',
+        bobFrame: Math.floor(Math.random() * 12),
+        facing: 1,
+      };
+    }
+  }
+  for (var n in nomadAgents) { if (!seen[n]) delete nomadAgents[n]; }
+}
+
+function updateNomad(n, W) {
+  n.stateTimer++;
+  n.bobFrame = (n.bobFrame + 1) % 12;
+
+  // sitting → walk out to explore
+  if (n.state === 'sitting' && n.stateTimer > 60 + Math.random() * 30) {
+    n.stateTimer = 0;
+    n.state = 'walking';
+    n.targetX = n.baseX + (Math.random() - 0.5) * 24;
+    n.targetX = Math.max(2, Math.min(W - 5, n.targetX));
+    n.facing = n.targetX > n.x ? 1 : -1;
+    n._returnWalk = false;
+  }
+
+  // walking → arrive → talk or sit
+  if (n.state === 'walking') {
+    var dx = n.targetX - n.x;
+    if (Math.abs(dx) < 0.5) {
+      n.x = n.targetX;
+      if (n._returnWalk) {
+        // Returning from talk → sit down
+        n.state = 'sitting';
+        n.stateTimer = 0;
+        n._returnWalk = false;
+      } else {
+        // Arrived at wander spot → talk
+        n.state = 'talking';
+        n.stateTimer = 0;
+        n.currentSpeech = NOMAD_SPEECH[Math.floor(Math.random() * NOMAD_SPEECH.length)];
+        n.speechTimer = 35;
+      }
+    } else {
+      var speed = 0.15 + Math.random() * 0.1;
+      var move = Math.sign(dx) * Math.min(speed, Math.abs(dx));
+      n.x += move;
+      n.facing = Math.sign(dx);
+    }
+  }
+
+  // talking → walk back to camp
+  if (n.state === 'talking' && n.stateTimer > 40) {
+    n.stateTimer = 0;
+    n.state = 'walking';
+    n.targetX = n.baseX + (Math.random() - 0.5) * 6;
+    n.targetX = Math.max(2, Math.min(W - 5, n.targetX));
+    n.facing = n.targetX > n.x ? 1 : -1;
+    n._returnWalk = true;
+  }
+
+  if (n.speechTimer > 0) {
+    n.speechTimer--;
+    if (n.speechTimer <= 0) n.currentSpeech = '';
   }
 }
 
@@ -628,9 +729,9 @@ function renderScene(data) {
   var wChar = wCharMap[world.weather];
   var wColor = wColorMap[world.weather] || 'c-w-rain';
   if (wChar) {
-    var targetCount = { rain: 80, storm: 120, snow: 60, fog: 90, heat: 40 }[world.weather] || 60;
-    var fallSpeed = { rain: 1.5, storm: 2.0, snow: 0.4, fog: 0.1, heat: -0.3 }[world.weather] || 1.0;
-    var driftX = { rain: 0.3, storm: 0.8, snow: 0.15, fog: 0.05, heat: 0.1 }[world.weather] || 0;
+    var targetCount = { rain: 80, storm: 120, snow: 60, fog: 160, heat: 40 }[world.weather] || 60;
+    var fallSpeed = { rain: 1.5, storm: 2.0, snow: 0.4, fog: 0.06, heat: -0.3 }[world.weather] || 1.0;
+    var driftX = { rain: 0.3, storm: 0.8, snow: 0.15, fog: 0.08, heat: 0.1 }[world.weather] || 0;
 
     // Spawn new particles at top to maintain count
     while (weatherParticles.length < targetCount) {
@@ -656,7 +757,12 @@ function renderScene(data) {
         continue;
       }
       if (getCell(grid, px, py).ch === ' ') {
-        setCell(grid, px, py, wChar, wColor);
+        // Fog: denser chars and color in lower half
+        if (world.weather === 'fog' && py > groundY / 2) {
+          setCell(grid, px, py, '\u2592', 'c-w-fog-dense');
+        } else {
+          setCell(grid, px, py, wChar, wColor);
+        }
       }
     }
 
@@ -675,12 +781,45 @@ function renderScene(data) {
       }
     }
 
-    // Fog: ground-level density layer
+    // Fog: deep ground fog gradient (6 rows) + drifting fog banks
     if (world.weather === 'fog') {
-      for (var fx = 0; fx < W; fx++) {
-        for (var fy = groundY - 3; fy < groundY; fy++) {
-          if (Math.random() < 0.25 && getCell(grid, fx, fy).ch === ' ') {
-            setCell(grid, fx, fy, '\u2592', 'c-w-fog-dense');
+      // Ground fog gradient — densest at bottom, wisps at top
+      var fogLayers = [
+        { offset: 1, chance: 0.50, ch: '\u2592', cls: 'c-w-fog-dense' },
+        { offset: 2, chance: 0.40, ch: '\u2592', cls: 'c-w-fog-dense' },
+        { offset: 3, chance: 0.30, ch: '\u2591', cls: 'c-w-fog' },
+        { offset: 4, chance: 0.20, ch: '\u2591', cls: 'c-w-fog' },
+        { offset: 5, chance: 0.12, ch: '\u2591', cls: 'c-w-fog-wisp' },
+        { offset: 6, chance: 0.06, ch: '\u2591', cls: 'c-w-fog-wisp' },
+      ];
+      for (var fli = 0; fli < fogLayers.length; fli++) {
+        var fl = fogLayers[fli];
+        var fly = groundY - fl.offset;
+        if (fly < 0) continue;
+        for (var flx = 0; flx < W; flx++) {
+          if (Math.random() < fl.chance && getCell(grid, flx, fly).ch === ' ') {
+            setCell(grid, flx, fly, fl.ch, fl.cls);
+          }
+        }
+      }
+
+      // Drifting fog banks — 3 bands at different heights
+      var fogSeed = (world.seed || 0);
+      for (var fbi = 0; fbi < 3; fbi++) {
+        var fbHash = ((fogSeed * 2654435761 + fbi * 7919) >>> 0) % 100000;
+        var fbWidth = 15 + (fbHash % 11);
+        var fbY = groundY - 3 - fbi * 3 - (fbHash % 3);
+        var fbBaseX = (fbHash % W);
+        var fbX = Math.round(fbBaseX + Math.sin(waveCounter * 0.02 + fbi * 2) * 8);
+        for (var fbc = 0; fbc < fbWidth; fbc++) {
+          var fbpx = (fbX + fbc) % W;
+          if (fbpx < 0) fbpx += W;
+          if (fbY >= 0 && fbY < groundY && getCell(grid, fbpx, fbY).ch === ' ') {
+            setCell(grid, fbpx, fbY, '\u2592', 'c-w-fog-dense');
+          }
+          // Second row for thickness
+          if (fbY + 1 >= 0 && fbY + 1 < groundY && getCell(grid, fbpx, fbY + 1).ch === ' ') {
+            setCell(grid, fbpx, fbY + 1, '\u2591', 'c-w-fog');
           }
         }
       }
@@ -1521,15 +1660,54 @@ function renderScene(data) {
         }
       }
 
-      // Small nomad figure next to camp
-      var nomFigX = ncx - 2;
-      var nomFigY = groundY - 2;
-      if (nomFigX >= 0 && nomFigX + 2 < W && nomFigY >= 0 && nomFigY + 1 < H) {
-        setCell(grid, nomFigX + 1, nomFigY, 'o', 'c-nomad');
-        var nomFrame = waveCounter % 12;
-        var nomBody = nomFrame < 6 ? '/|\\' : '\\|/';
-        for (var nb = 0; nb < nomBody.length; nb++) {
-          setCell(grid, nomFigX + nb, nomFigY + 1, nomBody[nb], 'c-nomad');
+      // Animated nomad figure
+      var na = nomadAgents[nomad.name];
+      if (na) {
+        var nfx = Math.round(na.x);
+        var nfy = groundY - 1;
+        var nomLines;
+        if (na.state === 'sitting') {
+          // Sitting pose near fire
+          nomLines = [' o ', '/|\\ ', '_/\\_'];
+          nfy = groundY - 3;
+        } else if (na.state === 'walking') {
+          // Walking with alternating feet
+          var nStep = na.bobFrame % 4;
+          nomLines = [' o ', '/|\\', nStep < 2 ? '/ \\' : ' | '];
+          nfy = groundY - 3;
+        } else {
+          // Talking - same as sitting but arms wave
+          var tFrame = na.bobFrame % 8;
+          nomLines = [' o ', tFrame < 4 ? '\\|/' : '/|\\', '_/\\_'];
+          nfy = groundY - 3;
+        }
+
+        for (var nlr = 0; nlr < nomLines.length; nlr++) {
+          for (var nlc = 0; nlc < nomLines[nlr].length; nlc++) {
+            var npx = nfx + nlc, npy = nfy + nlr;
+            if (npx >= 0 && npx < W && npy >= 0 && npy < H && nomLines[nlr][nlc] !== ' ') {
+              setCell(grid, npx, npy, nomLines[nlr][nlc], 'c-nomad');
+            }
+          }
+        }
+
+        // Speech bubble
+        if (na.currentSpeech && na.speechTimer > 0) {
+          var nBubbleText = na.currentSpeech;
+          var nBubbleLine = '\u250c' + '\u2500'.repeat(nBubbleText.length + 2) + '\u2510';
+          var nBubbleContent = '\u2502 ' + nBubbleText + ' \u2502';
+          var nBubbleBottom = '\u2514\u2500\u252c' + '\u2500'.repeat(nBubbleText.length) + '\u2518';
+          var nBubblePtr = '  \u2502';
+          var nBubbleLines = [nBubbleLine, nBubbleContent, nBubbleBottom, nBubblePtr];
+          var nBubbleStartY = nfy - nBubbleLines.length;
+          for (var nbr = 0; nbr < nBubbleLines.length; nbr++) {
+            for (var nbc = 0; nbc < nBubbleLines[nbr].length; nbc++) {
+              var nbx = nfx + nbc - 1, nby = nBubbleStartY + nbr;
+              if (nbx >= 0 && nbx < W && nby >= 0 && nby < H) {
+                setCell(grid, nbx, nby, nBubbleLines[nbr][nbc], 'c-nomad');
+              }
+            }
+          }
         }
       }
 
