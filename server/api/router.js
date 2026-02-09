@@ -304,6 +304,7 @@ router.get('/leaderboard', (_req, res) => {
 
 // GET /api/planet - all worlds for planet map (public)
 const { getActivePlanetaryEvent } = require('../simulation/planetary');
+const { deriveBiomeWeights } = require('../world/map');
 router.get('/planet', (_req, res) => {
   const worlds = db.prepare(`
     SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed, w.town_number, w.banner_symbol,
@@ -318,10 +319,16 @@ router.get('/planet', (_req, res) => {
     ORDER BY score DESC
   `).all();
 
-  // Check mint status for each world
+  // Check mint status and derive dominant biome for each world
   const mintStmt = db.prepare('SELECT token_id FROM nft_mints WHERE world_id = ?');
   const result = worlds.map(w => {
     const mint = mintStmt.get(w.id);
+    // Derive dominant biome from seed
+    const weights = deriveBiomeWeights(w.seed);
+    let domBiome = 'plains', maxW = 0;
+    for (const [b, wt] of Object.entries(weights)) {
+      if (wt > maxW) { maxW = wt; domBiome = b; }
+    }
     return {
       name: w.name,
       town_number: w.town_number,
@@ -337,6 +344,7 @@ router.get('/planet', (_req, res) => {
       banner_symbol: w.banner_symbol,
       is_minted: !!mint,
       token_id: mint ? mint.token_id : null,
+      dominant_biome: domBiome,
     };
   });
 

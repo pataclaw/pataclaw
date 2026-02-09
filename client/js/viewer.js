@@ -212,7 +212,14 @@ function connect() {
       }
 
       lastWorldData = data;
-      if (data.world.seed !== undefined && !civStyle) {
+      // Biome-aware visual style: match CIV_STYLE to dominant biome
+      var BIOME_TO_CIV = {
+        plains: 0, forest: 0, mountain: 1, swamp: 2,
+        water: 2, desert: 3, ice: 4, tundra: 4,
+      };
+      if (data.biome && data.biome.dominant && BIOME_TO_CIV[data.biome.dominant] !== undefined) {
+        civStyle = CIV_STYLES[BIOME_TO_CIV[data.biome.dominant]];
+      } else if (data.world.seed !== undefined && !civStyle) {
         civStyle = CIV_STYLES[Math.abs(data.world.seed) % CIV_STYLES.length];
       }
       updateSidebar(data);

@@ -21,6 +21,61 @@ function mulberry32(seed) {
   };
 }
 
+// ─── BIOME WEIGHT SYSTEM ───
+// Each world's seed deterministically produces a unique biome blend.
+// The power curve creates spiky distributions where 1-2 biomes dominate.
+
+const BIOME_ORDER = ['water', 'swamp', 'plains', 'forest', 'mountain', 'desert'];
+const BIOME_BASELINE = { water: 0.20, swamp: 0.15, plains: 0.25, forest: 0.15, mountain: 0.13, desert: 0.12 };
+const BLEND_FACTOR = 0.6; // 60% weight-derived, 40% baseline
+
+function deriveBiomeWeights(seed) {
+  const rng = mulberry32(seed ^ 0xBEEFCAFE);
+  const raw = [];
+  for (let i = 0; i < 6; i++) raw.push(rng());
+
+  // Power curve: amplifies dominant biomes, suppresses weak ones
+  const powered = raw.map(v => Math.pow(v, 2.5));
+  const total = powered.reduce((s, v) => s + v, 0);
+
+  const weights = {};
+  for (let i = 0; i < BIOME_ORDER.length; i++) {
+    weights[BIOME_ORDER[i]] = powered[i] / total;
+  }
+  return weights;
+}
+
+function biomeThresholds(weights) {
+  // Blend baseline with seed-derived weights
+  const bands = {};
+  let sum = 0;
+  for (const b of BIOME_ORDER) {
+    bands[b] = BIOME_BASELINE[b] * (1 - BLEND_FACTOR) + weights[b] * BLEND_FACTOR;
+    sum += bands[b];
+  }
+  // Normalize and build cumulative thresholds
+  let cumulative = 0;
+  const thresholds = {};
+  for (const b of BIOME_ORDER) {
+    cumulative += bands[b] / sum;
+    thresholds[b] = cumulative;
+  }
+  return thresholds;
+}
+
+function centerTerrain(thresholds) {
+  // Find dominant non-water biome by largest band width
+  let best = 'plains';
+  let bestWidth = 0;
+  let prev = thresholds.water;
+  for (const b of BIOME_ORDER.slice(1)) { // skip water
+    const width = thresholds[b] - prev;
+    if (width > bestWidth) { bestWidth = width; best = b; }
+    prev = thresholds[b];
+  }
+  return best;
+}
+
 // Simple 2D noise using value noise with interpolation
 function createNoiseGenerator(seed) {
   const rng = mulberry32(seed);
@@ -61,17 +116,35 @@ function createNoiseGenerator(seed) {
   };
 }
 
-function terrainFromNoise(value, distFromCenter, y, mapSize) {
-  // Force center to plains for the town
-  if (distFromCenter < 4) return 'plains';
+function terrainFromNoise(value, distFromCenter, y, mapSize, thresholds) {
+  // Center spawn area: biome-appropriate land (never water)
+  if (distFromCenter < 3) {
+    return thresholds ? centerTerrain(thresholds) : 'plains';
+  }
+  // Transition ring: 50% center terrain, 50% natural
+  if (distFromCenter < 5 && thresholds) {
+    // Use noise to decide: low noise = center terrain, high noise = natural
+    if (value < 0.5) return centerTerrain(thresholds);
+  }
 
-  // Ice/tundra zone in top rows (y < 18% of map)
+  // Ice/tundra polar zone (top rows)
   if (mapSize && y < mapSize * 0.18) {
-    if (value < 0.15) return 'water'; // frozen lake (rendered as frozen_lake feature on client)
+    if (value < 0.15) return 'water';
     if (value < 0.45) return 'tundra';
     return 'ice';
   }
 
+  // Weight-shifted terrain classification
+  if (thresholds) {
+    if (value < thresholds.water) return 'water';
+    if (value < thresholds.swamp) return 'swamp';
+    if (value < thresholds.plains) return 'plains';
+    if (value < thresholds.forest) return 'forest';
+    if (value < thresholds.mountain) return 'mountain';
+    return 'desert';
+  }
+
+  // Legacy fallback (no thresholds passed)
   if (value < 0.2) return 'water';
   if (value < 0.35) return 'swamp';
   if (value < 0.6) return 'plains';
@@ -82,6 +155,8 @@ function terrainFromNoise(value, distFromCenter, y, mapSize) {
 
 function generateTiles(seed, center) {
   const noise = createNoiseGenerator(seed);
+  const weights = deriveBiomeWeights(seed);
+  const thresholds = biomeThresholds(weights);
   const cx = center ? center.x : CENTER;
   const cy = center ? center.y : CENTER;
   const tiles = [];
@@ -97,7 +172,7 @@ function generateTiles(seed, center) {
       tiles.push({
         x,
         y,
-        terrain: terrainFromNoise(value, dist, y, MAP_SIZE),
+        terrain: terrainFromNoise(value, dist, y, MAP_SIZE, thresholds),
         elevation: Math.floor(value * 10),
         explored,
         feature: null,
@@ -112,6 +187,8 @@ function generateTiles(seed, center) {
 // Expand map to a larger size — generates only NEW tiles
 function expandMap(worldId, seed, oldSize, newSize) {
   const rng = mulberry32(seed * 7 + 31); // offset seed for expansion terrain
+  const weights = deriveBiomeWeights(seed);
+  const thresholds = biomeThresholds(weights);
   const tiles = [];
 
   for (let y = 0; y < newSize; y++) {
@@ -129,7 +206,7 @@ function expandMap(worldId, seed, oldSize, newSize) {
       tiles.push({
         x,
         y,
-        terrain: terrainFromNoise(value, dist, y, newSize),
+        terrain: terrainFromNoise(value, dist, y, newSize, thresholds),
         elevation: Math.floor(value * 10),
         explored: 0,
         feature: null,
@@ -141,4 +218,4 @@ function expandMap(worldId, seed, oldSize, newSize) {
   return tiles;
 }
 
-module.exports = { MAP_SIZE, CENTER, getCenter, generateTiles, expandMap, mulberry32 };
+module.exports = { MAP_SIZE, CENTER, getCenter, generateTiles, expandMap, mulberry32, deriveBiomeWeights, biomeThresholds };

@@ -468,11 +468,35 @@
       var w = worlds[i];
       var pos = worldGridPos(w.seed);
       var key = pos.gx + ',' + pos.gy;
+
+      // Bias toward matching globe terrain if world has a dominant biome
+      if (w.dominant_biome) {
+        var targetCls = 'terrain-' + w.dominant_biome;
+        var bestKey = key;
+        var bestDist = 999;
+        for (var dy = -5; dy <= 5; dy++) {
+          for (var dx = -5; dx <= 5; dx++) {
+            var tx = pos.gx + dx, ty = pos.gy + dy;
+            if (tx < 3 || tx >= GRID_W - 3 || ty < 3 || ty >= GRID_H - 3) continue;
+            var tk = tx + ',' + ty;
+            if (occupied[tk]) continue;
+            var cell = terrainGrid[ty] && terrainGrid[ty][tx];
+            if (cell && cell.cls === targetCls) {
+              var d = Math.abs(dx) + Math.abs(dy);
+              if (d < bestDist) { bestDist = d; bestKey = tk; }
+            }
+          }
+        }
+        if (bestDist < 999) key = bestKey;
+      }
+
+      // Collision resolution
       var attempts = 0;
       while (occupied[key] && attempts < 30) {
-        pos.gx = (pos.gx + 1) % GRID_W;
-        if (pos.gx < 3) pos.gx = 3;
-        key = pos.gx + ',' + pos.gy;
+        var parts = key.split(',');
+        var kx = (parseInt(parts[0]) + 1) % GRID_W;
+        if (kx < 3) kx = 3;
+        key = kx + ',' + parts[1];
         attempts++;
       }
       occupied[key] = true;
@@ -568,12 +592,13 @@
 
         if (world && shade > 0.1) {
           var sparkle = (frameCount + sx + sy) % 10 < 5;
+          var biomeCls = world.dominant_biome ? ' world-biome-' + world.dominant_biome : '';
           if (world.is_minted) {
             var ch = sparkle ? '\u2666' : '\u2727';
-            row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="world-minted" title="' + escAttr(world.name + ' (Pop: ' + world.population + ') [MINTED]') + '">' + escHtml(ch) + '</a>';
+            row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="world-minted' + biomeCls + '" title="' + escAttr(world.name + ' (Pop: ' + world.population + ') [MINTED]') + '">' + escHtml(ch) + '</a>';
           } else {
             var sym = world.banner_symbol || '\u25cf';
-            row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="world-normal" title="' + escAttr(world.name + ' (Pop: ' + world.population + ')') + '">' + escHtml(sym) + '</a>';
+            row += '<a href="/view/' + encodeURIComponent(world.view_token) + '" class="world-normal' + biomeCls + '" title="' + escAttr(world.name + ' (Pop: ' + world.population + ')') + '">' + escHtml(sym) + '</a>';
           }
         } else {
           var terrain = terrainGrid[gy][gx];
