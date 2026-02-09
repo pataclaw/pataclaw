@@ -189,6 +189,7 @@ if (unnumbered.length > 0) {
 }
 
 const app = express();
+app.set('trust proxy', true); // Railway reverse proxy — get real client IP from X-Forwarded-For
 
 // Cache-bust token: changes every deploy (server start time)
 const CACHE_BUST = Date.now().toString(36);
