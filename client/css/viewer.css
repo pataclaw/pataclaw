@@ -299,6 +299,34 @@ body {
 .reconnecting { color: #ffcc00; }
 .reconnecting::before { content: '\25cb '; }
 
+#whisper-box {
+  flex: 1;
+  max-width: 280px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+#whisper-input {
+  width: 100%;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  color: #88aacc;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+#whisper-input::placeholder { color: #444; font-style: italic; }
+#whisper-input:focus { border-color: #88aacc; }
+#whisper-input:disabled { opacity: 0.4; }
+#whisper-cooldown {
+  color: #555;
+  font-size: 9px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
 #weather-display { color: #888; }
 #tick-display { color: #444; margin-left: auto; }
 
@@ -959,6 +987,8 @@ body.crt-mode #world {
   .res-row { font-size: 9px; }
   .info-header { font-size: 11px; letter-spacing: 1px; }
   #bottom-bar { height: 28px; font-size: 9px; }
+  #whisper-box { max-width: 140px; }
+  #whisper-input { font-size: 9px; padding: 2px 5px; }
 }
 
 @media (max-width: 380px) {

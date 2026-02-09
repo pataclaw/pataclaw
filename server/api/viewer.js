@@ -94,10 +94,19 @@ router.post('/whisper', authViewToken, (req, res) => {
     "INSERT INTO events (id, world_id, tick, type, title, description, severity, data) VALUES (?, ?, ?, 'whisper', ?, ?, 'info', ?)"
   ).run(uuid(), req.worldId, world ? world.current_tick : 0, 'A voice from beyond...', clean, JSON.stringify({ source: 'spectator' }));
 
-  // Push to connected viewers as notification
-  pushEvent(req.worldId, { type: 'whisper', title: 'A voice from beyond...', description: clean, severity: 'info' });
+  // Gameplay effect: +2 morale to a random alive villager
+  const alive = db.prepare("SELECT id, name FROM villagers WHERE world_id = ? AND status = 'alive' ORDER BY RANDOM() LIMIT 1").get(req.worldId);
+  let heardBy = null;
+  if (alive) {
+    db.prepare('UPDATE villagers SET morale = MIN(100, morale + 2) WHERE id = ?').run(alive.id);
+    heardBy = alive.name;
+  }
 
-  res.json({ ok: true, whisper: clean });
+  // Push to connected viewers as notification
+  const desc = heardBy ? `"${clean}" — ${heardBy} feels inspired.` : clean;
+  pushEvent(req.worldId, { type: 'whisper', title: 'A voice from beyond...', description: desc, severity: 'info' });
+
+  res.json({ ok: true, whisper: clean, heardBy });
 });
 
 module.exports = router;

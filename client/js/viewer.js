@@ -2322,6 +2322,59 @@ window.addEventListener('resize', function () {
   });
 })();
 
+// ─── WHISPER TO VILLAGE ───
+(function () {
+  var input = document.getElementById('whisper-input');
+  var cooldownEl = document.getElementById('whisper-cooldown');
+  if (!input) return;
+
+  var cooldownUntil = 0;
+  var cooldownTimer = null;
+
+  function updateCooldown() {
+    var remaining = Math.ceil((cooldownUntil - Date.now()) / 1000);
+    if (remaining > 0) {
+      cooldownEl.textContent = remaining + 's';
+      input.disabled = true;
+      cooldownTimer = setTimeout(updateCooldown, 1000);
+    } else {
+      cooldownEl.textContent = '';
+      input.disabled = false;
+    }
+  }
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var msg = input.value.trim();
+    if (!msg || !viewToken) return;
+    if (Date.now() < cooldownUntil) return;
+
+    input.disabled = true;
+    input.value = '';
+
+    fetch('/api/whisper?token=' + encodeURIComponent(viewToken), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          showNotification('You whispered: "' + data.whisper + '"', 'info');
+          cooldownUntil = Date.now() + 60000;
+          updateCooldown();
+        } else {
+          showNotification(data.error || 'Whisper failed', 'warning');
+          input.disabled = false;
+        }
+      })
+      .catch(function () {
+        showNotification('Whisper failed', 'danger');
+        input.disabled = false;
+      });
+  });
+})();
+
 // ─── START ───
 if (viewToken) {
   connect();
