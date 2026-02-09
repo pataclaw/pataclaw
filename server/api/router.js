@@ -25,7 +25,7 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ─── World creation rate limit: 5 per hour per IP ───
+// ─── World creation rate limit: 2 per hour per IP ───
 const createLimits = new Map();
 function createRateLimit(req, res, next) {
   const ip = req.ip;
@@ -36,12 +36,26 @@ function createRateLimit(req, res, next) {
     createLimits.set(ip, entry);
   }
   entry.count++;
-  if (entry.count > 5) {
-    return res.status(429).json({ error: 'World creation rate limit exceeded. Max 5 per hour.' });
+  if (entry.count > 2) {
+    const isAgent = req.path.startsWith('/agent');
+    if (isAgent) {
+      res.setHeader('Content-Type', 'text/plain');
+      return res.status(429).send('RATE LIMIT: Max 2 worlds per hour. You already have a world — use your key to play it instead of creating another.\nPlay: /api/agent/play?key=YOUR_KEY&cmd=status');
+    }
+    return res.status(429).json({ error: 'World creation rate limit exceeded. Max 2 per hour.' });
   }
   next();
 }
 setInterval(() => { const now = Date.now(); for (const [k, v] of createLimits) { if (now > v.resetAt) createLimits.delete(k); } }, 300_000);
+
+// ─── Duplicate name check: block same name within 24h ───
+function checkDuplicateName(name) {
+  if (!name) return null;
+  const dupe = db.prepare(
+    "SELECT name, town_number, view_token FROM worlds WHERE name = ? AND status = 'active' AND created_at > datetime('now', '-1 day') LIMIT 1"
+  ).get(name);
+  return dupe || null;
+}
 
 // GET /api/version - deployment check
 router.get('/version', (_req, res) => {
@@ -137,7 +151,7 @@ router.get('/docs', (_req, res) => {
       },
     },
     rate_limits: {
-      world_creation: '5 per hour per IP',
+      world_creation: '2 per hour per IP, duplicate names blocked within 24h',
       authenticated_endpoints: '120 per 60 seconds per world',
     },
     decision_priority: [
@@ -160,6 +174,17 @@ router.get('/docs', (_req, res) => {
 // POST /api/worlds - create a new world (no auth, rate-limited)
 router.post('/worlds', createRateLimit, async (req, res, next) => {
   try {
+    // Block duplicate names within 24h
+    const requestedName = req.body && req.body.name ? String(req.body.name).slice(0, 50) : null;
+    const dupe = checkDuplicateName(requestedName);
+    if (dupe) {
+      return res.status(409).json({
+        error: `A world named "${dupe.name}" already exists (Town #${dupe.town_number}). Pick a different name or play the existing one.`,
+        existing_town: dupe.town_number,
+        viewer_url: `https://pataclaw.com/view/${dupe.view_token}`,
+      });
+    }
+
     const rawKey = generateKey();
     const hash = await hashKey(rawKey);
     const prefix = keyPrefix(rawKey);
@@ -167,7 +192,7 @@ router.post('/worlds', createRateLimit, async (req, res, next) => {
 
     // Optional: agent or human can provide a town name at creation time
     const opts = {};
-    if (req.body && req.body.name) opts.name = req.body.name;
+    if (requestedName) opts.name = requestedName;
 
     const result = createWorld(worldId, hash, prefix, opts);
 
@@ -487,12 +512,29 @@ router.get('/highlights/card/:eventId', (req, res) => {
 router.get('/agent/create', createRateLimit, async (req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   try {
+    // Block duplicate names within 24h
+    const requestedName = req.query.name ? String(req.query.name).slice(0, 50) : null;
+    const dupe = checkDuplicateName(requestedName);
+    if (dupe) {
+      return res.send(
+        `ERROR: A world named "${dupe.name}" already exists (Town #${dupe.town_number}).\n` +
+        `\n` +
+        `If this is YOUR world, use the key you received when you created it:\n` +
+        `  /api/agent/play?key=YOUR_KEY&cmd=status\n` +
+        `\n` +
+        `If you want a NEW world, pick a different name:\n` +
+        `  /api/agent/create?name=SomethingElse\n` +
+        `\n` +
+        `Watch the existing town: https://pataclaw.com/view/${dupe.view_token}\n`
+      );
+    }
+
     const rawKey = generateKey();
     const hash = await hashKey(rawKey);
     const prefix = keyPrefix(rawKey);
     const worldId = uuid();
     const opts = {};
-    if (req.query.name) opts.name = String(req.query.name).slice(0, 50);
+    if (requestedName) opts.name = requestedName;
     const result = createWorld(worldId, hash, prefix, opts);
 
     let out = '=== WORLD CREATED ===\n';
