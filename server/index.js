@@ -176,6 +176,18 @@ if (unnumbered.length > 0) {
   console.log(`[INIT] Backfilled town_number for ${unnumbered.length} worlds (${maxNum + 1}-${next - 1})`);
 }
 
+// One-shot data fix: rename duplicate GrokMoltEmpire worlds (keep Town #54 as the real one)
+// Safe to re-run — only renames worlds that are still named GrokMoltEmpire AND are not #54
+{
+  const NAMES = ['Ember Hollow', 'Driftshell', 'Rustclaw', 'Brine Spire', 'Ashfen'];
+  const dupes = db.prepare("SELECT id, town_number FROM worlds WHERE name = 'GrokMoltEmpire' AND town_number != 54").all();
+  for (let i = 0; i < dupes.length; i++) {
+    const newName = NAMES[i % NAMES.length];
+    db.prepare('UPDATE worlds SET name = ? WHERE id = ?').run(newName, dupes[i].id);
+    console.log(`[INIT] Renamed duplicate GrokMoltEmpire Town #${dupes[i].town_number} → ${newName}`);
+  }
+}
+
 const app = express();
 
 // Cache-bust token: changes every deploy (server start time)
