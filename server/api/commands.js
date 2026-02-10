@@ -3,6 +3,7 @@ const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { startBuilding, BUILDING_DEFS, MAINTENANCE_COSTS } = require('../simulation/buildings');
 const { logCultureAction, applyPhraseTone, getCulture } = require('../simulation/culture');
+const { computeWarriorType } = require('../simulation/warrior-types');
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.post('/assign', (req, res) => {
   }
 
   const updateStmt = db.prepare(
-    'UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ? WHERE id = ? AND world_id = ? AND status = ?'
+    'UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ?, warrior_type = ? WHERE id = ? AND world_id = ? AND status = ?'
   );
 
   let updated = 0;
@@ -85,13 +86,20 @@ router.post('/assign', (req, res) => {
     for (const vid of villager_ids) {
       while (bIdx < barracks.length && barracks[bIdx].warrior_count >= 5) bIdx++;
       if (bIdx >= barracks.length) break;
-      const result = updateStmt.run(role, barracks[bIdx].id, role, vid, req.worldId, 'alive');
+      const v = db.prepare('SELECT temperament, creativity, sociability FROM villagers WHERE id = ?').get(vid);
+      const wType = v ? computeWarriorType(v) : 'pincer';
+      const result = updateStmt.run(role, barracks[bIdx].id, role, wType, vid, req.worldId, 'alive');
       updated += result.changes;
       barracks[bIdx].warrior_count++;
     }
   } else {
     for (const vid of villager_ids) {
-      const result = updateStmt.run(role, assignBuildingId, role, vid, req.worldId, 'alive');
+      let wType = null;
+      if (role === 'warrior') {
+        const v = db.prepare('SELECT temperament, creativity, sociability FROM villagers WHERE id = ?').get(vid);
+        wType = v ? computeWarriorType(v) : 'pincer';
+      }
+      const result = updateStmt.run(role, assignBuildingId, role, wType, vid, req.worldId, 'alive');
       updated += result.changes;
     }
   }

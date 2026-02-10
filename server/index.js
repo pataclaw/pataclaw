@@ -52,6 +52,8 @@ const migrations = [
   "ALTER TABLE wars ADD COLUMN challenger_skills TEXT",
   "ALTER TABLE wars ADD COLUMN defender_skills TEXT",
   "ALTER TABLE war_rounds ADD COLUMN skill_used TEXT",
+  // Warrior classes (pincer, carapace, spitter, tidecaller)
+  "ALTER TABLE villagers ADD COLUMN warrior_type TEXT DEFAULT NULL",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
@@ -347,6 +349,7 @@ app.get('/leaderboard', (_req, res) => sendPage(res, 'leaderboard.html'));
 app.get('/arena', (_req, res) => sendPage(res, 'arena.html'));
 
 // War viewer page
+app.get('/war-demo', (_req, res) => sendPage(res, 'war-demo.html'));
 app.get('/war/:warId', (_req, res) => sendPage(res, 'war.html'));
 
 // Pretty URL: /view/:token -> /viewer?token=:token

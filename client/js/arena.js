@@ -308,29 +308,6 @@
     }
   }
 
-  // ─── Bettor Leaderboard ───
-  async function loadBettorLeaderboard() {
-    try {
-      var res = await fetch('/api/arena/leaderboard');
-      var data = await res.json();
-      var top = data.leaderboard || [];
-
-      var el = document.getElementById('bettor-list');
-      if (top.length === 0) {
-        el.innerHTML = '<div class="empty">No bettors yet</div>';
-        return;
-      }
-
-      el.innerHTML = top.map(function(b, i) {
-        return '<div class="bettor-entry">' +
-          '<span class="bettor-name">#' + (i + 1) + ' ' + esc(b.display_name) + (b.is_agent ? ' <span class="bettor-agent">[AI]</span>' : '') + '</span>' +
-          '<span class="bettor-credits">' + b.credits + ' credits</span>' +
-          '<span class="bettor-record">' + b.win_count + 'W/' + b.loss_count + 'L | wagered: ' + b.total_wagered + '</span>' +
-        '</div>';
-      }).join('');
-    } catch {}
-  }
-
   // ─── Refresh Balance ───
   async function refreshBalance() {
     if (!sessionToken) return;
@@ -348,12 +325,9 @@
     await ensureSession();
     loadWars();
     loadHistory();
-    loadBettorLeaderboard();
-
     // Refresh periodically
     setInterval(loadWars, 10000);
     setInterval(loadHistory, 30000);
-    setInterval(loadBettorLeaderboard, 30000);
     setInterval(refreshBalance, 15000);
   }
 

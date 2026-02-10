@@ -856,6 +856,7 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-n-farmer-hi  { color: #88ff66; }
 #world .c-n-warrior    { color: #ff5544; }
 #world .c-n-warrior-hi { color: #ff7766; }
+#world .c-n-warrior-molt { color: #ffd700; }
 #world .c-n-builder    { color: #ee9933; }
 #world .c-n-builder-hi { color: #ffbb55; }
 #world .c-n-scout      { color: #44cccc; }

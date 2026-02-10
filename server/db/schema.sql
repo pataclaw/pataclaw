@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS villagers (
     is_chronicler INTEGER NOT NULL DEFAULT 0,
     last_molt_tick INTEGER DEFAULT 0,
     molt_count INTEGER DEFAULT 0,
+    warrior_type TEXT DEFAULT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

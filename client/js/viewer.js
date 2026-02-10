@@ -51,6 +51,13 @@ const ROLE_HATS = {
   fisherman: '  ~o~  ', hunter: '  >=>  ',
 };
 
+const WARRIOR_TYPE_HATS = {
+  pincer:     ' )=(=( ',
+  carapace:   ' [=#=] ',
+  spitter:    ' >>->> ',
+  tidecaller: ' ~*+*~ ',
+};
+
 var ROLE_NAME_COLORS = {
   idle: 'c-n-idle', farmer: 'c-n-farmer', warrior: 'c-n-warrior',
   builder: 'c-n-builder', scout: 'c-n-scout', scholar: 'c-n-scholar',
@@ -2012,7 +2019,9 @@ function renderScene(data) {
     var v = a.data || {};
     var ap = v.appearance || { eyes: 'o o', mouth: '___', head: '.---.', body: '|===|' };
     var role = v.role || 'idle';
-    var hat = ROLE_HATS[role] || ROLE_HATS.idle;
+    var hat = (role === 'warrior' && v.warrior_type && WARRIOR_TYPE_HATS[v.warrior_type])
+      ? WARRIOR_TYPE_HATS[v.warrior_type]
+      : (ROLE_HATS[role] || ROLE_HATS.idle);
     var x = Math.round(a.x);
     var serverAct = (v.activity && v.activity.activity) ? v.activity.activity : 'idle';
 
@@ -2307,10 +2316,18 @@ function renderScene(data) {
     var roleSymbol = ROLE_SYMBOLS[role] || '\u00b7';
     var lvl = v.molt_count || 0;
     var maxNameLen = lvl > 0 ? 5 : 6;
-    var nameStr = roleSymbol + v.name.slice(0, maxNameLen) + (lvl > 0 ? lvl : '');
+    var nameStr;
+    if (role === 'warrior' && v.warrior_type) {
+      var typeInitial = v.warrior_type[0].toUpperCase(); // P, C, S, T
+      var wLevel = Math.min(5, Math.floor((v.experience || 0) / 100) + 1);
+      nameStr = roleSymbol + v.name.slice(0, 4) + typeInitial + wLevel;
+    } else {
+      nameStr = roleSymbol + v.name.slice(0, maxNameLen) + (lvl > 0 ? lvl : '');
+    }
     var nx = x + Math.floor((7 - nameStr.length) / 2);
     var nameClass = ROLE_NAME_COLORS[role] || 'c-n-idle';
-    if ((v.experience || 0) > 200) nameClass += '-hi';
+    if (role === 'warrior' && (v.molt_count || 0) > 0) nameClass = 'c-n-warrior-molt';
+    else if ((v.experience || 0) > 200) nameClass += '-hi';
     for (var ni = 0; ni < nameStr.length && nx + ni < W; ni++) {
       if (nx + ni >= 0) setCell(grid, nx + ni, nameY, nameStr[ni], nameClass);
     }

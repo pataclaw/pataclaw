@@ -15,6 +15,10 @@
   --border: #333;
   --hp-challenger: #ff4444;
   --hp-defender: #4488ff;
+  --pincer: #ff5544;
+  --carapace: #4488cc;
+  --spitter: #88cc44;
+  --tidecaller: #44cccc;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -32,7 +36,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  max-width: 1200px;
+  max-width: 1800px;
   margin: 0 auto;
 }
 
@@ -41,10 +45,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
-  min-height: 60px;
+  min-height: 55px;
 }
 
 .side-info {
@@ -67,7 +71,7 @@ body {
 
 .side-hp-bar {
   width: 100%;
-  max-width: 250px;
+  max-width: 300px;
   height: 12px;
   background: var(--dark);
   border: 1px solid var(--border);
@@ -81,9 +85,15 @@ body {
 .challenger-fill { background: var(--hp-challenger); }
 .defender-fill { background: var(--hp-defender); }
 
-.side-hp-text {
+.side-stats {
+  display: flex;
+  gap: 12px;
   font-size: 11px;
   color: var(--dim);
+}
+
+.side-warriors {
+  color: var(--red);
 }
 
 .side-phase {
@@ -116,175 +126,132 @@ body {
   color: var(--dim);
 }
 
-/* ─── Battlefield ─── */
+/* ─── Battlefield (panoramic <pre> grid) ─── */
 #battlefield {
   flex: 1;
   position: relative;
   overflow: hidden;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-}
-
-.layer {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-/* Sky layer */
-#sky-layer {
-  background: linear-gradient(180deg, #0a0a1a 0%, #0a0a0a 40%);
-}
-
-/* Spires */
-#spire-layer {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 60px;
-  align-items: flex-end;
-  bottom: 40%;
-  height: 60%;
-}
-
-.spire {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  line-height: 1.1;
-  white-space: pre;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-}
-.left-spire { color: var(--hp-challenger); }
-.right-spire { color: var(--hp-defender); }
-
-.spire-segment { display: block; }
-.spire-segment.intact { opacity: 1; }
-.spire-segment.cracked { opacity: 0.6; color: var(--orange); }
-.spire-segment.fallen { opacity: 0.2; color: var(--dim); text-decoration: line-through; }
-
-/* Buildings */
-#building-layer {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 20px;
-  align-items: flex-end;
-  bottom: 30%;
-  height: 70%;
-}
-
-.buildings {
-  display: flex;
-  gap: 4px;
-  align-items: flex-end;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  line-height: 1.1;
-}
-
-.building-sprite {
-  white-space: pre;
-  text-align: center;
-}
-.building-sprite.standing { color: var(--fg); }
-.building-sprite.burning { color: var(--orange); }
-.building-sprite.destroyed { color: var(--dim); opacity: 0.3; }
-
-@keyframes fire-flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-.building-sprite.burning { animation: fire-flicker 0.3s infinite; }
-
-/* Ground */
-#ground-layer {
-  position: absolute;
-  bottom: 25%;
-  width: 100%;
-  height: 3px;
-  background: var(--border);
-}
-
-/* Armies */
-#army-layer {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 40px;
-  align-items: flex-end;
-  bottom: 5%;
-  height: 25%;
-}
-
-.army {
-  display: flex;
-  gap: 2px;
-  align-items: flex-end;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-}
-.left-army { flex-direction: row; }
-.right-army { flex-direction: row-reverse; }
-
-.warrior-sprite {
-  white-space: pre;
-  text-align: center;
-  transition: opacity 0.3s;
-}
-.warrior-sprite.fighting { color: var(--fg); }
-.warrior-sprite.charging { color: var(--green); }
-.warrior-sprite.defending { color: var(--blue); }
-.warrior-sprite.fallen { color: var(--dim); opacity: 0.3; }
-.warrior-sprite.dead { color: var(--dim); opacity: 0.15; }
-
-@keyframes warrior-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
-.warrior-sprite.fighting { animation: warrior-bob 1.2s ease-in-out infinite; }
-.warrior-sprite.charging { animation: warrior-bob 0.4s ease-in-out infinite; }
-
-/* Effects */
-#effect-layer {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 24px;
-  font-weight: bold;
-  opacity: 0;
-  transition: opacity 0.3s;
-  z-index: 10;
-}
-#effect-layer.active {
-  opacity: 1;
 }
 
-.skill-flash {
-  padding: 8px 16px;
-  border: 2px solid;
-  background: rgba(0,0,0,0.8);
-  font-size: 16px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+#war-grid {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 9px;
+  line-height: 1.15;
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  color: var(--fg);
+  letter-spacing: 0;
 }
-.skill-flash.red { color: var(--red); border-color: var(--red); }
-.skill-flash.blue { color: var(--blue); border-color: var(--blue); }
-.skill-flash.green { color: var(--green); border-color: var(--green); }
-.skill-flash.gold { color: var(--gold); border-color: var(--gold); }
 
-.damage-number {
+/* Auto-scale for different screen widths */
+@media (min-width: 1800px) { #war-grid { font-size: 10px; } }
+@media (max-width: 1440px) { #war-grid { font-size: 8px; } }
+@media (max-width: 1200px) { #war-grid { font-size: 7px; } }
+@media (max-width: 900px) { #war-grid { font-size: 5.5px; } }
+
+/* ─── Grid color classes ─── */
+
+/* Sky */
+.c-sky-dawn  { color: #553355; }
+.c-sky-day   { color: #222; }
+.c-sky-dusk  { color: #442222; }
+.c-sky-night { color: #111; }
+.c-star      { color: #aaa; }
+
+/* Ground (biome) */
+.c-gnd-v { color: #336633; }
+.c-gnd-s { color: #666655; }
+.c-gnd-m { color: #553366; }
+.c-gnd-d { color: #887744; }
+.c-gnd-f { color: #445566; }
+.c-gnd-e { color: #774422; }
+
+.c-ground-line { color: #555; }
+
+/* Battlefield ground */
+.c-war-ground { color: #554433; }
+.c-war-fire   { color: #cc4400; }
+.c-war-ash    { color: #333; }
+
+/* Hills */
+.c-hill { color: #334433; }
+
+/* Buildings */
+.c-bld           { color: #999; }
+.c-bld-ruin      { color: #444; }
+.c-bld-fire      { color: #ff6600; }
+.c-bld-fire-alt  { color: #cc3300; }
+
+/* Spires */
+.c-spire-chal   { color: var(--hp-challenger); }
+.c-spire-def    { color: var(--hp-defender); }
+.c-spire-crack  { color: var(--orange); }
+.c-spire-fallen { color: #333; }
+
+/* Warrior type colors */
+.c-w-pincer     { color: var(--pincer); }
+.c-w-carapace   { color: var(--carapace); }
+.c-w-spitter    { color: var(--spitter); }
+.c-w-tidecaller { color: var(--tidecaller); }
+.c-w-fallen     { color: #555; }
+.c-w-dead       { color: #333; }
+
+/* Molt glow */
+.c-molt-glow { color: var(--gold) !important; }
+
+/* Damage numbers */
+.c-dmg-chal { color: var(--hp-challenger); }
+.c-dmg-def  { color: var(--hp-defender); }
+
+/* War zone effects */
+.c-war-clash     { color: var(--red); }
+.c-war-countdown { color: var(--gold); }
+.c-war-pending   { color: var(--dim); }
+.c-war-event     { color: var(--orange); }
+
+/* Weather */
+.c-weather { color: #555; }
+
+/* ─── Narrator Overlay ─── */
+#narrator-overlay {
   position: absolute;
-  font-size: 20px;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 36px;
   font-weight: bold;
-  animation: damage-float 1.5s ease-out forwards;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+  text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 0 60px rgba(0,0,0,0.8);
+  white-space: nowrap;
 }
-.damage-number.challenger { color: var(--hp-challenger); left: 25%; }
-.damage-number.defender { color: var(--hp-defender); right: 25%; }
 
-@keyframes damage-float {
-  0% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-40px); }
+.narrator-red    { color: var(--red); }
+.narrator-blue   { color: var(--blue); }
+.narrator-green  { color: var(--green); }
+.narrator-gold   { color: var(--gold); }
+.narrator-orange { color: var(--orange); }
+
+@keyframes narrator-pulse {
+  0% { transform: translateX(-50%) scale(0.8); opacity: 0; }
+  15% { transform: translateX(-50%) scale(1.1); opacity: 1; }
+  30% { transform: translateX(-50%) scale(1.0); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1.0); opacity: 0; }
+}
+
+#narrator-overlay[style*="opacity: 1"] {
+  animation: narrator-pulse 2.5s ease-out forwards;
 }
 
 /* ─── Footer ─── */
@@ -335,6 +302,7 @@ body {
 #battle-log .skill-text { color: var(--gold); }
 #battle-log .damage-text { color: var(--red); }
 #battle-log .phase-text { color: var(--orange); }
+#battle-log .casualty-text { color: var(--red); font-weight: bold; }
 
 #war-status-bar {
   display: flex;
@@ -358,7 +326,7 @@ body {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.85);
-  z-index: 20;
+  z-index: 25;
   justify-content: center;
   align-items: center;
   flex-direction: column;
@@ -370,24 +338,13 @@ body {
 }
 #war-resolved .victory { color: var(--gold); font-size: 32px; font-weight: bold; letter-spacing: 4px; }
 #war-resolved .detail { color: var(--fg); font-size: 14px; }
-#war-resolved a { color: var(--green); text-decoration: none; font-size: 14px; }
-
-/* Weather particles */
-.rain-particle, .snow-particle {
-  position: absolute;
-  font-size: 10px;
-  color: var(--dim);
-  opacity: 0.3;
-  pointer-events: none;
-}
+#war-resolved a { color: var(--green); text-decoration: none; font-size: 14px; margin: 0 8px; }
 
 /* ─── Responsive ─── */
 @media (max-width: 700px) {
   #war-header { padding: 4px 8px; }
   .side-name { font-size: 11px; }
   #war-title { font-size: 16px; }
-  .buildings { font-size: 9px; }
-  .army { font-size: 9px; }
-  .spire { font-size: 10px; }
-  #battlefield { min-height: 300px; }
+  #narrator-overlay { font-size: 20px; letter-spacing: 3px; }
+  #battlefield { min-height: 250px; }
 }

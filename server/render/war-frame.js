@@ -1,9 +1,12 @@
 const db = require('../db/connection');
 const { getSkillInfo } = require('../simulation/war-skills');
+const { getWarriorLevel } = require('../simulation/warrior-types');
+const { buildTownFrame } = require('./ascii');
 
-// ─── War Frame Generator ───
-// Builds visual data for the ASCII battlefield renderer.
-// Consumed by client/js/war-viewer.js via SSE.
+// ─── War Panorama Frame Generator ───
+// Builds full panoramic data for the ASCII war renderer.
+// Includes both towns' full frame data + war overlay + per-warrior combat data.
+// Consumed by client/js/war-panorama.js via SSE.
 
 function getPhase(hp) {
   const pct = hp / 200;
@@ -12,15 +15,20 @@ function getPhase(hp) {
   return 'spire';
 }
 
-function getWarriorSprites(worldId, hp) {
+function getWarriorCombatData(worldId, hp) {
   const warriors = db.prepare(
-    "SELECT name, experience, molt_count, trait FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive' ORDER BY experience DESC LIMIT 15"
+    "SELECT id, name, experience, molt_count, trait, warrior_type, temperament, creativity, sociability FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive' ORDER BY experience DESC LIMIT 15"
+  ).all(worldId);
+
+  // Also include recently killed warriors (killed_in_war) for fallen sprites
+  const fallen = db.prepare(
+    "SELECT id, name, experience, molt_count, trait, warrior_type FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'killed_in_war' ORDER BY experience DESC LIMIT 10"
   ).all(worldId);
 
   const phase = getPhase(hp);
   const pct = hp / 200;
 
-  return warriors.map((w, i) => {
+  const aliveSprites = warriors.map((w, i) => {
     let state = 'fighting';
     if (phase === 'spire' && i > warriors.length * 0.4) state = 'fallen';
     else if (phase === 'burn' && i > warriors.length * 0.7) state = 'fallen';
@@ -29,6 +37,9 @@ function getWarriorSprites(worldId, hp) {
 
     return {
       name: w.name,
+      type: w.warrior_type || 'pincer',
+      level: getWarriorLevel(w.experience),
+      molt: w.molt_count || 0,
       state,
       x_slot: i,
       xp: w.experience || 0,
@@ -36,6 +47,20 @@ function getWarriorSprites(worldId, hp) {
       trait: w.trait,
     };
   });
+
+  const fallenSprites = fallen.map((w, i) => ({
+    name: w.name,
+    type: w.warrior_type || 'pincer',
+    level: getWarriorLevel(w.experience),
+    molt: w.molt_count || 0,
+    state: 'dead',
+    x_slot: aliveSprites.length + i,
+    xp: w.experience || 0,
+    molted: (w.molt_count || 0) > 0,
+    trait: w.trait,
+  }));
+
+  return [...aliveSprites, ...fallenSprites];
 }
 
 function getBuildingStates(worldId, hp) {
@@ -46,11 +71,10 @@ function getBuildingStates(worldId, hp) {
   const phase = getPhase(hp);
   const pct = hp / 200;
 
-  // Calculate how many buildings are burning/destroyed based on HP
   let burningCount = 0;
   let destroyedCount = 0;
   if (phase === 'burn') {
-    const burnPct = (0.60 - pct) / 0.40; // 0 at 60% HP, 1 at 20% HP
+    const burnPct = (0.60 - pct) / 0.40;
     burningCount = Math.floor(buildings.length * burnPct * 0.6);
     destroyedCount = Math.floor(buildings.length * burnPct * 0.2);
   } else if (phase === 'spire') {
@@ -76,20 +100,17 @@ function getSpireState(worldId, hp) {
   ).get(worldId).c;
 
   const phase = getPhase(hp);
-  const pct = hp / 200;
 
   let intact = segments;
   let cracked = 0;
   let fallen = 0;
 
   if (phase === 'spire') {
-    // Each ~10 HP lost in spire phase = 1 segment falls
-    const spireHpLost = Math.max(0, 40 - hp); // 40 is the spire threshold
+    const spireHpLost = Math.max(0, 40 - hp);
     fallen = Math.min(segments, Math.floor(spireHpLost / (40 / Math.max(1, segments))));
     cracked = Math.min(segments - fallen, Math.ceil(fallen * 0.5));
     intact = Math.max(0, segments - fallen - cracked);
   } else if (phase === 'burn') {
-    // Light cracking begins
     cracked = Math.min(2, Math.floor(segments * 0.1));
     intact = segments - cracked;
   }
@@ -111,7 +132,6 @@ function getSkillStates(warId, side) {
   let skillIds;
   try { skillIds = JSON.parse(war[skillsCol] || '[]'); } catch { return []; }
 
-  // Get used skills from war_rounds
   const rounds = db.prepare('SELECT skill_used FROM war_rounds WHERE war_id = ? AND skill_used IS NOT NULL').all(warId);
   const usedByThisSide = new Set();
   for (const r of rounds) {
@@ -178,15 +198,10 @@ function buildWarFrame(warId) {
     try { latestSkill = JSON.parse(latestRound.skill_used); } catch { /* ignore */ }
   }
 
-  // Parse casualties from narrative (cosmetic)
-  let casualties = null;
-  if (latestRound && latestRound.narrative) {
-    // Casualties are encoded in narrative for now
-    const match = latestRound.narrative.match(/Casualties: (.+)/);
-    if (match) {
-      try { casualties = JSON.parse(match[1]); } catch { /* ignore */ }
-    }
-  }
+  // Build full town frames for both sides
+  let challengerTown = null, defenderTown = null;
+  try { challengerTown = buildTownFrame(war.challenger_id); } catch { /* ignore */ }
+  try { defenderTown = buildTownFrame(war.defender_id); } catch { /* ignore */ }
 
   return {
     war_id: warId,
@@ -202,7 +217,8 @@ function buildWarFrame(warId) {
       hp: war.challenger_hp,
       max_hp: 200,
       phase: getPhase(war.challenger_hp),
-      warriors: getWarriorSprites(war.challenger_id, war.challenger_hp),
+      town: challengerTown,
+      warriors: getWarriorCombatData(war.challenger_id, war.challenger_hp),
       buildings: getBuildingStates(war.challenger_id, war.challenger_hp),
       spire: getSpireState(war.challenger_id, war.challenger_hp),
       skills: getSkillStates(warId, 'challenger'),
@@ -215,7 +231,8 @@ function buildWarFrame(warId) {
       hp: war.defender_hp,
       max_hp: 200,
       phase: getPhase(war.defender_hp),
-      warriors: getWarriorSprites(war.defender_id, war.defender_hp),
+      town: defenderTown,
+      warriors: getWarriorCombatData(war.defender_id, war.defender_hp),
       buildings: getBuildingStates(war.defender_id, war.defender_hp),
       spire: getSpireState(war.defender_id, war.defender_hp),
       skills: getSkillStates(warId, 'defender'),
@@ -230,7 +247,6 @@ function buildWarFrame(warId) {
         challenger: latestRound.challenger_damage,
         defender: latestRound.defender_damage,
       },
-      casualties,
     } : null,
 
     battle_log: rounds.slice(-5).map(r => r.narrative),

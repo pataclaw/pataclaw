@@ -299,4 +299,4 @@ function buildMapFrame(worldId) {
   };
 }
 
-module.exports = { buildFrame };
+module.exports = { buildFrame, buildTownFrame };

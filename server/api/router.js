@@ -8,6 +8,7 @@ const { processCatchup } = require('../simulation/tick');
 const rateLimit = require('../middleware/rateLimit');
 const config = require('../config');
 const db = require('../db/connection');
+const { computeWarriorType } = require('../simulation/warrior-types');
 
 const { authQuery } = require('../auth/middleware');
 const worldRouter = require('./world');
@@ -940,7 +941,7 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
           }
         }
 
-        const updateStmt = db.prepare('UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ? WHERE id = ? AND world_id = ?');
+        const updateStmt = db.prepare('UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ?, warrior_type = ? WHERE id = ? AND world_id = ?');
         const names = [];
         if (role === 'warrior') {
           // Distribute warriors across barracks with capacity
@@ -951,13 +952,15 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
           for (const v of idle) {
             while (bIdx < allBarracks.length && allBarracks[bIdx].warrior_count >= 5) bIdx++;
             if (bIdx >= allBarracks.length) break;
-            updateStmt.run(role, allBarracks[bIdx].id, role, v.id, worldId);
+            const vFull = db.prepare('SELECT temperament, creativity, sociability FROM villagers WHERE id = ?').get(v.id);
+            const wType = vFull ? computeWarriorType(vFull) : 'pincer';
+            updateStmt.run(role, allBarracks[bIdx].id, role, wType, v.id, worldId);
             allBarracks[bIdx].warrior_count++;
             names.push(v.name);
           }
         } else {
           for (const v of idle) {
-            updateStmt.run(role, buildingId, role, v.id, worldId);
+            updateStmt.run(role, buildingId, role, null, v.id, worldId);
             names.push(v.name);
           }
         }

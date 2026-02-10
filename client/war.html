@@ -30,7 +30,10 @@
         <div class="side-hp-bar">
           <div class="hp-fill challenger-fill" id="challenger-hp-fill"></div>
         </div>
-        <div class="side-hp-text" id="challenger-hp-text">200/200</div>
+        <div class="side-stats">
+          <span class="side-hp-text" id="challenger-hp-text">200/200</span>
+          <span class="side-warriors" id="challenger-warriors">&#x2694; 0</span>
+        </div>
         <div class="side-phase" id="challenger-phase">CLASH</div>
       </div>
       <div id="war-center-info">
@@ -43,27 +46,17 @@
         <div class="side-hp-bar">
           <div class="hp-fill defender-fill" id="defender-hp-fill"></div>
         </div>
-        <div class="side-hp-text" id="defender-hp-text">200/200</div>
+        <div class="side-stats">
+          <span class="side-hp-text" id="defender-hp-text">200/200</span>
+          <span class="side-warriors" id="defender-warriors">&#x2694; 0</span>
+        </div>
         <div class="side-phase" id="defender-phase">CLASH</div>
       </div>
     </div>
 
     <div id="battlefield">
-      <div id="sky-layer" class="layer"></div>
-      <div id="spire-layer" class="layer">
-        <div id="challenger-spire" class="spire left-spire"></div>
-        <div id="defender-spire" class="spire right-spire"></div>
-      </div>
-      <div id="building-layer" class="layer">
-        <div id="challenger-buildings" class="buildings left-buildings"></div>
-        <div id="defender-buildings" class="buildings right-buildings"></div>
-      </div>
-      <div id="ground-layer" class="layer"></div>
-      <div id="army-layer" class="layer">
-        <div id="challenger-army" class="army left-army"></div>
-        <div id="defender-army" class="army right-army"></div>
-      </div>
-      <div id="effect-layer" class="layer"></div>
+      <pre id="war-grid"></pre>
+      <div id="narrator-overlay" class="narrator-flash"></div>
     </div>
 
     <div id="war-footer">
@@ -82,6 +75,6 @@
     </div>
   </div>
 
-  <script src="/js/war-viewer.js"></script>
+  <script src="/js/war-panorama.js"></script>
 </body>
 </html>

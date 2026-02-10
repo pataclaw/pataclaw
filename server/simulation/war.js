@@ -1,6 +1,7 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { checkSkillTrigger, applySkillEffect, autoSelectSkills } = require('./war-skills');
+const { WARRIOR_TYPES, getWarriorLevel } = require('./warrior-types');
 
 // War phases: pending → countdown → active → resolved
 // Pending: challenger declared, waiting for defender to accept (expires after 360 ticks)
@@ -242,16 +243,45 @@ function computeWarPower(worldId, weather) {
   ).all(worldId);
 
   const warriors = villagers.filter(v => v.role === 'warrior');
-  const avgXp = warriors.length > 0
-    ? warriors.reduce((s, v) => s + (v.experience || 0), 0) / warriors.length
-    : 0;
-  const avgMoltCount = warriors.length > 0
-    ? warriors.reduce((s, v) => s + (v.molt_count || 0), 0) / warriors.length
-    : 0;
   const avgMorale = villagers.length > 0
     ? villagers.reduce((s, v) => s + v.morale, 0) / villagers.length
     : 50;
   const moraleFactor = Math.max(0.5, avgMorale / 50);
+
+  // Per-warrior typed combat stats
+  let totalAttack = 0;
+  let totalWarriorDefense = 0;
+  let healPerRound = 0;
+  let spitterWallBypass = 0;
+  let tidecallerCount = 0;
+  let avgTidecallerLevel = 0;
+
+  for (const w of warriors) {
+    const type = w.warrior_type || 'pincer';
+    const typeDef = WARRIOR_TYPES[type] || WARRIOR_TYPES.pincer;
+    const level = getWarriorLevel(w.experience);
+    const molt = w.molt_count || 0;
+
+    const atk = 2 + typeDef.atkPerLevel * level + typeDef.atkPerMolt * molt;
+    const def = typeDef.defPerLevel * level + typeDef.defPerMolt * molt;
+
+    totalAttack += atk;
+    totalWarriorDefense += def;
+
+    if (typeDef.wallBypass > 0) {
+      spitterWallBypass += typeDef.wallBypass;
+    }
+    if (type === 'tidecaller') {
+      tidecallerCount++;
+      avgTidecallerLevel += level;
+    }
+  }
+
+  // Tidecaller healing
+  if (tidecallerCount > 0) {
+    avgTidecallerLevel /= tidecallerCount;
+    healPerRound = tidecallerCount * (1 + avgTidecallerLevel * 0.5);
+  }
 
   const buildings = db.prepare(
     "SELECT type, level FROM buildings WHERE world_id = ? AND status = 'active'"
@@ -259,10 +289,9 @@ function computeWarPower(worldId, weather) {
 
   const wallLevelSum = buildings.filter(b => b.type === 'wall').reduce((s, b) => s + (b.level || 1), 0);
   const towerLevelSum = buildings.filter(b => b.type === 'watchtower').reduce((s, b) => s + (b.level || 1), 0);
-  const warriorDefense = warriors.length * 1.5;
 
-  const attack = warriors.length * (2 + Math.floor(avgXp / 50) + avgMoltCount) * moraleFactor;
-  const defense = wallLevelSum * 3 + towerLevelSum * 1.5 + warriorDefense;
+  const attack = totalAttack * moraleFactor;
+  const defense = wallLevelSum * 3 + towerLevelSum * 1.5 + totalWarriorDefense;
 
   // Weather modifiers
   const wMod = WEATHER_WAR_MODS[weather] || WEATHER_WAR_MODS.clear;
@@ -285,9 +314,49 @@ function computeWarPower(worldId, weather) {
     defense: (defense + biomeBonus) * wMod.defense,
     wallLevelSum,
     warriors: warriors.length,
-    avgXp: Math.round(avgXp),
+    warriorDetails: warriors,
+    healPerRound,
+    spitterWallBypass: warriors.length > 0 ? spitterWallBypass / warriors.length : 0,
+    avgXp: warriors.length > 0 ? Math.round(warriors.reduce((s, v) => s + (v.experience || 0), 0) / warriors.length) : 0,
     population: villagers.length,
   };
+}
+
+// ─── Per-Warrior Casualties ───
+// Each ~15 damage = 1 warrior casualty. Lowest-level die first.
+// Carapaces have 50% chance to survive a death (absorb hit).
+function allocateCasualties(worldId, damage) {
+  if (damage < 15) return [];
+
+  const warriors = db.prepare(
+    "SELECT id, name, warrior_type, experience, molt_count FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive' ORDER BY experience ASC"
+  ).all(worldId);
+
+  const kills = Math.min(warriors.length, Math.floor(damage / 15));
+  const casualties = [];
+  let killsRemaining = kills;
+  let idx = 0;
+
+  while (killsRemaining > 0 && idx < warriors.length) {
+    const w = warriors[idx];
+    const type = w.warrior_type || 'pincer';
+
+    // Carapaces have 50% chance to survive
+    if (type === 'carapace' && Math.random() < 0.5) {
+      casualties.push({ name: w.name, type, state: 'wounded', survived: true });
+      idx++;
+      killsRemaining--; // still consumes a kill slot
+      continue;
+    }
+
+    // Kill this warrior
+    db.prepare("UPDATE villagers SET status = 'killed_in_war' WHERE id = ?").run(w.id);
+    casualties.push({ name: w.name, type, state: 'dead', survived: false });
+    killsRemaining--;
+    idx++;
+  }
+
+  return casualties;
 }
 
 function processActiveWars(globalTime) {
@@ -441,6 +510,16 @@ function processWarRound(war, globalTime) {
   let dAttack = dPower.attack * dAttackMul;
   let dDefense = dPower.defense * dDefenseMul * dPhaseMul;
 
+  // Spitter wall bypass: reduce wall contribution to enemy defense
+  if (cPower.spitterWallBypass > 0) {
+    const wallDef = dPower.wallLevelSum * 3 * cPower.spitterWallBypass;
+    dDefense -= wallDef;
+  }
+  if (dPower.spitterWallBypass > 0) {
+    const wallDef = cPower.wallLevelSum * 3 * dPower.spitterWallBypass;
+    cDefense -= wallDef;
+  }
+
   // Apply skill multipliers
   if (cSkillMods) {
     cAttack *= (cSkillMods.ownAttackMul || 1);
@@ -492,13 +571,18 @@ function processWarRound(war, globalTime) {
     }
   }
 
-  // Healing from skills
-  let cHeal = 0, dHeal = 0;
-  if (cSkillMods && cSkillMods.heal) cHeal = cSkillMods.heal;
-  if (dSkillMods && dSkillMods.heal) dHeal = dSkillMods.heal;
+  // Tidecaller healing (in addition to skill healing)
+  let cHeal = Math.floor(cPower.healPerRound || 0);
+  let dHeal = Math.floor(dPower.healPerRound || 0);
+  if (cSkillMods && cSkillMods.heal) cHeal += cSkillMods.heal;
+  if (dSkillMods && dSkillMods.heal) dHeal += dSkillMods.heal;
 
   const cHpAfter = Math.min(MAX_HP, Math.max(0, war.challenger_hp - challengerDamage + cHeal));
   const dHpAfter = Math.min(MAX_HP, Math.max(0, war.defender_hp - defenderDamage + dHeal));
+
+  // ─── Per-warrior casualties ───
+  const cCasualties = allocateCasualties(war.challenger_id, challengerDamage);
+  const dCasualties = allocateCasualties(war.defender_id, defenderDamage);
 
   // Generate narrative
   const cName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(war.challenger_id).name;
@@ -511,6 +595,11 @@ function processWarRound(war, globalTime) {
   narrative += '.';
   if (tacticalEvent) narrative += ` ${tacticalEvent.description}`;
   if (skillUsedThisRound) narrative += ` [SKILL] ${skillUsedThisRound.skill_name} activated by ${skillUsedThisRound.side}!`;
+  // Casualty annotations
+  const cDead = cCasualties.filter(c => !c.survived);
+  const dDead = dCasualties.filter(c => !c.survived);
+  if (cDead.length > 0) narrative += ` ${cName} lost ${cDead.map(c => c.name).join(', ')}!`;
+  if (dDead.length > 0) narrative += ` ${dName} lost ${dDead.map(c => c.name).join(', ')}!`;
 
   // Phase annotations
   if (cPhase === 'burn' || dPhase === 'burn') {
@@ -560,6 +649,10 @@ function processWarRound(war, globalTime) {
     narrative,
     challengerName: cName,
     defenderName: dName,
+    casualties: {
+      challenger: cCasualties,
+      defender: dCasualties,
+    },
   };
 }
 

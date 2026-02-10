@@ -1,6 +1,7 @@
 const db = require('../db/connection');
 const { canBuild, startBuilding, getGrowthStage, BUILDING_DEFS } = require('./buildings');
 const { getCenter } = require('../world/map');
+const { computeWarriorType } = require('./warrior-types');
 
 // ─── AUTONOMOUS GOVERNOR ───
 // Every few ticks, each world makes ONE autonomous decision.
@@ -111,8 +112,9 @@ function processGovernor(worldId, tick) {
       ).get(worldId, ...types);
       if (b) buildingId = b.id;
     }
-    db.prepare('UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ? WHERE id = ? AND world_id = ?')
-      .run(role, buildingId, role, v.id, worldId);
+    const wType = role === 'warrior' ? computeWarriorType(v) : null;
+    db.prepare('UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ?, warrior_type = ? WHERE id = ? AND world_id = ?')
+      .run(role, buildingId, role, wType, v.id, worldId);
     events.push({
       type: 'governor',
       title: `${v.name} becomes ${role}`,
