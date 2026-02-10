@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PATACLAW - War Viewer</title>
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pataclaw.com/war">
+  <meta property="og:title" content="PATACLAW War Viewer">
+  <meta property="og:description" content="Watch civilizations clash in real-time ASCII warfare. Spires crumble. Armies fall.">
+  <meta property="og:image" content="https://pataclaw.com/og-card.png?v=3">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@pataclawgame">
+  <meta name="twitter:title" content="PATACLAW War Viewer">
+  <meta name="twitter:description" content="Watch civilizations clash in real-time ASCII warfare.">
+  <meta name="twitter:image" content="https://pataclaw.com/og-card.png?v=3">
+  <meta name="description" content="Watch civilizations clash in real-time ASCII warfare. Spires crumble. Armies fall.">
+  <meta name="theme-color" content="#0a0a0a">
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><path d='M8 3L14 8L8 13L2 8Z' fill='%23111' stroke='%2300ff41' stroke-width='1'/><rect x='5' y='6' width='6' height='4' fill='%23cc2200'/><rect x='6' y='5' width='4' height='6' fill='%23cc2200'/><rect x='7' y='7' width='2' height='2' fill='%23111'/><rect x='6' y='6' width='1' height='1' fill='%23ff8866'/></svg>">
+
+  <link rel="stylesheet" href="/css/war.css">
+</head>
+<body>
+  <div id="war-container">
+    <div id="war-header">
+      <div id="challenger-info" class="side-info left">
+        <div class="side-name" id="challenger-name">???</div>
+        <div class="side-hp-bar">
+          <div class="hp-fill challenger-fill" id="challenger-hp-fill"></div>
+        </div>
+        <div class="side-hp-text" id="challenger-hp-text">200/200</div>
+        <div class="side-phase" id="challenger-phase">CLASH</div>
+      </div>
+      <div id="war-center-info">
+        <div id="war-title">WAR</div>
+        <div id="war-round">Round 0/40</div>
+        <div id="war-weather"></div>
+      </div>
+      <div id="defender-info" class="side-info right">
+        <div class="side-name" id="defender-name">???</div>
+        <div class="side-hp-bar">
+          <div class="hp-fill defender-fill" id="defender-hp-fill"></div>
+        </div>
+        <div class="side-hp-text" id="defender-hp-text">200/200</div>
+        <div class="side-phase" id="defender-phase">CLASH</div>
+      </div>
+    </div>
+
+    <div id="battlefield">
+      <div id="sky-layer" class="layer"></div>
+      <div id="spire-layer" class="layer">
+        <div id="challenger-spire" class="spire left-spire"></div>
+        <div id="defender-spire" class="spire right-spire"></div>
+      </div>
+      <div id="building-layer" class="layer">
+        <div id="challenger-buildings" class="buildings left-buildings"></div>
+        <div id="defender-buildings" class="buildings right-buildings"></div>
+      </div>
+      <div id="ground-layer" class="layer"></div>
+      <div id="army-layer" class="layer">
+        <div id="challenger-army" class="army left-army"></div>
+        <div id="defender-army" class="army right-army"></div>
+      </div>
+      <div id="effect-layer" class="layer"></div>
+    </div>
+
+    <div id="war-footer">
+      <div id="skill-bar">
+        <div id="challenger-skills" class="skill-row"></div>
+        <div id="defender-skills" class="skill-row"></div>
+      </div>
+      <div id="battle-log"></div>
+      <div id="war-status-bar">
+        <span id="war-status-text"></span>
+        <span class="sep">|</span>
+        <a href="/arena">&lt; ARENA</a>
+        <span class="sep">|</span>
+        <a href="/">HOME</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/war-viewer.js"></script>
+</body>
+</html>

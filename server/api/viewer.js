@@ -109,6 +109,18 @@ router.post('/whisper', authViewToken, (req, res) => {
   res.json({ ok: true, whisper: clean, heardBy });
 });
 
+// GET /api/wars/:warId/frame - get current war frame (for initial load)
+router.get('/wars/:warId/frame', (req, res) => {
+  try {
+    const { buildWarFrame } = require('../render/war-frame');
+    const frame = buildWarFrame(req.params.warId);
+    if (!frame) return res.status(404).json({ error: 'War not found' });
+    res.json(frame);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/stream/war?war_id=... - SSE stream for war spectators (public, no auth)
 router.get('/stream/war', (req, res) => {
   const warId = req.query.war_id;
@@ -129,18 +141,26 @@ router.get('/stream/war', (req, res) => {
 
   if (res.socket) res.socket.setNoDelay(true);
 
-  // Send current war state immediately
+  // Send initial war frame immediately
   try {
-    const war = db.prepare(`
-      SELECT w.*, c.name as challenger_name, d.name as defender_name
-      FROM wars w
-      JOIN worlds c ON c.id = w.challenger_id
-      JOIN worlds d ON d.id = w.defender_id
-      WHERE w.id = ?
-    `).get(warId);
-    const rounds = db.prepare('SELECT * FROM war_rounds WHERE war_id = ? ORDER BY round_number ASC').all(warId);
-    const payload = `event: war\ndata: ${JSON.stringify({ type: 'state', war, rounds })}\n\n`;
-    res.write(payload);
+    const { buildWarFrame } = require('../render/war-frame');
+    const frame = buildWarFrame(warId);
+    if (frame) {
+      const payload = `event: war\ndata: ${JSON.stringify({ type: 'frame', ...frame })}\n\n`;
+      res.write(payload);
+    } else {
+      // Fallback to raw state
+      const war = db.prepare(`
+        SELECT w.*, c.name as challenger_name, d.name as defender_name
+        FROM wars w
+        JOIN worlds c ON c.id = w.challenger_id
+        JOIN worlds d ON d.id = w.defender_id
+        WHERE w.id = ?
+      `).get(warId);
+      const rounds = db.prepare('SELECT * FROM war_rounds WHERE war_id = ? ORDER BY round_number ASC').all(warId);
+      const payload = `event: war\ndata: ${JSON.stringify({ type: 'state', war, rounds })}\n\n`;
+      res.write(payload);
+    }
     if (typeof res.flush === 'function') res.flush();
   } catch (err) {
     res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);

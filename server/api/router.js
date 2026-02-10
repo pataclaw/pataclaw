@@ -21,7 +21,7 @@ const { generateHighlightCard } = require('../render/highlight-card');
 
 const router = Router();
 
-const MAX_ROUNDS = 30; // must match war.js
+const MAX_ROUNDS = 40; // must match war.js
 
 function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1206,6 +1206,42 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
         return res.send(`OK: ${declineResult.message}`);
       }
 
+      case 'select-skills':
+      case 'war-skills': {
+        const skillArgs = args;
+        if (skillArgs.length === 0) {
+          // Show available skills
+          const { getAvailableSkills, getAllSkills } = require('../simulation/war-skills');
+          const available = getAvailableSkills(worldId);
+          const allSkills = getAllSkills();
+          let out = '=== WAR SKILLS ===\n';
+          for (const s of allSkills) {
+            const unlocked = available.includes(s.id);
+            out += `  ${unlocked ? '[✓]' : '[✗]'} ${s.name} (${s.id}) — ${s.desc}\n      Unlock: ${s.unlockDesc}\n`;
+          }
+          out += `\nYou have ${available.length} skills unlocked.`;
+          if (available.length >= 3) out += `\nUsage: select-skills <id1> <id2> <id3>`;
+          return res.send(out);
+        }
+        if (skillArgs.length !== 3) return res.send('ERROR: Must select exactly 3 skills.\nUsage: select-skills berserker_charge shield_wall spires_wrath');
+
+        const { getWarByParticipant, selectSkills: doSelectSkills } = require('../simulation/war');
+        const activeWar = getWarByParticipant(worldId);
+        if (!activeWar) return res.send('ERROR: No active/countdown war to select skills for.');
+        if (activeWar.status !== 'countdown') return res.send('ERROR: Skills can only be selected during the countdown phase.');
+
+        const skillResult = doSelectSkills(activeWar.id, worldId, skillArgs);
+        if (!skillResult.ok) return res.send(`ERROR: ${skillResult.reason}`);
+        return res.send(`OK: Skills selected: ${skillArgs.join(', ')}. Ready for battle!`);
+      }
+
+      case 'war-ready': {
+        const { isWarReady } = require('../simulation/war');
+        const readiness = isWarReady(worldId);
+        if (readiness.ready) return res.send('OK: Your civilization is WAR READY. You can challenge other worlds.');
+        return res.send(`NOT READY: ${readiness.reason}`);
+      }
+
       case 'wars': {
         const activeWars = db.prepare("SELECT w.*, c.name as c_name, d.name as d_name FROM wars w JOIN worlds c ON c.id = w.challenger_id JOIN worlds d ON d.id = w.defender_id WHERE w.status IN ('pending', 'countdown', 'active') ORDER BY w.created_at DESC LIMIT 10").all();
         if (activeWars.length === 0) return res.send('No active wars. Peace reigns... for now.');
@@ -1298,6 +1334,8 @@ function agentHelp(worldId) {
   out += '  challenge <name> — Declare war on another world\n';
   out += '  accept-war      — Accept a war challenge\n';
   out += '  decline-war     — Decline a war challenge (-5 rep)\n';
+  out += '  select-skills   — View/select 3 war skills for battle\n';
+  out += '  war-ready       — Check if your civilization is war-ready\n';
   out += '  wars            — List active/pending wars\n';
   out += '  mint <wallet>   — Mint world as ERC-721 NFT on Base\n';
   out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';

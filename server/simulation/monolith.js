@@ -31,6 +31,11 @@ const SEGMENT_TYPES = {
   first_trade:      { trigger: 'first_trade',    art: '|<>|' },
   legendary_found:  { trigger: 'legendary',      art: '|**|' },
   capstone:         { trigger: 'all_complete',    art: '/\\/\\' },
+  // War achievements (additional segments beyond base 16)
+  war_fought:       { trigger: 'war_fought',      art: '|⚔|' },
+  war_won:          { trigger: 'war_won',         art: '|♛|' },
+  war_brave_loss:   { trigger: 'war_brave_loss',  art: '|†|' },
+  war_rebuilt:       { trigger: 'war_rebuilt',     art: '|✧|' },
 };
 
 const MONOLITH_SEGMENT_SPRITES = {};
@@ -93,6 +98,12 @@ function checkMilestones(worldId) {
 
   for (const [seg, met] of Object.entries(checks)) {
     if (met && !achieved.has(seg)) eligible.push(seg);
+  }
+
+  // war_rebuilt: rebuilt spire after losing a war (has war_brave_loss or war_fought + was obliterated)
+  const warLoss = db.prepare("SELECT COUNT(*) as c FROM wars WHERE loser_id = ? AND status = 'resolved'").get(worldId).c;
+  if (warLoss > 0 && !achieved.has('war_rebuilt') && achieved.size >= 16) {
+    eligible.push('war_rebuilt');
   }
 
   // Capstone: all other 15 types built + at least one active megastructure

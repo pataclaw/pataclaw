@@ -109,9 +109,19 @@ function tickAllWorlds() {
     const { processWarCountdowns, processActiveWars } = require('./war');
     processWarCountdowns(globalTime.tick);
     const warResults = processActiveWars(globalTime);
-    // Push war events to spectators
+    // Push war frames to spectators (full visual data)
+    const { buildWarFrame } = require('../render/war-frame');
     for (const wr of warResults) {
-      pushWarEvent(wr.warId, wr);
+      try {
+        const frame = buildWarFrame(wr.warId);
+        if (frame) {
+          pushWarEvent(wr.warId, { type: 'frame', ...frame });
+        } else {
+          pushWarEvent(wr.warId, wr);
+        }
+      } catch {
+        pushWarEvent(wr.warId, wr);
+      }
     }
   } catch (e) {
     // war module may not be loaded yet during phase 1

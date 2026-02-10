@@ -48,6 +48,10 @@ const migrations = [
   "ALTER TABLE worlds ADD COLUMN last_overgrowth_harvest TEXT DEFAULT NULL",
   // AI model tracking
   "ALTER TABLE worlds ADD COLUMN model TEXT DEFAULT 'pataclaw'",
+  // War skills + visual war system
+  "ALTER TABLE wars ADD COLUMN challenger_skills TEXT",
+  "ALTER TABLE wars ADD COLUMN defender_skills TEXT",
+  "ALTER TABLE war_rounds ADD COLUMN skill_used TEXT",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
@@ -341,6 +345,9 @@ app.get('/leaderboard', (_req, res) => sendPage(res, 'leaderboard.html'));
 
 // Arena page
 app.get('/arena', (_req, res) => sendPage(res, 'arena.html'));
+
+// War viewer page
+app.get('/war/:warId', (_req, res) => sendPage(res, 'war.html'));
 
 // Pretty URL: /view/:token -> /viewer?token=:token
 app.get('/view/:token', (req, res) => {

@@ -474,11 +474,13 @@ CREATE TABLE IF NOT EXISTS wars (
     challenger_id TEXT NOT NULL REFERENCES worlds(id),
     defender_id TEXT NOT NULL REFERENCES worlds(id),
     status TEXT NOT NULL DEFAULT 'pending',
-    challenger_hp INTEGER NOT NULL DEFAULT 100,
-    defender_hp INTEGER NOT NULL DEFAULT 100,
+    challenger_hp INTEGER NOT NULL DEFAULT 200,
+    defender_hp INTEGER NOT NULL DEFAULT 200,
     round_number INTEGER NOT NULL DEFAULT 0,
     challenger_snapshot TEXT,
     defender_snapshot TEXT,
+    challenger_skills TEXT,
+    defender_skills TEXT,
     winner_id TEXT,
     loser_id TEXT,
     summary TEXT,
@@ -505,6 +507,7 @@ CREATE TABLE IF NOT EXISTS war_rounds (
     challenger_hp_after INTEGER NOT NULL,
     defender_hp_after INTEGER NOT NULL,
     tactical_event TEXT,
+    skill_used TEXT,
     narrative TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

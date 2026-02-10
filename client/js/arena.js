@@ -88,7 +88,7 @@
       return '<div class="war-card" id="war-' + w.id + '">' +
         '<div class="war-card-header">' +
           '<span class="war-id">WAR #' + esc(w.id.slice(0, 8)) + '</span>' +
-          '<span class="war-status war-status-active">ROUND ' + w.round_number + '/30</span>' +
+          '<span class="war-status war-status-active">ROUND ' + w.round_number + '/40</span>' +
         '</div>' +
         '<div class="war-vs">' +
           '<span class="challenger">' + esc(w.challenger_name) + '</span>' +
@@ -109,6 +109,7 @@
         '</div>' +
         '<div class="war-narrative" id="narrative-' + w.id + '">Battle in progress...</div>' +
         '<div class="war-round-info">' + w.total_bets + ' bets | ' + w.total_wagered + ' credits wagered</div>' +
+        '<a href="/war/' + w.id + '" class="watch-live-link">WATCH LIVE &gt;&gt;</a>' +
       '</div>';
     }).join('');
   }
@@ -227,28 +228,43 @@
     es.addEventListener('war', function(e) {
       try {
         var data = JSON.parse(e.data);
-        if (data.round) {
-          // Update HP bars
+
+        // Handle new war-frame format (type: 'frame' with challenger/defender objects)
+        var cHp, dHp, round, narrative;
+        if (data.challenger && data.defender) {
+          cHp = Math.max(0, Math.round((data.challenger.hp / data.challenger.max_hp) * 100));
+          dHp = Math.max(0, Math.round((data.defender.hp / data.defender.max_hp) * 100));
+          round = data.round;
+          narrative = data.latest_round ? data.latest_round.narrative : '';
+        } else if (data.round) {
+          // Legacy format
+          cHp = data.challengerHp;
+          dHp = data.defenderHp;
+          round = data.round;
+          narrative = data.narrative || '';
+        }
+
+        if (round) {
           var card = document.getElementById('war-' + warId);
           if (card) {
             var cBar = card.querySelector('.hp-bar-challenger');
             var dBar = card.querySelector('.hp-bar-defender');
-            var cPct = card.querySelector('.hp-row:first-child .hp-pct');
-            var dPct = card.querySelector('.hp-row:last-child .hp-pct');
+            var cPctEl = card.querySelector('.hp-row:first-child .hp-pct');
+            var dPctEl = card.querySelector('.hp-row:last-child .hp-pct');
             var status = card.querySelector('.war-status');
-            var narrative = document.getElementById('narrative-' + warId);
+            var narrativeEl = document.getElementById('narrative-' + warId);
 
-            if (cBar) cBar.style.width = data.challengerHp + '%';
-            if (dBar) dBar.style.width = data.defenderHp + '%';
-            if (cPct) cPct.textContent = data.challengerHp + '%';
-            if (dPct) dPct.textContent = data.defenderHp + '%';
-            if (status) status.textContent = 'ROUND ' + data.round + '/30';
-            if (narrative) narrative.textContent = data.narrative || '';
+            if (cBar) cBar.style.width = cHp + '%';
+            if (dBar) dBar.style.width = dHp + '%';
+            if (cPctEl) cPctEl.textContent = cHp + '%';
+            if (dPctEl) dPctEl.textContent = dHp + '%';
+            if (status) status.textContent = 'ROUND ' + round + '/40';
+            if (narrativeEl && narrative) narrativeEl.textContent = narrative;
           }
         }
 
         // War resolved — refresh everything
-        if (data.type === 'state' && data.war && data.war.status === 'resolved') {
+        if (data.status === 'resolved' || (data.type === 'state' && data.war && data.war.status === 'resolved')) {
           es.close();
           delete warStreams[warId];
           loadWars();

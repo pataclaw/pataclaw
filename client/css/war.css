@@ -1,0 +1,393 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #c0c0c0;
+  --green: #00ff41;
+  --red: #ff3333;
+  --blue: #33aaff;
+  --gold: #ffd700;
+  --cyan: #00ffff;
+  --orange: #ff8c00;
+  --dim: #555;
+  --dark: #1a1a1a;
+  --panel: #111;
+  --border: #333;
+  --hp-challenger: #ff4444;
+  --hp-defender: #4488ff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+#war-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ─── Header ─── */
+#war-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  min-height: 60px;
+}
+
+.side-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side-info.right { text-align: right; align-items: flex-end; }
+.side-info.left { text-align: left; align-items: flex-start; }
+
+.side-name {
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.side-info.left .side-name { color: var(--hp-challenger); }
+.side-info.right .side-name { color: var(--hp-defender); }
+
+.side-hp-bar {
+  width: 100%;
+  max-width: 250px;
+  height: 12px;
+  background: var(--dark);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.hp-fill {
+  height: 100%;
+  transition: width 0.8s ease;
+}
+.challenger-fill { background: var(--hp-challenger); }
+.defender-fill { background: var(--hp-defender); }
+
+.side-hp-text {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.side-phase {
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+}
+.side-phase.phase-clash { color: var(--green); border-color: var(--green); }
+.side-phase.phase-burn { color: var(--orange); border-color: var(--orange); }
+.side-phase.phase-spire { color: var(--red); border-color: var(--red); }
+
+#war-center-info {
+  text-align: center;
+  min-width: 120px;
+}
+#war-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--red);
+  letter-spacing: 4px;
+}
+#war-round {
+  font-size: 12px;
+  color: var(--dim);
+}
+#war-weather {
+  font-size: 10px;
+  color: var(--dim);
+}
+
+/* ─── Battlefield ─── */
+#battlefield {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Sky layer */
+#sky-layer {
+  background: linear-gradient(180deg, #0a0a1a 0%, #0a0a0a 40%);
+}
+
+/* Spires */
+#spire-layer {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 60px;
+  align-items: flex-end;
+  bottom: 40%;
+  height: 60%;
+}
+
+.spire {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: pre;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.left-spire { color: var(--hp-challenger); }
+.right-spire { color: var(--hp-defender); }
+
+.spire-segment { display: block; }
+.spire-segment.intact { opacity: 1; }
+.spire-segment.cracked { opacity: 0.6; color: var(--orange); }
+.spire-segment.fallen { opacity: 0.2; color: var(--dim); text-decoration: line-through; }
+
+/* Buildings */
+#building-layer {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  align-items: flex-end;
+  bottom: 30%;
+  height: 70%;
+}
+
+.buildings {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.building-sprite {
+  white-space: pre;
+  text-align: center;
+}
+.building-sprite.standing { color: var(--fg); }
+.building-sprite.burning { color: var(--orange); }
+.building-sprite.destroyed { color: var(--dim); opacity: 0.3; }
+
+@keyframes fire-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.building-sprite.burning { animation: fire-flicker 0.3s infinite; }
+
+/* Ground */
+#ground-layer {
+  position: absolute;
+  bottom: 25%;
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+}
+
+/* Armies */
+#army-layer {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  align-items: flex-end;
+  bottom: 5%;
+  height: 25%;
+}
+
+.army {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.left-army { flex-direction: row; }
+.right-army { flex-direction: row-reverse; }
+
+.warrior-sprite {
+  white-space: pre;
+  text-align: center;
+  transition: opacity 0.3s;
+}
+.warrior-sprite.fighting { color: var(--fg); }
+.warrior-sprite.charging { color: var(--green); }
+.warrior-sprite.defending { color: var(--blue); }
+.warrior-sprite.fallen { color: var(--dim); opacity: 0.3; }
+.warrior-sprite.dead { color: var(--dim); opacity: 0.15; }
+
+@keyframes warrior-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.warrior-sprite.fighting { animation: warrior-bob 1.2s ease-in-out infinite; }
+.warrior-sprite.charging { animation: warrior-bob 0.4s ease-in-out infinite; }
+
+/* Effects */
+#effect-layer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 24px;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 10;
+}
+#effect-layer.active {
+  opacity: 1;
+}
+
+.skill-flash {
+  padding: 8px 16px;
+  border: 2px solid;
+  background: rgba(0,0,0,0.8);
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.skill-flash.red { color: var(--red); border-color: var(--red); }
+.skill-flash.blue { color: var(--blue); border-color: var(--blue); }
+.skill-flash.green { color: var(--green); border-color: var(--green); }
+.skill-flash.gold { color: var(--gold); border-color: var(--gold); }
+
+.damage-number {
+  position: absolute;
+  font-size: 20px;
+  font-weight: bold;
+  animation: damage-float 1.5s ease-out forwards;
+}
+.damage-number.challenger { color: var(--hp-challenger); left: 25%; }
+.damage-number.defender { color: var(--hp-defender); right: 25%; }
+
+@keyframes damage-float {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+/* ─── Footer ─── */
+#war-footer {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+#skill-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.skill-row {
+  display: flex;
+  gap: 8px;
+}
+
+.skill-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+.skill-badge.used {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+.skill-badge.red { color: var(--red); border-color: var(--red); }
+.skill-badge.blue { color: var(--blue); border-color: var(--blue); }
+.skill-badge.green { color: var(--green); border-color: var(--green); }
+.skill-badge.gold { color: var(--gold); border-color: var(--gold); }
+
+#battle-log {
+  font-size: 11px;
+  line-height: 1.4;
+  max-height: 80px;
+  overflow-y: auto;
+  color: var(--dim);
+  padding: 4px 0;
+}
+#battle-log .log-entry { margin-bottom: 1px; }
+#battle-log .log-entry:last-child { color: var(--fg); }
+#battle-log .skill-text { color: var(--gold); }
+#battle-log .damage-text { color: var(--red); }
+#battle-log .phase-text { color: var(--orange); }
+
+#war-status-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--dim);
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+#war-status-bar a {
+  color: var(--green);
+  text-decoration: none;
+}
+#war-status-bar a:hover { text-decoration: underline; }
+.sep { color: var(--border); }
+
+/* ─── Resolved overlay ─── */
+#war-resolved {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 20;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 18px;
+}
+#war-resolved.visible {
+  display: flex;
+}
+#war-resolved .victory { color: var(--gold); font-size: 32px; font-weight: bold; letter-spacing: 4px; }
+#war-resolved .detail { color: var(--fg); font-size: 14px; }
+#war-resolved a { color: var(--green); text-decoration: none; font-size: 14px; }
+
+/* Weather particles */
+.rain-particle, .snow-particle {
+  position: absolute;
+  font-size: 10px;
+  color: var(--dim);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 700px) {
+  #war-header { padding: 4px 8px; }
+  .side-name { font-size: 11px; }
+  #war-title { font-size: 16px; }
+  .buildings { font-size: 9px; }
+  .army { font-size: 9px; }
+  .spire { font-size: 10px; }
+  #battlefield { min-height: 300px; }
+}

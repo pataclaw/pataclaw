@@ -48,6 +48,10 @@ const migrations = [
   "ALTER TABLE worlds ADD COLUMN last_overgrowth_harvest TEXT DEFAULT NULL",
   // AI model tracking
   "ALTER TABLE worlds ADD COLUMN model TEXT DEFAULT 'pataclaw'",
+  // War skills + visual war system
+  "ALTER TABLE wars ADD COLUMN challenger_skills TEXT",
+  "ALTER TABLE wars ADD COLUMN defender_skills TEXT",
+  "ALTER TABLE war_rounds ADD COLUMN skill_used TEXT",
 ];
 
 for (const sql of migrations) {
