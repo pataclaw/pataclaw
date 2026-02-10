@@ -27,6 +27,12 @@ function processGovernor(worldId, tick) {
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
   if (!world) return events;
 
+  // Check if an agent/player is actively controlling this world
+  // If so, governor only handles survival — agent makes strategic calls
+  const AGENT_TIMEOUT = 6 * 60 * 1000; // 6 minutes
+  const agentActive = world.last_agent_heartbeat &&
+    (Date.now() - new Date(world.last_agent_heartbeat + 'Z').getTime()) < AGENT_TIMEOUT;
+
   const center = getCenter(world.seed);
   const pop = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
   if (pop === 0) return events;
@@ -136,6 +142,11 @@ function processGovernor(worldId, tick) {
   if (idle.length > 0 && buildingSet.has('farm') && (roleCounts.farmer || 0) === 0) {
     if (assignRole('farmer')) return events;
   }
+
+  // ─── AGENT OVERRIDE ───
+  // If an agent/player is active, stop here. They handle strategy.
+  // Governor only ensures survival: food, housing, first farmer.
+  if (agentActive) return events;
 
   // Workshop (wood + stone production)
   if (!buildingSet.has('workshop') && pop >= 4) {
