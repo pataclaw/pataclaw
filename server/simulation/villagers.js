@@ -23,11 +23,9 @@ function processVillagers(worldId, isStarving, weather) {
   if (villagers.length === 0) {
     const world = db.prepare('SELECT current_tick, day_number, seed, tick_mode, last_agent_heartbeat FROM worlds WHERE id = ?').get(worldId);
     if (world && world.current_tick % 10 === 0) {
-      // Check if world is dormant (nomad mode)
-      const heartbeatAge = world.last_agent_heartbeat
-        ? Date.now() - new Date(world.last_agent_heartbeat).getTime()
-        : Infinity;
-      const isDormant = world.tick_mode === 'dormant' || heartbeatAge > 6 * 60 * 60 * 1000;
+      // Check if world is dormant (nomad mode) — trust tick_mode set by engine
+      // Engine already accounts for viewers, heartbeats, and commands
+      const isDormant = world.tick_mode === 'dormant';
 
       if (isDormant) {
         // Nomad camps: max 3 nomads, they don't settle permanently
