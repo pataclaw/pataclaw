@@ -27,6 +27,16 @@ function processVillagers(worldId, isStarving, weather) {
       // Engine already accounts for viewers, heartbeats, and commands
       const isDormant = world.tick_mode === 'dormant';
 
+      // Clean up any lingering nomads when world is active (they leave when life returns)
+      if (!isDormant) {
+        const staleNomads = db.prepare(
+          "SELECT id FROM villagers WHERE world_id = ? AND status = 'nomad'"
+        ).all(worldId);
+        for (const n of staleNomads) {
+          db.prepare("DELETE FROM villagers WHERE id = ?").run(n.id);
+        }
+      }
+
       if (isDormant) {
         // Nomad camps: max 3 nomads, they don't settle permanently
         const nomadCount = db.prepare(
