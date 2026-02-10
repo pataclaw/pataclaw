@@ -516,6 +516,8 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-season-autumn      { color: #cc8833; }
 #world .c-season-autumn-dark { color: #995522; }
 #world .c-season-winter      { color: #ddeeff; }
+#world .c-season-winter-mid  { color: #bbccdd; }
+#world .c-season-winter-deep { color: #99aabb; }
 
 /* Crops */
 #world .c-crop  { color: #66aa44; }
@@ -666,6 +668,8 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-w-rain      { color: #5588cc; }
 #world .c-w-storm     { color: #7799dd; }
 #world .c-w-snow      { color: #ccddee; }
+#world .c-w-snow-mid  { color: #aabbcc; }
+#world .c-w-snow-deep { color: #8899aa; }
 #world .c-w-fog       { color: #889999; }
 #world .c-w-heat      { color: #ff6622; }
 #world .c-w-fog-dense { color: #667777; }

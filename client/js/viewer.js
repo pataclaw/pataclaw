@@ -882,7 +882,7 @@ function renderScene(data) {
       }
     }
 
-    // Snow accumulation is drawn at the end of the pipeline (after ground, buildings, villagers)
+    // Snow: ground turns white via isSnowWeather flag in ground rendering (no overlay needed)
   } else {
     weatherParticles.length = 0;
   }
@@ -898,8 +898,9 @@ function renderScene(data) {
   var gndColorD = gndColor + 'd'; // deep variant
   var groundDepth = H - groundY - 1; // total ground rows
   var wSeed = (world.seed || 0);
+  var isSnowWeather = world.weather === 'snow';
   for (var gx = 0; gx < W; gx++) {
-    setCell(grid, gx, groundY, borderChar, gndColor);
+    setCell(grid, gx, groundY, borderChar, isSnowWeather ? 'c-w-snow' : gndColor);
     // Biome zone: 3 zones based on horizontal position
     var biomeZone = (gx + wSeed) % 3;
     var zoneChars = biomeZone === 0 ? waveChars : (biomeZone === 1 ? waveCharsAlt : waveCharsSparse);
@@ -907,7 +908,13 @@ function renderScene(data) {
     for (var gy = groundY + 1; gy < H; gy++) {
       var depth = (gy - groundY - 1) / groundDepth; // 0.0 near border → 1.0 at bottom
       // 4 depth tiers: light (0-0.25), mid-accent (0.25-0.45), base (0.45-0.65), deep (0.65-1.0)
-      var rowColor = depth < 0.25 ? gndColorL : (depth < 0.45 ? gndColorM : (depth > 0.65 ? gndColorD : gndColor));
+      var rowColor;
+      if (isSnowWeather) {
+        // Snow weather: grass turns white, deeper rows fade to bluish
+        rowColor = depth < 0.3 ? 'c-w-snow' : (depth < 0.6 ? 'c-w-snow-mid' : 'c-w-snow-deep');
+      } else {
+        rowColor = depth < 0.25 ? gndColorL : (depth < 0.45 ? gndColorM : (depth > 0.65 ? gndColorD : gndColor));
+      }
 
       // Layer 1: primary wave
       var wave1 = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
@@ -921,8 +928,8 @@ function renderScene(data) {
 
       if (Math.abs(combined) > 0.12) {
         setCell(grid, gx, gy, zoneChars[charIdx], rowColor);
-      } else if (civStyle) {
-        // Vegetation at different depth levels
+      } else if (civStyle && !isSnowWeather) {
+        // Vegetation at different depth levels (hidden under snow)
         var vegSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
         if (depth < 0.35 && vegSeed < 5) {
           // Flowers in light zone (5%)
@@ -1002,14 +1009,15 @@ function renderScene(data) {
       }
     }
   } else if (season === 'winter') {
-    // Winter: snow accumulation on ground + snow on building roofs is handled by snowOnRoofs below
-    var snowChars = ['.', '*', '\u00b7'];
+    // Winter: recolor ground grass to frosty white (same approach as snow weather)
+    // The ground chars stay — they just turn white/icy
     for (var wfx = 0; wfx < W; wfx++) {
-      var wfSeed = ((wfx * 11 + wSeed * 5) % 100);
-      if (wfSeed < 15) {
-        var wfy = hillTopY[wfx] - 1;
-        if (wfy >= 0 && getCell(grid, wfx, wfy).ch === ' ') {
-          setCell(grid, wfx, wfy, snowChars[wfSeed % snowChars.length], 'c-season-winter');
+      for (var wfy = groundY; wfy < H; wfy++) {
+        var wfCell = getCell(grid, wfx, wfy);
+        // Only recolor ground cells (c-gnd variants), leave buildings/other elements alone
+        if (wfCell.c && wfCell.c.indexOf('c-gnd') === 0) {
+          var wfDepth = (wfy - groundY) / groundDepth;
+          setCell(grid, wfx, wfy, wfCell.ch, wfDepth < 0.3 ? 'c-season-winter' : (wfDepth < 0.6 ? 'c-season-winter-mid' : 'c-season-winter-deep'));
         }
       }
     }
@@ -2082,40 +2090,6 @@ function renderScene(data) {
       var fcy = Math.floor(((fi2 * 19 + waveCounter * 0.7) % (groundY - 4))) + 2;
       if (fcx >= 0 && fcx < W && fcy >= 0 && fcy < groundY && getCell(grid, fcx, fcy).ch === ' ') {
         setCell(grid, fcx, fcy, festChars[fi2 % festChars.length], festColors[fi2 % festColors.length]);
-      }
-    }
-  }
-
-  // ─── SNOW ACCUMULATION (final pass — drawn on top of everything) ───
-  if (world.weather === 'snow') {
-    var snowSeed = (world.seed || 0);
-    var snowChars = ['.', '*', '\u00b7', ','];
-    // Ground-level snow: along the ground border and just above
-    for (var sx = 0; sx < W; sx++) {
-      // Deterministic: seeded by position, shifts slowly with waveCounter
-      var snowHash = ((sx * 7 + snowSeed * 13 + Math.floor(waveCounter * 0.05) * 3) % 100);
-      if (snowHash < 35) {
-        // Snow on ground border row
-        setCell(grid, sx, groundY, snowChars[snowHash % snowChars.length], 'c-w-snow');
-      }
-      if (snowHash < 20) {
-        // Snow just above ground
-        var aboveY = groundY - 1;
-        if (aboveY >= 0) setCell(grid, sx, aboveY, snowChars[(snowHash + 1) % snowChars.length], 'c-w-snow');
-      }
-    }
-    // Hilltop snow: only near hills (far/mid hills are in the sky — snow looks like stars)
-    var snowCapChars = ['_', '_', '-', ','];
-    for (var shx = 0; shx < W; shx++) {
-      var htY = hillTopY[shx];
-      if (htY < groundY) {
-        // Only snow-cap near hills (c-hill-near), skip far/mid hills in the sky
-        var hillClass = getCell(grid, shx, htY).c;
-        if (hillClass !== 'c-hill-near') continue;
-        var shHash = ((shx * 11 + snowSeed * 7 + Math.floor(waveCounter * 0.03) * 5) % 100);
-        if (shHash < 40) {
-          setCell(grid, shx, htY, snowCapChars[shHash % snowCapChars.length], 'c-w-snow');
-        }
       }
     }
   }
