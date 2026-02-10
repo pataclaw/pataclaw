@@ -1,7 +1,7 @@
 const db = require('../db/connection');
 const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
 const { hasMegastructure } = require('../simulation/megastructures');
-const { MAP_SIZE } = require('../world/map');
+const { MAP_SIZE, deriveBiomeWeights } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
 const { getActivePlanetaryEvent } = require('../simulation/planetary');
 const { getGrowthStage } = require('../simulation/buildings');
@@ -199,6 +199,14 @@ function buildTownFrame(worldId) {
       .filter(t => hasMegastructure(worldId, t)),
     biome: {
       dominant: dominantBiome,
+      seed_dominant: (() => {
+        const weights = deriveBiomeWeights(world.seed);
+        let best = 'plains', maxW = 0;
+        for (const [b, w] of Object.entries(weights)) {
+          if (w > maxW) { maxW = w; best = b; }
+        }
+        return best;
+      })(),
       distribution: biomeDistribution,
       explored_pct: totalTiles > 0 ? Math.round((totalExplored / totalTiles) * 100) : 0,
     },

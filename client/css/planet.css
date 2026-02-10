@@ -99,8 +99,8 @@ body {
 .stat-sep { color: #333; }
 
 #stat-worlds { color: #33ff33; }
-#stat-pop { color: #ffcc00; }
-#stat-minted { color: #ff66ff; }
+#stat-pop { color: #33ff33; }
+#stat-minted { color: #ffcc00; }
 
 #planet-grid {
   flex: 1 1 0;

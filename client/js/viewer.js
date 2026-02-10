@@ -217,8 +217,9 @@ function connect() {
         plains: 0, forest: 0, mountain: 1, swamp: 2,
         water: 2, desert: 3, ice: 4, tundra: 4,
       };
-      if (data.biome && data.biome.dominant && BIOME_TO_CIV[data.biome.dominant] !== undefined) {
-        civStyle = CIV_STYLES[BIOME_TO_CIV[data.biome.dominant]];
+      var biomePick = (data.biome && data.biome.seed_dominant) || (data.biome && data.biome.dominant);
+      if (biomePick && BIOME_TO_CIV[biomePick] !== undefined) {
+        civStyle = CIV_STYLES[BIOME_TO_CIV[biomePick]];
       } else if (data.world.seed !== undefined && !civStyle) {
         civStyle = CIV_STYLES[Math.abs(data.world.seed) % CIV_STYLES.length];
       }
