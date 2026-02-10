@@ -655,8 +655,26 @@ function renderScene(data) {
     }
   }
 
-  // ─── CANOPY TREES (biome-specific) + small bonsai background detail ───
+  // ─── SNOW / ICE SYSTEM ───
+  // Unified flag: ground + hills turn white for snow weather, winter, or cold biomes
   var biomeKey = (data.biome && data.biome.dominant) || 'plains';
+  var isColdBiome = biomeKey === 'ice' || biomeKey === 'tundra';
+  var isSnowCovered = world.weather === 'snow' || world.season === 'winter' || isColdBiome;
+
+  // Recolor hills to snowy white when snow-covered
+  if (isSnowCovered) {
+    var HILL_SNOW = { 'c-hill-far': 'c-hill-snow-far', 'c-hill-mid': 'c-hill-snow-mid', 'c-hill-near': 'c-hill-snow-near' };
+    for (var shx = 0; shx < W; shx++) {
+      for (var shy = 0; shy < groundY; shy++) {
+        var shCell = getCell(grid, shx, shy);
+        if (HILL_SNOW[shCell.c]) {
+          setCell(grid, shx, shy, shCell.ch, HILL_SNOW[shCell.c]);
+        }
+      }
+    }
+  }
+
+  // ─── CANOPY TREES (biome-specific) + small bonsai background detail ───
   var growthStage = data.growth_stage || 0;
 
   // Canopy sprites keyed by biome — each has rows of [text, cssClass]
@@ -882,7 +900,7 @@ function renderScene(data) {
       }
     }
 
-    // Snow: ground turns white via isSnowWeather flag in ground rendering (no overlay needed)
+    // Snow: ground turns white via isSnowCovered flag in ground rendering (no overlay needed)
   } else {
     weatherParticles.length = 0;
   }
@@ -898,9 +916,9 @@ function renderScene(data) {
   var gndColorD = gndColor + 'd'; // deep variant
   var groundDepth = H - groundY - 1; // total ground rows
   var wSeed = (world.seed || 0);
-  var isSnowWeather = world.weather === 'snow';
+  // isSnowCovered already set above (snow weather / winter / ice / tundra)
   for (var gx = 0; gx < W; gx++) {
-    setCell(grid, gx, groundY, borderChar, isSnowWeather ? 'c-w-snow' : gndColor);
+    setCell(grid, gx, groundY, borderChar, isSnowCovered ? 'c-w-snow' : gndColor);
     // Biome zone: 3 zones based on horizontal position
     var biomeZone = (gx + wSeed) % 3;
     var zoneChars = biomeZone === 0 ? waveChars : (biomeZone === 1 ? waveCharsAlt : waveCharsSparse);
@@ -909,7 +927,7 @@ function renderScene(data) {
       var depth = (gy - groundY - 1) / groundDepth; // 0.0 near border → 1.0 at bottom
       // 4 depth tiers: light (0-0.25), mid-accent (0.25-0.45), base (0.45-0.65), deep (0.65-1.0)
       var rowColor;
-      if (isSnowWeather) {
+      if (isSnowCovered) {
         // Snow weather: grass turns white, deeper rows fade to bluish
         rowColor = depth < 0.3 ? 'c-w-snow' : (depth < 0.6 ? 'c-w-snow-mid' : 'c-w-snow-deep');
       } else {
@@ -928,7 +946,7 @@ function renderScene(data) {
 
       if (Math.abs(combined) > 0.12) {
         setCell(grid, gx, gy, zoneChars[charIdx], rowColor);
-      } else if (civStyle && !isSnowWeather) {
+      } else if (civStyle && !isSnowCovered) {
         // Vegetation at different depth levels (hidden under snow)
         var vegSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
         if (depth < 0.35 && vegSeed < 5) {
@@ -1009,18 +1027,8 @@ function renderScene(data) {
       }
     }
   } else if (season === 'winter') {
-    // Winter: recolor ground grass to frosty white (same approach as snow weather)
-    // The ground chars stay — they just turn white/icy
-    for (var wfx = 0; wfx < W; wfx++) {
-      for (var wfy = groundY; wfy < H; wfy++) {
-        var wfCell = getCell(grid, wfx, wfy);
-        // Only recolor ground cells (c-gnd variants), leave buildings/other elements alone
-        if (wfCell.c && wfCell.c.indexOf('c-gnd') === 0) {
-          var wfDepth = (wfy - groundY) / groundDepth;
-          setCell(grid, wfx, wfy, wfCell.ch, wfDepth < 0.3 ? 'c-season-winter' : (wfDepth < 0.6 ? 'c-season-winter-mid' : 'c-season-winter-deep'));
-        }
-      }
-    }
+    // Winter ground recoloring is handled by isSnowCovered in the ground renderer above
+    // (winter is included in isSnowCovered — no separate pass needed)
   }
 
   // Track building top positions for winter snow-on-roofs

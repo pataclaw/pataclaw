@@ -527,6 +527,9 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-hill-far  { color: #334422; }
 #world .c-hill-mid  { color: #446633; }
 #world .c-hill-near { color: #558844; }
+#world .c-hill-snow-far  { color: #889999; }
+#world .c-hill-snow-mid  { color: #aabbbb; }
+#world .c-hill-snow-near { color: #ccdddd; }
 
 /* Hill colors respond to time of day */
 body.dawn #world .c-hill-far  { color: #4a3a22; }
