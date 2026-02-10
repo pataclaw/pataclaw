@@ -82,8 +82,8 @@ function processWildlife(worldId, currentTick) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'wild', ?)
     `).run(id, worldId, animal.species, animal.rarity, tile.terrain, tile.x, tile.y, hp, currentTick);
 
-    // Only announce rare+ spawns
-    if (['rare', 'epic', 'legendary'].includes(animal.rarity)) {
+    // Only announce epic+ spawns — rare is too common to be news
+    if (['epic', 'legendary'].includes(animal.rarity)) {
       const displayName = animal.species.replace(/_/g, ' ');
       events.push({
         type: 'wildlife',

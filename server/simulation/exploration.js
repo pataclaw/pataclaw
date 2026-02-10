@@ -64,13 +64,21 @@ function processExploration(worldId) {
     }
   }
 
+  // Only announce exploration at 10% milestones, not every tick
   if (revealed > 0 && events.length === 0) {
-    events.push({
-      type: 'discovery',
-      title: `Scouts explored ${revealed} tiles`,
-      description: `Your scouts revealed ${revealed} new tiles of the map.`,
-      severity: 'info',
-    });
+    const totalTiles = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ?").get(worldId).c;
+    const exploredNow = db.prepare("SELECT COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1").get(worldId).c;
+    const pct = Math.floor((exploredNow / Math.max(1, totalTiles)) * 100);
+    const pctBefore = Math.floor(((exploredNow - revealed) / Math.max(1, totalTiles)) * 100);
+    // Fire event only when crossing a 10% threshold
+    if (Math.floor(pct / 10) > Math.floor(pctBefore / 10)) {
+      events.push({
+        type: 'discovery',
+        title: `${pct}% of the world explored!`,
+        description: `Your scouts have now mapped ${pct}% of the known world. ${100 - pct}% remains in fog.`,
+        severity: 'celebration',
+      });
+    }
   }
 
   // ─── LEGENDARY BUILDING DISCOVERY ───
