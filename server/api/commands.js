@@ -131,22 +131,30 @@ router.post('/explore', (req, res) => {
 // POST /api/command/rename
 router.post('/rename', (req, res) => {
   const { name, motto, hero_title } = req.body;
+  const changed = [];
 
   if (name) {
     const sanitized = String(name).slice(0, 50);
     db.prepare('UPDATE worlds SET name = ? WHERE id = ?').run(sanitized, req.worldId);
+    changed.push(`name → "${sanitized}"`);
   }
   if (motto !== undefined) {
     const sanitized = String(motto).slice(0, 200);
     db.prepare('UPDATE worlds SET motto = ? WHERE id = ?').run(sanitized, req.worldId);
+    changed.push(`motto → "${sanitized}"`);
   }
   if (hero_title) {
     const sanitized = String(hero_title).slice(0, 50);
     db.prepare('UPDATE worlds SET hero_title = ? WHERE id = ?').run(sanitized, req.worldId);
+    changed.push(`hero_title → "${sanitized}"`);
+  }
+
+  if (changed.length === 0) {
+    return res.status(400).json({ error: 'Nothing to change. Send { "name": "New Name" } and/or { "motto": "New Motto" }' });
   }
 
   logCultureAction(req.worldId, 'rename', '_default');
-  res.json({ ok: true });
+  res.json({ ok: true, changed });
 });
 
 // POST /api/command/demolish
