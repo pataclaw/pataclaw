@@ -2561,6 +2561,89 @@ window.addEventListener('resize', function () {
   });
 })();
 
+// ─── TOWN TREASURY (INVENTORY) ───
+var ITEM_SPRITES = {
+  hide:              { sprite: ['  ___  ', ' /   \\ ', ' \\___/ '], color: 'c-item-c' },
+  bone_tool:         { sprite: ['  |    ', ' /=\\   ', ' | |   '], color: 'c-item-c' },
+  rare_pelt:         { sprite: [' ~___~ ', ' |:::| ', ' \\___/ '], color: 'c-item-r' },
+  beast_fang:        { sprite: ['  /\\   ', ' /  \\  ', ' \\  /  '], color: 'c-item-e' },
+  legendary_trophy:  { sprite: [' \\|/   ', ' -O-   ', ' /|\\   '], color: 'c-item-l' },
+  forge_hammer:      { sprite: [' [===] ', '   ||  ', '   ||  '], color: 'c-item-l' },
+  crystal_fragment:  { sprite: ['  /\\   ', ' /  \\  ', ' ----  '], color: 'c-item-e' },
+  elder_scroll:      { sprite: [' .===. ', ' |~~~| ', ' *===* '], color: 'c-item-l' },
+  deep_pearl:        { sprite: ['  __   ', ' (  )  ', '  \\/   '], color: 'c-item-r' },
+  leviathan_scale:   { sprite: [' /\\/\\  ', ' \\  /  ', '  \\/   '], color: 'c-item-e' },
+  abyssal_relic:     { sprite: [' {===} ', ' |<*>| ', ' {===} '], color: 'c-item-l' },
+};
+
+(function() {
+  var invBtn = document.getElementById('inventory-btn');
+  var invOverlay = document.getElementById('inventory-overlay');
+  var invClose = document.getElementById('inventory-close');
+  var invGrid = document.getElementById('inventory-grid');
+  var invSummary = document.getElementById('inventory-summary');
+  if (!invBtn || !invOverlay) return;
+
+  function renderInventoryItem(item) {
+    var spriteData = ITEM_SPRITES[item.item_type] || { sprite: ['[???]'], color: 'c-grey' };
+    var props = {};
+    try { props = typeof item.properties === 'string' ? JSON.parse(item.properties) : (item.properties || {}); } catch(e) {}
+    var bonuses = [];
+    for (var k in props) {
+      if (k === 'mintable' || k === 'species') continue;
+      bonuses.push('+' + props[k] + ' ' + k.replace(/_/g, ' '));
+    }
+    var bonusText = bonuses.join(', ');
+    var inStock = item.status === 'stored';
+    var count = item.count || 1;
+
+    return '<div class="inv-item rarity-' + item.rarity + '">'
+      + '<pre class="inv-sprite ' + spriteData.color + '">' + spriteData.sprite.map(function(l) { return esc(l); }).join('\n') + '</pre>'
+      + '<div class="inv-name">' + esc(item.name) + (count > 1 ? ' x' + count : '') + '</div>'
+      + '<div class="inv-rarity rarity-' + item.rarity + '">' + item.rarity.toUpperCase() + '</div>'
+      + '<div class="inv-source">' + esc(item.source) + '</div>'
+      + '<div class="inv-stock ' + (inStock ? 'in-stock' : 'out-stock') + '">'
+      + (inStock ? '\u25cf in stock' : '\u25cb discovered') + '</div>'
+      + (bonusText ? '<div class="inv-bonus">' + esc(bonusText) + '</div>' : '')
+      + '</div>';
+  }
+
+  function openInventory() {
+    invOverlay.classList.remove('hidden');
+    var items = (lastWorldData && lastWorldData.items) ? lastWorldData.items : [];
+    if (items.length === 0) {
+      invSummary.textContent = '';
+      invGrid.innerHTML = '<div class="inventory-empty">No riches discovered yet. Explore, hunt, and dive deep.</div>';
+      return;
+    }
+    var totalCount = 0;
+    var stockCount = 0;
+    for (var i = 0; i < items.length; i++) {
+      totalCount += (items[i].count || 1);
+      if (items[i].status === 'stored') stockCount += (items[i].count || 1);
+    }
+    invSummary.textContent = items.length + ' discoveries \u00b7 ' + stockCount + ' items in stock';
+    var html = '';
+    for (var j = 0; j < items.length; j++) {
+      html += renderInventoryItem(items[j]);
+    }
+    invGrid.innerHTML = html;
+  }
+
+  function closeInventory() {
+    invOverlay.classList.add('hidden');
+  }
+
+  invBtn.addEventListener('click', openInventory);
+  invClose.addEventListener('click', closeInventory);
+  invOverlay.addEventListener('click', function(e) {
+    if (e.target === invOverlay) closeInventory();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !invOverlay.classList.contains('hidden')) closeInventory();
+  });
+})();
+
 // ─── WHISPER TO VILLAGE ───
 (function () {
   var input = document.getElementById('whisper-input');

@@ -105,9 +105,21 @@
     </div>
   </div>
 
+  <div id="inventory-overlay" class="inventory-overlay hidden">
+    <div class="inventory-content">
+      <div class="inventory-header">
+        <span class="inventory-title">TOWN TREASURY</span>
+        <span class="inventory-close" id="inventory-close">[X]</span>
+      </div>
+      <div class="inventory-summary" id="inventory-summary"></div>
+      <div class="inventory-grid" id="inventory-grid"></div>
+    </div>
+  </div>
+
   <div id="bottom-bar">
     <a href="/" id="home-link">&gt;&lt; HOME</a>
     <span id="book-btn" class="bottom-btn" title="Book of Discoveries">B</span>
+    <span id="inventory-btn" class="bottom-btn" title="Town Treasury">I</span>
     <span id="connection-status" class="reconnecting">CONNECTING...</span>
     <span id="whisper-box">
       <input id="whisper-input" type="text" maxlength="80" placeholder="whisper to the village..." autocomplete="off" spellcheck="false">

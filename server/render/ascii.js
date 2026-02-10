@@ -228,7 +228,13 @@ function buildTownFrame(worldId) {
       "SELECT species, rarity, terrain, x, y FROM wildlife WHERE world_id = ? AND status = 'wild' ORDER BY spawned_tick DESC LIMIT 15"
     ).all(worldId); } catch { return []; } })(),
     items: (() => { try { return db.prepare(
-      "SELECT item_type, rarity, name, source, properties FROM items WHERE world_id = ? AND status = 'stored' ORDER BY created_tick DESC LIMIT 10"
+      `SELECT item_type, rarity, name, source, properties, status,
+       COUNT(*) as count, MIN(created_tick) as first_tick
+       FROM items WHERE world_id = ?
+       GROUP BY item_type
+       ORDER BY CASE rarity
+         WHEN 'legendary' THEN 0 WHEN 'epic' THEN 1
+         WHEN 'rare' THEN 2 WHEN 'uncommon' THEN 3 ELSE 4 END`
     ).all(worldId); } catch { return []; } })(),
     timestamp: Date.now(),
   };

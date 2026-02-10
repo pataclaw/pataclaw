@@ -1000,6 +1000,102 @@ body.crt-mode #world {
   color: #88cc88;
 }
 
+/* ─── Town Treasury overlay ─── */
+.inventory-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.inventory-overlay.hidden { display: none; }
+
+.inventory-content {
+  width: 700px;
+  max-width: 92vw;
+  max-height: 85vh;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  font-family: 'Courier New', Courier, monospace;
+  display: flex;
+  flex-direction: column;
+}
+
+.inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #333;
+}
+.inventory-title { color: #ffd700; font-size: 13px; letter-spacing: 3px; }
+.inventory-close { cursor: pointer; color: #666; transition: color 0.2s; }
+.inventory-close:hover { color: #ff4444; }
+
+.inventory-summary {
+  padding: 8px 16px;
+  color: #888;
+  font-size: 10px;
+  border-bottom: 1px solid #1a1a1a;
+  letter-spacing: 1px;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #333 #0a0a0a;
+}
+
+.inventory-empty {
+  color: #555;
+  font-size: 11px;
+  text-align: center;
+  padding: 40px 16px;
+  grid-column: 1 / -1;
+}
+
+.inv-item {
+  border: 1px solid #222;
+  padding: 8px;
+  background: #0d0d0d;
+}
+.inv-item.rarity-legendary { border-color: #ffd700; }
+.inv-item.rarity-epic { border-color: #bb66ff; }
+.inv-item.rarity-rare { border-color: #4488ff; }
+.inv-item.rarity-uncommon { border-color: #44bb44; }
+.inv-item.rarity-common { border-color: #444; }
+
+.inv-sprite {
+  font-size: 11px;
+  line-height: 1.1;
+  margin: 0 0 4px 0;
+}
+.inv-name { color: #cccccc; font-size: 11px; }
+.inv-rarity { font-size: 9px; letter-spacing: 2px; margin-top: 2px; }
+.inv-rarity.rarity-legendary { color: #ffd700; }
+.inv-rarity.rarity-epic { color: #bb66ff; }
+.inv-rarity.rarity-rare { color: #4488ff; }
+.inv-rarity.rarity-uncommon { color: #44bb44; }
+.inv-rarity.rarity-common { color: #888; }
+.inv-source { color: #555; font-size: 9px; margin-top: 2px; }
+.inv-stock { font-size: 9px; margin-top: 2px; }
+.inv-stock.in-stock { color: #44dd44; }
+.inv-stock.out-stock { color: #555; }
+.inv-bonus { color: #ffcc00; font-size: 9px; margin-top: 2px; }
+
+.c-item-c { color: #888888; }
+.c-item-u { color: #44bb44; }
+.c-item-r { color: #4488ff; }
+.c-item-e { color: #bb66ff; }
+.c-item-l { color: #ffd700; }
+
 .bottom-btn {
   color: #33ff33;
   cursor: pointer;

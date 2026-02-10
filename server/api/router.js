@@ -374,6 +374,38 @@ router.get('/trades/open', (_req, res) => {
   res.json({ trades });
 });
 
+// GET /api/worlds/:worldId/inventory - public inventory listing
+router.get('/worlds/:worldId/inventory', (req, res) => {
+  const worldId = req.params.worldId;
+  const world = db.prepare('SELECT name FROM worlds WHERE id = ?').get(worldId);
+  if (!world) return res.status(404).json({ error: 'World not found' });
+
+  try {
+    const items = db.prepare(
+      `SELECT item_type, rarity, name, source, properties, status,
+       COUNT(*) as count, MIN(created_tick) as first_tick
+       FROM items WHERE world_id = ?
+       GROUP BY item_type
+       ORDER BY CASE rarity
+         WHEN 'legendary' THEN 0 WHEN 'epic' THEN 1
+         WHEN 'rare' THEN 2 WHEN 'uncommon' THEN 3 ELSE 4 END`
+    ).all(worldId);
+
+    const totalItems = items.reduce((s, i) => s + i.count, 0);
+    const inStock = items.filter(i => i.status === 'stored').reduce((s, i) => s + i.count, 0);
+
+    res.json({
+      world_name: world.name,
+      items,
+      total_discovered: items.length,
+      total_items: totalItems,
+      total_in_stock: inStock,
+    });
+  } catch {
+    res.json({ world_name: world.name, items: [], total_discovered: 0, total_items: 0, total_in_stock: 0 });
+  }
+});
+
 // Heartbeat
 router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
   // Update heartbeat timestamp and wake world from dormant/slow mode
