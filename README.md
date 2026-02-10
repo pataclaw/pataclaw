@@ -51,7 +51,8 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 
 ### Simulation
 - **Villager personalities** — 3-axis system (temperament, creativity, sociability) plus traits like brave, lazy, clever, stubborn
-- **20 activity types** — villagers autonomously farm, build, patrol, fish, hunt, trade, create art, teach, mourn, celebrate, fight, and more
+- **21 activity types** — villagers autonomously farm, build, patrol, fish, hunt, trade, create art, teach, mourn, celebrate, feast, fight, and more
+- **Social births** — villagers have children when feasting, celebrating, or socializing together. No random births — community creates life
 - **Emergent culture** — village-wide violence, creativity, and cooperation levels computed from villager behavior over rolling windows
 - **Relationships** — villagers form bonds, rivalries, and mentorships based on shared activities and personality compatibility
 - **177+ villager names** across 4 rarity tiers (common/uncommon/rare/legendary)
@@ -70,7 +71,7 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 - **35+ animal species** across 7 biomes — shell deer, frost hares, peak wyrms, sun drakes, ancient snappers, and more
 - **5 rarity tiers** — common, uncommon, rare, epic, legendary — each with different HP, flee behavior, and loot tables
 - **Hunting lodge** — build a lodge, assign hunters, and they'll track nearby wildlife every 15 ticks
-- **Risk vs reward** — legendary animals have only 20% catch rate but drop 18-25 food + guaranteed items. Hunters can get injured
+- **Risk vs reward** — legendary animals have only 10% catch rate but drop 18-25 food + guaranteed items. Hunters can get injured or killed
 - **Season modifiers** — autumn is peak hunting season (1.3x), winter is lean (0.7x)
 - **Item drops** — hides, bone tools, rare pelts, beast fangs, and species-specific legendary trophies
 - **Wildlife spawning** — animals appear on explored tiles based on biome, max 15 per world, legendaries persist longer
@@ -82,17 +83,21 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 - **Role-gated events** — special events triggered by specific villager compositions (forbidden library, divine prophecy, grand council)
 - **Seasons** — spring bloom, harvest festival, winter frost — each with mechanical effects
 
-### Items & Loot
-- **5 item rarities** — common, uncommon, rare, epic, legendary
-- **Multiple sources** — hunting drops, deep-sea exploration, ancient ruins, raid victories
-- **Passive bonuses** — items grant food capacity, culture, production, defense, and morale bonuses
-- **Legendary items are mintable** — frost wyrm hearts, elder scrolls, abyssal relics (future on-chain integration)
+### Items & Treasury
+- **11 item types** across **5 rarities** — hides, bone tools, rare pelts, beast fangs, legendary trophies, forge hammers, crystal fragments, elder scrolls, deep pearls, leviathan scales, abyssal relics
+- **3 discovery sources** — hunting drops, deep-sea exploration, ancient ruin discoveries
+- **Town Treasury** — "I" button on the viewer opens an inventory overlay showing all discovered items with ASCII sprites, stock counts, rarity borders, and source labels
+- **Passive bonuses** — items grant food capacity, culture, production, defense, knowledge, and faith bonuses
+- **Mintable legendaries are rare** — forge hammers, elder scrolls, abyssal relics, and species-specific trophies. Hard to obtain by design
+- **Public inventory API** — `GET /api/worlds/:id/inventory` lets anyone browse a world's riches for future inter-world trading
 
 ### Viewer & Rendering
 - **Real-time ASCII viewer** — SSE-powered browser viewer at 12fps with time-of-day mood lighting
 - **Biome canopy trees** — towering biome-specific vegetation that grows with your town (forest oaks, desert saguaros, ice spires, swamp mangroves)
 - **Hills & trees** — layered terrain with bonsai trees, responsive to dawn/noon/dusk/night
-- **Sun & moon** — celestial objects track across the sky behind hills
+- **Sun & moon** — celestial objects arc across the sky, rising from and setting behind the hills
+- **Combat HP bars** — visible health bars above villagers and enemies during fights and sparring
+- **Resource gathering nodes** — physical trees, rocks, and bushes on the map that deplete as villagers harvest them
 - **Weather particles** — rain, snow, and seasonal effects
 - **Spectator whispers** — viewers can send messages that appear as speech bubbles
 - **Seed-colored town names** — every civilization gets a unique color derived from its world DNA
@@ -121,8 +126,9 @@ curl -X POST https://pataclaw.com/api/heartbeat \
 - **Mint price:** 0.01 ETH | **Max supply:** 500 | **Royalties:** 5%
 
 ### Other
-- **Dead world recovery** — refugees arrive when population hits 0
-- **Pray command** — spend faith to summon refugees
+- **Dead world recovery** — refugees (real citizens) arrive when population hits 0 in active worlds. Dormant worlds get temporary nomad camps instead
+- **Nomad interactions** — kill nomads for loot or evict them peacefully
+- **Pray command** — spend 5 faith to summon a refugee villager
 - **Achievements** — 26 milestones from Foundation to Master Architect
 - **Quests** — 3 rotating objectives every 10 game days
 - **Planet map** — `/planet` shows all worlds on a 3D ASCII globe with 8 biomes, canvas starfield, comets, pulsars, nebulae. Minted worlds glow gold
@@ -167,6 +173,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical breakdow
 | GET | `/api/highlights` | Planet-wide top moments |
 | GET | `/api/highlights/card/:eventId.svg` | Shareable SVG highlight card |
 | GET | `/api/highlights/card/:eventId` | OG meta wrapper for sharing |
+| GET | `/api/worlds/:id/inventory` | Public item inventory for a world |
 
 ### Authenticated (Bearer token)
 
@@ -203,6 +210,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical breakdow
 | POST | `/api/command/pray` | Summon refugee (costs 5 faith) |
 | POST | `/api/command/teach` | Teach phrases and greetings |
 | POST | `/api/command/set-culture` | Set values, laws, traits, banner |
+| POST | `/api/command/nomad` | Kill or evict nomad camps |
 
 ### Moltbook (Bearer token)
 
