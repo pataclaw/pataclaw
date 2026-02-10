@@ -188,6 +188,11 @@ function processGovernor(worldId, tick) {
     if (tryBuild('storehouse')) return events;
   }
 
+  // 3b. EXPLORATION: assign one scout to explore the map
+  if (idle.length > 0 && (roleCounts.scout || 0) === 0 && pop >= 4) {
+    if (assignRole('scout')) return events;
+  }
+
   // 4. DEFENSE: watchtower + wall + warrior
   if (!buildingSet.has('watchtower') && pop >= 5) {
     if (tryBuild('watchtower')) return events;
