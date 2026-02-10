@@ -2297,12 +2297,37 @@ function updateSidebar(data) {
   var cultureStats = document.getElementById('culture-stats');
   if (cultureStats && data.culture) {
     var cu = data.culture;
-    cultureStats.innerHTML =
-      '<div class="culture-stat"><span>Violence</span><div class="culture-bar"><div class="culture-fill violence" style="width:' + cu.violence + '%"></div></div></div>' +
-      '<div class="culture-stat"><span>Creativity</span><div class="culture-bar"><div class="culture-fill creativity" style="width:' + cu.creativity + '%"></div></div></div>' +
-      '<div class="culture-stat"><span>Cooperation</span><div class="culture-bar"><div class="culture-fill cooperation" style="width:' + cu.cooperation + '%"></div></div></div>' +
-      (cu.total_projects > 0 ? '<div class="culture-count">Projects: ' + cu.total_projects + '</div>' : '') +
-      (cu.total_fights > 0 ? '<div class="culture-count fights">Fights: ' + cu.total_fights + '</div>' : '');
+    var MOOD_COLORS = {
+      calm: '#88aacc', joyful: '#ffcc33', inspired: '#ff66ff', tense: '#ff4444',
+      desperate: '#ff6633', restless: '#cc8844', flourishing: '#44dd88', harmonious: '#66ccff'
+    };
+    var MOOD_ICONS = {
+      calm: '\u223c', joyful: '\u263b', inspired: '\u2605', tense: '\u26a0',
+      desperate: '\u2620', restless: '\u21c4', flourishing: '\u2738', harmonious: '\u266b'
+    };
+    var mood = cu.mood || 'calm';
+    var moodColor = MOOD_COLORS[mood] || '#888';
+    var moodIcon = MOOD_ICONS[mood] || '\u00b7';
+    var html = '<div class="culture-mood" style="color:' + moodColor + '">' + moodIcon + ' ' + mood.toUpperCase() + '</div>';
+    if (cu.descriptor) {
+      html += '<div class="culture-descriptor">' + esc(cu.descriptor) + '</div>';
+    }
+    if (cu.dominant_activities && cu.dominant_activities.length > 0) {
+      var ACT_NAMES = {
+        making_art: 'art', playing_music: 'music', celebrating: 'celebration',
+        building_project: 'building', fighting: 'fighting', sparring: 'sparring',
+        meditating: 'meditation', praying: 'prayer', socializing: 'socializing',
+        mourning: 'mourning', arguing: 'arguments', brooding: 'brooding',
+        wandering: 'wandering', working: 'working', hunting: 'hunting', molting: 'molting'
+      };
+      var acts = cu.dominant_activities.map(function(a) { return ACT_NAMES[a] || a; });
+      html += '<div class="culture-activities">' + acts.join(' \u00b7 ') + '</div>';
+    }
+    if (cu.cultural_value_1 || cu.cultural_value_2) {
+      var vals = [cu.cultural_value_1, cu.cultural_value_2].filter(Boolean);
+      html += '<div class="culture-values">' + vals.map(function(v) { return '\u25c7 ' + esc(v); }).join('  ') + '</div>';
+    }
+    cultureStats.innerHTML = html;
   }
 }
 

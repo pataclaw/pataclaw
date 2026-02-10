@@ -212,41 +212,30 @@ body {
 }
 
 /* Village Life / Culture */
-.culture-stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.culture-mood {
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.culture-descriptor {
+  font-size: 9px;
+  color: #777;
+  margin-bottom: 4px;
+}
+
+.culture-activities {
+  font-size: 9px;
+  color: #99aa88;
   margin-bottom: 3px;
+}
+
+.culture-values {
   font-size: 9px;
-}
-
-.culture-stat span { color: #888; width: 64px; }
-
-.culture-bar {
-  flex: 1;
-  height: 4px;
-  background: #1a1a1a;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.culture-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.5s ease;
-}
-
-.culture-fill.violence { background: #ff4444; }
-.culture-fill.creativity { background: #ff66ff; }
-.culture-fill.cooperation { background: #33ff33; }
-
-.culture-count {
-  font-size: 9px;
-  color: #666;
+  color: #aa99cc;
   margin-top: 2px;
 }
-
-.culture-count.fights { color: #ff6644; }
 
 .social-row {
   padding: 2px 0;
