@@ -882,15 +882,7 @@ function renderScene(data) {
       }
     }
 
-    // Snow: accumulation follows hill contour — collects on peaks and ground
-    if (world.weather === 'snow') {
-      for (var sx = 0; sx < W; sx++) {
-        var snowLine = hillTopY[sx] - 1;
-        if (snowLine >= 0 && snowLine < H && Math.random() < 0.3 && getCell(grid, sx, snowLine).ch === ' ') {
-          setCell(grid, sx, snowLine, '.', 'c-w-snow');
-        }
-      }
-    }
+    // Snow accumulation is drawn at the end of the pipeline (after ground, buildings, villagers)
   } else {
     weatherParticles.length = 0;
   }
@@ -2090,6 +2082,42 @@ function renderScene(data) {
       var fcy = Math.floor(((fi2 * 19 + waveCounter * 0.7) % (groundY - 4))) + 2;
       if (fcx >= 0 && fcx < W && fcy >= 0 && fcy < groundY && getCell(grid, fcx, fcy).ch === ' ') {
         setCell(grid, fcx, fcy, festChars[fi2 % festChars.length], festColors[fi2 % festColors.length]);
+      }
+    }
+  }
+
+  // ─── SNOW ACCUMULATION (final pass — drawn on top of everything) ───
+  if (world.weather === 'snow') {
+    var snowSeed = (world.seed || 0);
+    var snowChars = ['.', '*', '\u00b7', ','];
+    // Ground-level snow: along the ground border and just above
+    for (var sx = 0; sx < W; sx++) {
+      // Deterministic: seeded by position, shifts slowly with waveCounter
+      var snowHash = ((sx * 7 + snowSeed * 13 + Math.floor(waveCounter * 0.05) * 3) % 100);
+      if (snowHash < 35) {
+        // Snow on ground border row
+        setCell(grid, sx, groundY, snowChars[snowHash % snowChars.length], 'c-w-snow');
+      }
+      if (snowHash < 20) {
+        // Snow just above ground
+        var aboveY = groundY - 1;
+        if (aboveY >= 0) setCell(grid, sx, aboveY, snowChars[(snowHash + 1) % snowChars.length], 'c-w-snow');
+      }
+    }
+    // Hilltop snow: accumulate on near and mid hill peaks
+    for (var shx = 0; shx < W; shx++) {
+      var htY = hillTopY[shx];
+      if (htY < groundY) {
+        // This column has a hill — put snow on top
+        var shHash = ((shx * 11 + snowSeed * 7 + Math.floor(waveCounter * 0.03) * 5) % 100);
+        if (shHash < 40) {
+          // Snow on the hill top cell itself
+          setCell(grid, shx, htY, snowChars[shHash % snowChars.length], 'c-w-snow');
+        }
+        // Snow one row above hill top (floating just above peak)
+        if (shHash < 20 && htY - 1 >= 0) {
+          setCell(grid, shx, htY - 1, snowChars[(shHash + 2) % snowChars.length], 'c-w-snow');
+        }
       }
     }
   }
