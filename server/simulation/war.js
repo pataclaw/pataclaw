@@ -116,7 +116,8 @@ function acceptWar(warId, defenderWorldId) {
   const challengerSnapshot = JSON.stringify({ stats: cStats || {}, resources: cResources });
   const defenderSnapshot = JSON.stringify({ stats: dStats || {}, resources: dResources });
 
-  const bettingClosesAt = new Date(Date.now() + COUNTDOWN_MS).toISOString();
+  // Store in SQLite datetime format (no T/Z) so comparisons work with datetime('now')
+  const bettingClosesAt = new Date(Date.now() + COUNTDOWN_MS).toISOString().replace('T', ' ').replace('Z', '');
 
   db.prepare(`
     UPDATE wars SET status = 'countdown', challenger_snapshot = ?, defender_snapshot = ?,
