@@ -16,7 +16,7 @@ const RARITY_OUTCOMES = {
   uncommon:  [75, 25,  0],
   rare:      [60, 30, 10],
   epic:      [40, 40, 20],
-  legendary: [20, 50, 30],
+  legendary: [10, 55, 35],
 };
 
 // Food reward ranges by rarity: [min, max]

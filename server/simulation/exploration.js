@@ -74,8 +74,8 @@ function processExploration(worldId) {
   }
 
   // ─── LEGENDARY BUILDING DISCOVERY ───
-  // 5% chance per exploration tick when scouts reveal tiles
-  if (revealed > 0 && Math.random() < 0.05) {
+  // 1% chance per exploration tick when scouts reveal tiles
+  if (revealed > 0 && Math.random() < 0.01) {
     const culture = db.prepare(
       'SELECT violence_level, creativity_level, cooperation_level FROM culture WHERE world_id = ?'
     ).get(worldId);
@@ -83,8 +83,8 @@ function processExploration(worldId) {
     if (culture) {
       const totalCulture = (culture.violence_level || 0) + (culture.creativity_level || 0) + (culture.cooperation_level || 0);
 
-      // Require minimum combined culture level before legendary discoveries
-      if (totalCulture >= 100) {
+      // Require high combined culture level before legendary discoveries
+      if (totalCulture >= 150) {
         const LEGENDARY_BUILDINGS = [
           { type: 'ancient_forge',   name: 'Ancient Forge',   terrains: ['mountain', 'desert'],  bonus: { type: 'stone', amount: 30 } },
           { type: 'sunken_temple',   name: 'Sunken Temple',   terrains: ['plains', 'forest'],    bonus: { type: 'faith', amount: 20 } },

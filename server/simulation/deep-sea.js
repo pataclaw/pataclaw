@@ -97,13 +97,13 @@ function processDeepSea(worldId, currentTick) {
       description: `An underwater city from before the Great Molt! +${cryptoGain} crypto, +${knowledgeGain} knowledge.`,
       severity: 'celebration',
     };
-    // 30% leviathan_scale, 15% abyssal_relic
+    // 20% leviathan_scale, 5% abyssal_relic
     const dropRoll = Math.random();
-    if (dropRoll < 0.15) {
+    if (dropRoll < 0.05) {
       const itemId = uuid();
       db.prepare(`INSERT INTO items (id, world_id, item_type, rarity, name, source, properties, status, created_tick) VALUES (?, ?, 'abyssal_relic', 'legendary', 'Abyssal Relic', 'deep_sea', '{"knowledge_bonus":10,"mintable":true}', 'stored', ?)`).run(itemId, worldId, currentTick);
       events.push({ type: 'item_drop', title: 'LEGENDARY Item: Abyssal Relic!', description: 'An ancient relic from the precursor ruins, pulsing with deep knowledge. +10 knowledge bonus.', severity: 'celebration' });
-    } else if (dropRoll < 0.45) {
+    } else if (dropRoll < 0.25) {
       const itemId = uuid();
       db.prepare(`INSERT INTO items (id, world_id, item_type, rarity, name, source, properties, status, created_tick) VALUES (?, ?, 'leviathan_scale', 'epic', 'Leviathan Scale', 'deep_sea', '{"defense_bonus":5}', 'stored', ?)`).run(itemId, worldId, currentTick);
       events.push({ type: 'item_drop', title: 'Item found: Leviathan Scale!', description: 'A massive scale from a deep-sea creature. +5 defense bonus.', severity: 'info' });
