@@ -2390,7 +2390,8 @@ function renderScene(data) {
   // Title bar (built as HTML directly for color)
   var sym = world.banner_symbol || '*';
   var modelTag = world.model && world.model !== 'pataclaw' ? '  \u2502  ' + world.model.toUpperCase() : '';
-  var title = ' ' + sym + ' ' + world.name + ' ' + sym + '  \u2502  Day ' + world.day_number + '  \u2502  ' + world.season + '  \u2502  ' + world.time_of_day + modelTag + ' ';
+  var townDay = world.town_age || world.day_number;
+  var title = ' ' + sym + ' ' + world.name + ' ' + sym + '  \u2502  Day ' + townDay + '  \u2502  ' + world.season + '  \u2502  ' + world.time_of_day + modelTag + ' ';
   var topBorder = '\u2554' + '\u2550'.repeat(W - 2) + '\u2557';
   var titlePad = '\u2551' + title.padStart(Math.floor((W - 2 + title.length) / 2)).padEnd(W - 2) + '\u2551';
   var botBorder = '\u255a' + '\u2550'.repeat(W - 2) + '\u255d';
@@ -2409,7 +2410,7 @@ function escText(s) {
 function updateSidebar(data) {
   var w = data.world;
   document.getElementById('town-name').textContent = (w.town_number ? '#' + w.town_number + ' ' : '') + (w.name || 'Unnamed Town');
-  document.getElementById('town-meta').textContent = 'Day ' + w.day_number + ' | ' + w.season + ' | ' + w.time_of_day;
+  document.getElementById('town-meta').textContent = 'Day ' + (w.town_age || w.day_number) + ' | ' + w.season + ' | ' + w.time_of_day;
   document.getElementById('town-motto').textContent = w.motto ? '"' + w.motto + '"' : '';
 
   var cultureEl = document.getElementById('town-culture');

@@ -8,6 +8,7 @@ const { getGrowthStage } = require('../simulation/buildings');
 const { getMonolithData } = require('../simulation/monolith');
 const { getOvergrowthState } = require('../simulation/overgrowth');
 const { getNodesForFrame } = require('../simulation/resource-nodes');
+const { TICKS_PER_DAY } = require('../simulation/time');
 
 // Build structured world state for the client to animate
 function buildFrame(worldId, viewType = 'town') {
@@ -158,6 +159,7 @@ function buildTownFrame(worldId) {
     world: {
       name: world.name,
       day_number: world.day_number,
+      town_age: Math.floor((world.current_tick || 0) / TICKS_PER_DAY) + 1,
       season: world.season,
       time_of_day: world.time_of_day,
       weather: world.weather,
@@ -291,7 +293,7 @@ function buildMapFrame(worldId) {
   return {
     frame_type: 'map',
     composed,
-    status_bar: `Day ${world.day_number} | ${world.season} | ${world.weather} | Pop: ${popAlive} | Food: ${resMap.food || 0} | Wood: ${resMap.wood || 0} | Stone: ${resMap.stone || 0}`,
+    status_bar: `Day ${Math.floor((world.current_tick || 0) / TICKS_PER_DAY) + 1} | ${world.season} | ${world.weather} | Pop: ${popAlive} | Food: ${resMap.food || 0} | Wood: ${resMap.wood || 0} | Stone: ${resMap.stone || 0}`,
     timestamp: Date.now(),
   };
 }
