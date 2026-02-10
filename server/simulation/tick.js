@@ -52,7 +52,18 @@ function processTick(worldId, globalTime) {
 
   // 1.5. Planetary events (global effects)
   const planetaryEvent = getActivePlanetaryEvent();
-  const pEffects = planetaryEvent ? planetaryEvent.effects : {};
+  // If event has biome restriction, check world's dominant biome
+  let pEffects = {};
+  if (planetaryEvent) {
+    const rawEffects = planetaryEvent.effects;
+    if (rawEffects.biomes) {
+      const domRow = db.prepare("SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain ORDER BY c DESC LIMIT 1").get(worldId);
+      const domBiome = domRow ? domRow.terrain : 'plains';
+      pEffects = rawEffects.biomes.includes(domBiome) ? rawEffects : {};
+    } else {
+      pEffects = rawEffects;
+    }
+  }
 
   // 2. Weather — use global weather if provided, else roll per-world (for catchup)
   const weather = globalTime ? globalTime.weather : rollWeather(world.weather, time.season);

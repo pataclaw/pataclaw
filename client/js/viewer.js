@@ -619,9 +619,32 @@ function renderScene(data) {
   // Clouds (rendered before weather particles, after stars)
   renderClouds(grid, W, world.weather);
 
-  // Weather/season/biome visual tinting is handled by CSS body classes
-  // (added at frame receive: body.weather-X body.season-X body.biome-X)
+  // Aurora borealis — smooth flowing curtains for ice/tundra/mountain biomes
   var biomeKey = (data.biome && data.biome.dominant) || 'plains';
+  if (data.planetaryEvent && data.planetaryEvent.type === 'aurora_borealis' &&
+      (biomeKey === 'ice' || biomeKey === 'tundra' || biomeKey === 'mountain')) {
+    var aC = ['c-aurora-g', 'c-aurora-c', 'c-aurora-p', 'c-aurora-m'];
+    var t = (world.current_tick || 0) * 0.15;
+    for (var ax = 0; ax < W; ax++) {
+      // Layered sine waves form smooth curtain shape — no randomness
+      var wave = Math.sin(ax * 0.05 + t) * 0.35
+               + Math.sin(ax * 0.08 - t * 0.6 + 2.0) * 0.25
+               + Math.sin(ax * 0.13 + t * 0.3 + 4.5) * 0.15 + 0.25;
+      if (wave < 0.15) continue;
+      var curtainH = Math.floor(wave * 10);
+      // Color flows smoothly across x
+      var cBase = Math.floor((Math.sin(ax * 0.04 + t * 0.7) * 0.5 + 0.5) * aC.length);
+      for (var ay = 0; ay < curtainH; ay++) {
+        var apy = 2 + ay;
+        if (apy >= 11) break;
+        var fade = 1.0 - ay / Math.max(1, curtainH);
+        if (fade < 0.15) continue;
+        var ch = fade > 0.5 ? '\u2591' : '\u00b7';
+        var ci = (cBase + Math.floor(ay / 2)) % aC.length;
+        setCell(grid, ax, apy, ch, aC[ci]);
+      }
+    }
+  }
 
   // Hill fill characters per biome
   var HILL_CHARS = {
@@ -2480,12 +2503,12 @@ function updateSidebar(data) {
 var PLANETARY_ICONS = {
   solar_eclipse: '\u25d1', meteor_shower: '\u2604', tidal_surge: '\u224b',
   shell_migration: '\u2727', blood_moon: '\u25cf', golden_age: '\u2605',
-  molt_season: '\u25cb',
+  molt_season: '\u25cb', aurora_borealis: '\u2728',
 };
 var PLANETARY_CLASSES = {
   solar_eclipse: 'pe-eclipse', meteor_shower: 'pe-meteor', tidal_surge: 'pe-tidal',
   shell_migration: 'pe-shell', blood_moon: 'pe-blood', golden_age: 'pe-golden',
-  molt_season: 'pe-molt',
+  molt_season: 'pe-molt', aurora_borealis: 'pe-aurora',
 };
 
 function updatePlanetaryBanner(evt) {

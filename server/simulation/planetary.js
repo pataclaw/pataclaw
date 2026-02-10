@@ -47,6 +47,12 @@ const PLANETARY_EVENTS = {
     duration: 6,
     effects: { moltAll: true, moraleDelta: -5 },
   },
+  aurora_borealis: {
+    title: 'Aurora Borealis!',
+    description: 'Shimmering curtains of light dance across the polar skies. The northern worlds are bathed in ethereal glow.',
+    duration: 18,
+    effects: { cultureMul: 1.3, moraleDelta: 4, explorationMul: 1.2, biomes: ['ice', 'tundra', 'mountain'] },
+  },
 };
 
 const EVENT_TYPES = Object.keys(PLANETARY_EVENTS);

@@ -854,6 +854,12 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-w-fog-wisp  { color: #99aabb; }
 #world .c-w-lightning  { color: #ffffaa; }
 
+/* Aurora borealis sky colors */
+#world .c-aurora-g { color: #33ff88; text-shadow: 0 0 6px rgba(51, 255, 136, 0.4); }
+#world .c-aurora-c { color: #44ddff; text-shadow: 0 0 6px rgba(68, 221, 255, 0.4); }
+#world .c-aurora-p { color: #aa66ff; text-shadow: 0 0 6px rgba(170, 102, 255, 0.4); }
+#world .c-aurora-m { color: #ff66cc; text-shadow: 0 0 6px rgba(255, 102, 204, 0.3); }
+
 /* Time of day */
 body.dawn #world { color: #ffaa66; text-shadow: 0 0 4px rgba(255, 170, 102, 0.15); filter: sepia(0.12) saturate(1.15); }
 body.morning #world { color: #33ff33; }
@@ -956,6 +962,7 @@ body.crt-mode #world {
 .pe-blood    { background: linear-gradient(90deg, rgba(40,10,10,0.9), rgba(80,10,10,0.9)); color: #ff4444; border-bottom: 1px solid #aa2222; }
 .pe-golden   { background: linear-gradient(90deg, rgba(40,30,10,0.9), rgba(80,60,10,0.9)); color: #ffdd44; border-bottom: 1px solid #ccaa22; }
 .pe-molt     { background: linear-gradient(90deg, rgba(40,30,10,0.9), rgba(60,50,20,0.9)); color: #ffcc44; border-bottom: 1px solid #aa8822; }
+.pe-aurora   { background: linear-gradient(90deg, rgba(10,30,20,0.9), rgba(20,50,50,0.9)); color: #44ffaa; border-bottom: 1px solid #22aa66; }
 
 /* ─── Biome panel ─── */
 .biome-row {

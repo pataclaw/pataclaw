@@ -37,6 +37,7 @@
     blood_moon: '\u25CF',
     golden_age: '\u2605',
     molt_season: '\u25CB',
+    aurora_borealis: '\u2728',
   };
   // Visual modifiers per event type
   var PE_EFFECTS = {
@@ -47,6 +48,7 @@
     blood_moon:      { shadeMul: 0.7, atmoCls: 'globe-atmo-blood', meteorBoost: 0 },
     golden_age:      { shadeMul: 1.2, atmoCls: 'globe-atmo-golden', meteorBoost: 0 },
     molt_season:     { shadeMul: 1.1, atmoCls: 'globe-atmo-golden', meteorBoost: 0 },
+    aurora_borealis: { shadeMul: 1.0, atmoCls: 'globe-atmo-aurora', meteorBoost: 0 },
   };
 
   // ─── FULL-VIEWPORT STARFIELD (canvas) ───
@@ -619,6 +621,29 @@
           if (shade < 0.15) cls = 'globe-shadow';
           else if (shade < 0.3) cls += ' globe-dim';
 
+          // Aurora borealis — smooth flowing bands near poles
+          if (planetaryEvent && planetaryEvent.type === 'aurora_borealis' && shade > 0.08) {
+            var absLat = Math.abs(lat);
+            // Aurora band between ~55° and ~80° latitude
+            if (absLat > 0.96 && absLat < 1.40) {
+              // Smooth intensity: peaks at center of band, fades at edges
+              var bandCenter = 1.18;
+              var auroraIntensity = 1.0 - Math.abs(absLat - bandCenter) / 0.22;
+              auroraIntensity = Math.max(0, Math.min(1, auroraIntensity));
+              // Smooth wave along longitude — no randomness
+              var aWave = Math.sin(lon * 3.0 + frameCount * 0.06) * 0.3
+                        + Math.sin(lon * 5.0 - frameCount * 0.04 + 1.5) * 0.2 + 0.5;
+              if (aWave * auroraIntensity > 0.25) {
+                var aCls = ['aurora-g', 'aurora-c', 'aurora-p', 'aurora-m'];
+                var ai = Math.floor((Math.sin(lon * 2.0 + frameCount * 0.05) * 0.5 + 0.5) * aCls.length) % aCls.length;
+                // Shift color slightly by latitude for depth
+                ai = (ai + Math.floor((absLat - 0.96) * 4)) % aCls.length;
+                cls = aCls[ai];
+                ch = auroraIntensity > 0.6 ? '\u2591' : '\u00b7';
+              }
+            }
+          }
+
           row += '<span class="' + cls + '">' + escHtml(ch) + '</span>';
         }
       }
@@ -762,9 +787,9 @@
   function renderEventBanner(evt) {
     var el = document.getElementById('planet-event');
     if (!el) return;
-    if (!evt) {
+    if (!evt || evt.type === 'aurora_borealis') {
       el.classList.add('hidden');
-      updateAtmoOverlay(null);
+      updateAtmoOverlay(evt || null);
       return;
     }
     var icon = PE_ICONS[evt.type] || '\u2731';
