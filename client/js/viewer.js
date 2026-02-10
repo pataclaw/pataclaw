@@ -2104,19 +2104,17 @@ function renderScene(data) {
         if (aboveY >= 0) setCell(grid, sx, aboveY, snowChars[(snowHash + 1) % snowChars.length], 'c-w-snow');
       }
     }
-    // Hilltop snow: accumulate on near and mid hill peaks
+    // Hilltop snow: only near hills (far/mid hills are in the sky — snow looks like stars)
+    var snowCapChars = ['_', '_', '-', ','];
     for (var shx = 0; shx < W; shx++) {
       var htY = hillTopY[shx];
       if (htY < groundY) {
-        // This column has a hill — put snow on top
+        // Only snow-cap near hills (c-hill-near), skip far/mid hills in the sky
+        var hillClass = getCell(grid, shx, htY).c;
+        if (hillClass !== 'c-hill-near') continue;
         var shHash = ((shx * 11 + snowSeed * 7 + Math.floor(waveCounter * 0.03) * 5) % 100);
         if (shHash < 40) {
-          // Snow on the hill top cell itself
-          setCell(grid, shx, htY, snowChars[shHash % snowChars.length], 'c-w-snow');
-        }
-        // Snow one row above hill top (floating just above peak)
-        if (shHash < 20 && htY - 1 >= 0) {
-          setCell(grid, shx, htY - 1, snowChars[(shHash + 2) % snowChars.length], 'c-w-snow');
+          setCell(grid, shx, htY, snowCapChars[shHash % snowCapChars.length], 'c-w-snow');
         }
       }
     }
