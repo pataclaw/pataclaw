@@ -619,6 +619,23 @@ function renderScene(data) {
   // Clouds (rendered before weather particles, after stars)
   renderClouds(grid, W, world.weather);
 
+  // Weather/season/biome visual tinting is handled by CSS body classes
+  // (added at frame receive: body.weather-X body.season-X body.biome-X)
+  var biomeKey = (data.biome && data.biome.dominant) || 'plains';
+
+  // Hill fill characters per biome
+  var HILL_CHARS = {
+    plains:   { far: '\u00b7', mid: '\u25aa', midPk: '\u25b4', near: '#',      nearPk: '\u25b2' },
+    forest:   { far: '\u00b7', mid: '\u25aa', midPk: '\u25b4', near: '#',      nearPk: '\u25b2' },
+    desert:   { far: '\u00b7', mid: '.',      midPk: '\u25b4', near: '\u2248', nearPk: '\u25b2' },
+    mountain: { far: '.',      mid: '\u25aa', midPk: '\u25b2', near: '\u2593', nearPk: '\u25b2' },
+    swamp:    { far: '~',      mid: '~',      midPk: '\u00a7', near: '\u2592', nearPk: '\u00a7' },
+    ice:      { far: '\u00b7', mid: '\u2591', midPk: '\u25c7', near: '\u2592', nearPk: '\u25c7' },
+    tundra:   { far: '\u00b7', mid: '\u2591', midPk: '*',      near: '\u2592', nearPk: '*' },
+    water:    { far: '~',      mid: '\u2248', midPk: '~',      near: '\u2248', nearPk: '~' },
+  };
+  var hc = HILL_CHARS[biomeKey] || HILL_CHARS.plains;
+
   // Hills — 3 layered depth ranges (overwrite celestial so sun/moon set behind hills)
   // Far hills (background, subtle)
   for (var hx = 0; hx < W; hx++) {
@@ -626,7 +643,7 @@ function renderScene(data) {
     for (var dy = 0; dy <= Math.max(0, hFar + 2); dy++) {
       var hy = 8 - hFar + dy;
       if (hy >= 0 && hy < groundY - 10) {
-        setCell(grid, hx, hy, '\u00b7', 'c-hill-far');
+        setCell(grid, hx, hy, hc.far, 'c-hill-far');
       }
     }
   }
@@ -637,7 +654,7 @@ function renderScene(data) {
       var hy = 10 - hMid + dy;
       if (hy >= 0 && hy < groundY - 8) {
         var isPeak = dy === 0 && hMid > 1;
-        setCell(grid, hx, hy, isPeak ? '\u25b4' : '\u25aa', 'c-hill-mid');
+        setCell(grid, hx, hy, isPeak ? hc.midPk : hc.mid, 'c-hill-mid');
       }
     }
   }
@@ -648,14 +665,10 @@ function renderScene(data) {
       var hy = 13 - hNear + dy;
       if (hy >= 0 && hy < groundY - 6) {
         var isPeak = dy === 0 && hNear > 0;
-        setCell(grid, hx, hy, isPeak ? '\u25b2' : '#', 'c-hill-near');
+        setCell(grid, hx, hy, isPeak ? hc.nearPk : hc.near, 'c-hill-near');
       }
     }
   }
-
-  // Weather/season/biome visual tinting is handled by CSS body classes
-  // (added at frame receive: body.weather-X body.season-X body.biome-X)
-  var biomeKey = (data.biome && data.biome.dominant) || 'plains';
 
   // ─── CANOPY TREES (biome-specific) + small bonsai background detail ───
   var growthStage = data.growth_stage || 0;
@@ -697,11 +710,48 @@ function renderScene(data) {
     },
   };
 
-  var BONSAI_SPRITES = [
-    [[' . ','c-tree'],['(@)','c-tree'],[' | ','c-tree-t']],
-    [[' * ','c-tree'],['/|\\','c-tree'],[' | ','c-tree-t']],
-    [['.~.','c-tree'],['~~~','c-tree'],[' | ','c-tree-t']],
-  ];
+  var BONSAI_SPRITES = {
+    plains: [
+      [[' . ','c-tree'],['(@)','c-tree'],[' | ','c-tree-t']],
+      [[' * ','c-tree'],['/|\\','c-tree'],[' | ','c-tree-t']],
+      [['.~.','c-tree'],['~~~','c-tree'],[' | ','c-tree-t']],
+    ],
+    forest: [
+      [[' . ','c-tree'],['/|\\','c-tree'],['/#\\','c-tree'],[' | ','c-tree-t']],
+      [[' * ','c-tree'],['/*\\','c-tree'],[' | ','c-tree-t']],
+      [['.~.','c-tree'],['(~)','c-tree'],[' | ','c-tree-t']],
+    ],
+    desert: [
+      [[' | ','c-canopy-desert'],['}|{','c-canopy-desert'],[' | ','c-tree-t']],
+      [[' } ','c-canopy-desert'],[' | ','c-canopy-desert'],[' . ','c-tree-t']],
+      [['\\|/','c-canopy-desert'],[' | ','c-tree-t']],
+    ],
+    mountain: [
+      [[' . ','c-canopy-mountain'],['/^\\','c-canopy-mountain'],[' | ','c-tree-t']],
+      [[' * ','c-canopy-mountain'],['/|\\','c-canopy-mountain'],[' | ','c-tree-t']],
+      [[' ^ ','c-canopy-mountain'],['(^)','c-canopy-mountain'],[' | ','c-tree-t']],
+    ],
+    swamp: [
+      [['~.~','c-canopy-swamp'],['~|~','c-canopy-swamp'],[' | ','c-tree-t']],
+      [[' \u00a7 ','c-canopy-swamp'],['/|\\','c-canopy-swamp'],[' | ','c-tree-t']],
+      [['.~.','c-canopy-swamp'],['|||','c-canopy-swamp'],[' | ','c-tree-t']],
+    ],
+    ice: [
+      [[' \u25c7 ','c-canopy-ice'],['\u2591|\u2591','c-canopy-ice'],[' | ','c-tree-t']],
+      [[' * ','c-canopy-ice'],['\u25bd|\u25bd','c-canopy-ice'],[' | ','c-tree-t']],
+      [[' \u25c7 ','c-canopy-ice'],['/|\\','c-canopy-ice'],[' | ','c-tree-t']],
+    ],
+    tundra: [
+      [[' * ','c-canopy-tundra'],['\u2591|\u2591','c-canopy-tundra'],[' | ','c-tree-t']],
+      [[' . ','c-canopy-tundra'],['/|\\','c-canopy-tundra'],[' | ','c-tree-t']],
+      [[' \u25c7 ','c-canopy-tundra'],['\u25bd|\u25bd','c-canopy-tundra'],[' | ','c-tree-t']],
+    ],
+    water: [
+      [['~.~','c-canopy-plains'],['~|~','c-canopy-plains'],[' | ','c-tree-t']],
+      [[' . ','c-canopy-plains'],['(~)','c-canopy-plains'],[' | ','c-tree-t']],
+      [['.~.','c-canopy-plains'],['~~~','c-canopy-plains'],[' | ','c-tree-t']],
+    ],
+  };
 
   var wSeedT = Math.abs(world.seed || 42);
   var treeXs = [];
@@ -741,8 +791,9 @@ function renderScene(data) {
     for (var xi = 0; xi < treeXs.length; xi++) { if (Math.abs(tx - treeXs[xi]) < 6) { tooClose = true; break; } }
     if (tooClose) continue;
     treeXs.push(tx);
-    var ttype = th % BONSAI_SPRITES.length;
-    var spr = BONSAI_SPRITES[ttype];
+    var bonsaiDef = BONSAI_SPRITES[biomeKey] || BONSAI_SPRITES.plains;
+    var ttype = th % bonsaiDef.length;
+    var spr = bonsaiDef[ttype];
     var hillH = Math.floor(Math.sin(tx * 0.07) * 2 + Math.sin(tx * 0.13 + 1) * 1.5 + Math.cos(tx * 0.03) * 1);
     var treeBase = 10 - hillH;
     for (var tr = 0; tr < spr.length; tr++) {

@@ -594,6 +594,50 @@ body.weather-snow #world .c-gnd-ed, body.season-winter #world .c-gnd-ed, body.bi
 body.weather-snow #world .c-hill-far, body.season-winter #world .c-hill-far, body.biome-ice #world .c-hill-far, body.biome-tundra #world .c-hill-far { color: #889999; }
 body.weather-snow #world .c-hill-mid, body.season-winter #world .c-hill-mid, body.biome-ice #world .c-hill-mid, body.biome-tundra #world .c-hill-mid { color: #aabbbb; }
 body.weather-snow #world .c-hill-near, body.season-winter #world .c-hill-near, body.biome-ice #world .c-hill-near, body.biome-tundra #world .c-hill-near { color: #ccdddd; }
+/* Desert hills — sandy tan/brown */
+body.biome-desert #world .c-hill-far  { color: #8a7a55; }
+body.biome-desert #world .c-hill-mid  { color: #aa9966; }
+body.biome-desert #world .c-hill-near { color: #ccbb77; }
+body.biome-desert.dawn #world .c-hill-far  { color: #7a6a45; }
+body.biome-desert.dawn #world .c-hill-mid  { color: #9a8955; }
+body.biome-desert.dawn #world .c-hill-near { color: #bbaa66; }
+body.biome-desert.night #world .c-hill-far  { color: #3a3522; }
+body.biome-desert.night #world .c-hill-mid  { color: #4a4530; }
+body.biome-desert.night #world .c-hill-near { color: #5a5540; }
+/* Mountain hills — rocky gray/slate */
+body.biome-mountain #world .c-hill-far  { color: #556666; }
+body.biome-mountain #world .c-hill-mid  { color: #778888; }
+body.biome-mountain #world .c-hill-near { color: #99aaaa; }
+body.biome-mountain.dawn #world .c-hill-far  { color: #5a5a55; }
+body.biome-mountain.dawn #world .c-hill-mid  { color: #7a7a70; }
+body.biome-mountain.dawn #world .c-hill-near { color: #9a9a88; }
+body.biome-mountain.night #world .c-hill-far  { color: #2a3333; }
+body.biome-mountain.night #world .c-hill-mid  { color: #3a4444; }
+body.biome-mountain.night #world .c-hill-near { color: #4a5555; }
+/* Swamp hills — murky olive/brown */
+body.biome-swamp #world .c-hill-far  { color: #3a4422; }
+body.biome-swamp #world .c-hill-mid  { color: #4a5533; }
+body.biome-swamp #world .c-hill-near { color: #5a6644; }
+body.biome-swamp.dawn #world .c-hill-far  { color: #3a3a1a; }
+body.biome-swamp.dawn #world .c-hill-mid  { color: #4a4a28; }
+body.biome-swamp.dawn #world .c-hill-near { color: #5a5a38; }
+body.biome-swamp.night #world .c-hill-far  { color: #1a2211; }
+body.biome-swamp.night #world .c-hill-mid  { color: #223318; }
+body.biome-swamp.night #world .c-hill-near { color: #2a3a22; }
+/* Forest hills — deep rich green */
+body.biome-forest #world .c-hill-far  { color: #224422; }
+body.biome-forest #world .c-hill-mid  { color: #336633; }
+body.biome-forest #world .c-hill-near { color: #448844; }
+body.biome-forest.night #world .c-hill-far  { color: #112211; }
+body.biome-forest.night #world .c-hill-mid  { color: #1a331a; }
+body.biome-forest.night #world .c-hill-near { color: #224422; }
+/* Water hills — blue-green coastal */
+body.biome-water #world .c-hill-far  { color: #335566; }
+body.biome-water #world .c-hill-mid  { color: #447788; }
+body.biome-water #world .c-hill-near { color: #5599aa; }
+body.biome-water.night #world .c-hill-far  { color: #1a2a33; }
+body.biome-water.night #world .c-hill-mid  { color: #2a3a44; }
+body.biome-water.night #world .c-hill-near { color: #3a4a55; }
 /* Snow vegetation + decor */
 body.weather-snow #world .c-dec-v, body.season-winter #world .c-dec-v, body.biome-ice #world .c-dec-v, body.biome-tundra #world .c-dec-v { color: #99ccaa; }
 body.weather-snow #world .c-dec-s, body.season-winter #world .c-dec-s, body.biome-ice #world .c-dec-s, body.biome-tundra #world .c-dec-s { color: #aabbbb; }
