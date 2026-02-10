@@ -57,6 +57,18 @@ var ROLE_NAME_COLORS = {
   priest: 'c-n-priest', fisherman: 'c-n-fisherman', hunter: 'c-n-hunter',
 };
 
+var ROLE_SYMBOLS = {
+  idle: '\u00b7',      // ·
+  farmer: '\u2663',    // ♣
+  warrior: '\u2020',   // †
+  builder: '\u25b2',   // ▲
+  scout: '\u25c8',     // ◈
+  scholar: '\u00a7',   // §
+  priest: '\u2726',    // ✦
+  fisherman: '\u2248', // ≈
+  hunter: '\u25b7',    // ▷
+};
+
 // ─── CLOUD SYSTEM ───
 var cloudState = { clouds: [], weather: null };
 
@@ -2087,14 +2099,17 @@ function renderScene(data) {
       }
     }
 
-    // Name under ground — colored by role, bright variant for experienced villagers
+    // Name under ground — symbol + name + level, colored by role
     var nameY = groundY + 1;
-    var name = v.name.slice(0, 7);
-    var nx = x + Math.floor((7 - name.length) / 2);
+    var roleSymbol = ROLE_SYMBOLS[role] || '\u00b7';
+    var lvl = v.molt_count || 0;
+    var maxNameLen = lvl > 0 ? 5 : 6;
+    var nameStr = roleSymbol + v.name.slice(0, maxNameLen) + (lvl > 0 ? lvl : '');
+    var nx = x + Math.floor((7 - nameStr.length) / 2);
     var nameClass = ROLE_NAME_COLORS[role] || 'c-n-idle';
     if ((v.experience || 0) > 200) nameClass += '-hi';
-    for (var ni = 0; ni < name.length && nx + ni < W; ni++) {
-      if (nx + ni >= 0) setCell(grid, nx + ni, nameY, name[ni], nameClass);
+    for (var ni = 0; ni < nameStr.length && nx + ni < W; ni++) {
+      if (nx + ni >= 0) setCell(grid, nx + ni, nameY, nameStr[ni], nameClass);
     }
   }
 
@@ -2258,9 +2273,11 @@ function updateSidebar(data) {
       persText = [t, c, s].filter(Boolean).join('/') || '';
     }
 
+    var cLvl = v.molt_count || 0;
+    var cSymbol = ROLE_SYMBOLS[v.role] || '\u00b7';
     row.innerHTML =
       '<span class="citizen-face">[' + esc(v.appearance ? v.appearance.eyes : 'o o') + ']</span>' +
-      '<span class="citizen-name">' + esc(v.name) + '</span>' +
+      '<span class="citizen-name">' + cSymbol + ' ' + esc(v.name) + (cLvl > 0 ? ' <span class="citizen-lvl">Lv' + cLvl + '</span>' : '') + '</span>' +
       '<span class="citizen-role">' + v.role + '</span>' +
       '<span class="citizen-mood">' + moodEmoji + '</span>' +
       '<span class="citizen-state">' + activityText + '</span>' +

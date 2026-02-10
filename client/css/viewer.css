@@ -158,6 +158,7 @@ body {
 .citizen-mood { font-size: 9px; }
 .citizen-state { color: #557755; font-size: 9px; font-style: italic; }
 .citizen-pers { color: #8866cc; font-size: 8px; font-style: italic; }
+.citizen-lvl { color: #ffd700; font-size: 9px; font-weight: bold; }
 .citizen-dead { color: #ff4444; text-decoration: line-through; opacity: 0.5; }
 
 /* Buildings */

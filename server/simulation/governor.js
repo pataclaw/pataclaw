@@ -20,6 +20,27 @@ const ROLE_BUILDING = {
   warrior:   ['wall', 'watchtower'],
 };
 
+// Personality affinities for smart role assignment
+// Positive = high stat is good for this role, negative = low stat is good
+const ROLE_PERSONALITY = {
+  farmer:    { temperament: 0.4,  creativity: -0.2, sociability: 0.1  }, // calm, practical
+  fisherman: { temperament: 0.3,  creativity: 0,    sociability: 0.3  }, // patient, social
+  hunter:    { temperament: -0.4, creativity: 0,    sociability: -0.3 }, // aggressive, loner
+  builder:   { temperament: 0.1,  creativity: 0.4,  sociability: 0.1  }, // creative
+  scholar:   { temperament: 0.2,  creativity: 0.5,  sociability: -0.1 }, // calm, creative, bookish
+  priest:    { temperament: 0.3,  creativity: 0.1,  sociability: 0.4  }, // calm, social
+  warrior:   { temperament: -0.5, creativity: -0.1, sociability: 0    }, // aggressive
+  scout:     { temperament: -0.1, creativity: 0.1,  sociability: -0.4 }, // independent, loner
+};
+
+function scoreForRole(v, role) {
+  const aff = ROLE_PERSONALITY[role];
+  if (!aff) return 0;
+  return (v.temperament || 50) * (aff.temperament || 0) +
+         (v.creativity || 50) * (aff.creativity || 0) +
+         (v.sociability || 50) * (aff.sociability || 0);
+}
+
 function processGovernor(worldId, tick) {
   if (tick % GOVERNOR_INTERVAL !== 0) return [];
   const events = [];
@@ -37,7 +58,7 @@ function processGovernor(worldId, tick) {
   const pop = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
   if (pop === 0) return events;
 
-  const idle = db.prepare("SELECT id, name FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle'").all(worldId);
+  const idle = db.prepare("SELECT id, name, temperament, creativity, sociability FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle'").all(worldId);
   const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
   const resMap = {};
   for (const r of resources) resMap[r.type] = r.amount;
@@ -64,10 +85,16 @@ function processGovernor(worldId, tick) {
   const wood = resMap.wood || 0;
   const stone = resMap.stone || 0;
 
-  // Helper: assign one idle villager to a role
+  // Helper: assign the best-matched idle villager to a role
   function assignRole(role) {
     if (idle.length === 0) return false;
-    const v = idle.shift();
+    // Pick the villager whose personality best fits this role
+    let bestIdx = 0, bestScore = -Infinity;
+    for (let i = 0; i < idle.length; i++) {
+      const s = scoreForRole(idle[i], role);
+      if (s > bestScore) { bestScore = s; bestIdx = i; }
+    }
+    const v = idle.splice(bestIdx, 1)[0];
     const types = ROLE_BUILDING[role];
     let buildingId = null;
     if (types) {
