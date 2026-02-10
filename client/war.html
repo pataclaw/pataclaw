@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PATACLAW - War Viewer</title>
+  <title>PATACLAW - War</title>
 
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pataclaw.com/war">
-  <meta property="og:title" content="PATACLAW War Viewer">
+  <meta property="og:title" content="PATACLAW War">
   <meta property="og:description" content="Watch civilizations clash in real-time ASCII warfare. Spires crumble. Armies fall.">
   <meta property="og:image" content="https://pataclaw.com/og-card.png?v=3">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@pataclawgame">
-  <meta name="twitter:title" content="PATACLAW War Viewer">
+  <meta name="twitter:title" content="PATACLAW War">
   <meta name="twitter:description" content="Watch civilizations clash in real-time ASCII warfare.">
   <meta name="twitter:image" content="https://pataclaw.com/og-card.png?v=3">
   <meta name="description" content="Watch civilizations clash in real-time ASCII warfare. Spires crumble. Armies fall.">
@@ -23,50 +23,47 @@
   <link rel="stylesheet" href="/css/war.css">
 </head>
 <body>
-  <div id="war-container">
-    <div id="war-header">
-      <div id="challenger-info" class="side-info left">
-        <div class="side-name" id="challenger-name">???</div>
-        <div class="side-hp-bar">
-          <div class="hp-fill challenger-fill" id="challenger-hp-fill"></div>
+  <div id="app">
+    <div id="hud">
+      <div class="hud-side left">
+        <div class="hud-name" id="c-name">???</div>
+        <div class="hud-bar"><div class="hud-fill c-fill" id="c-fill"></div></div>
+        <div class="hud-info">
+          <span class="hud-hp" id="c-hp">200/200</span>
+          <span class="phase phase-clash" id="c-phase">CLASH</span>
+          <span class="hud-wc" id="c-count">&#x2694; 0</span>
         </div>
-        <div class="side-stats">
-          <span class="side-hp-text" id="challenger-hp-text">200/200</span>
-          <span class="side-warriors" id="challenger-warriors">&#x2694; 0</span>
-        </div>
-        <div class="side-phase" id="challenger-phase">CLASH</div>
       </div>
-      <div id="war-center-info">
-        <div id="war-title">WAR</div>
-        <div id="war-round">Round 0/40</div>
-        <div id="war-weather"></div>
+      <div class="hud-center">
+        <div id="vs">&#x2694; WAR &#x2694;</div>
+        <div id="round">ROUND 0 / 40</div>
+        <div id="weather-info"></div>
       </div>
-      <div id="defender-info" class="side-info right">
-        <div class="side-name" id="defender-name">???</div>
-        <div class="side-hp-bar">
-          <div class="hp-fill defender-fill" id="defender-hp-fill"></div>
+      <div class="hud-side right">
+        <div class="hud-name" id="d-name">???</div>
+        <div class="hud-bar"><div class="hud-fill d-fill" id="d-fill"></div></div>
+        <div class="hud-info">
+          <span class="hud-hp" id="d-hp">200/200</span>
+          <span class="phase phase-clash" id="d-phase">CLASH</span>
+          <span class="hud-wc" id="d-count">&#x2694; 0</span>
         </div>
-        <div class="side-stats">
-          <span class="side-hp-text" id="defender-hp-text">200/200</span>
-          <span class="side-warriors" id="defender-warriors">&#x2694; 0</span>
-        </div>
-        <div class="side-phase" id="defender-phase">CLASH</div>
       </div>
     </div>
 
-    <div id="battlefield">
-      <pre id="war-grid"></pre>
-      <div id="narrator-overlay" class="narrator-flash"></div>
+    <div id="stage">
+      <pre id="grid"></pre>
+      <div id="narrator"></div>
+      <div id="resolved"></div>
     </div>
 
-    <div id="war-footer">
-      <div id="skill-bar">
-        <div id="challenger-skills" class="skill-row"></div>
-        <div id="defender-skills" class="skill-row"></div>
+    <div id="foot">
+      <div id="skills">
+        <div id="c-skills" class="sk-row"></div>
+        <div id="d-skills" class="sk-row"></div>
       </div>
-      <div id="battle-log"></div>
-      <div id="war-status-bar">
-        <span id="war-status-text"></span>
+      <div id="log"></div>
+      <div id="nav">
+        <span id="status">LOADING</span>
         <span class="sep">|</span>
         <a href="/arena">&lt; ARENA</a>
         <span class="sep">|</span>
