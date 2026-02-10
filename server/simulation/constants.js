@@ -83,4 +83,8 @@ module.exports = {
   CATHEDRAL_MOLT_DURATION_REDUCTION: 1, // Molt Cathedral: molt finishes 1 tick faster
   POOLS_BIRTH_RATE_BONUS: 0.015,        // Spawning Pools: +1.5% birth rate
   POOLS_STAT_BONUS: 3,                  // Spawning Pools: newborns get +3 to a random stat
+
+  // Unique Resources (produced by megastructures)
+  MEGA_RESOURCE_RATE: 0.3,              // base production per tick per megastructure
+  MEGA_RESOURCE_CAPACITY: 50,           // max storage for unique resources
 };

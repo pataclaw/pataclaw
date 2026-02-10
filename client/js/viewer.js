@@ -289,7 +289,13 @@ function syncAgents(villagers) {
     agents[v.id].data = v;
   }
   for (var id in agents) {
-    if (!seen.has(id)) delete agents[id];
+    if (!seen.has(id) && agents[id].state !== 'dying') {
+      agents[id].state = 'dying';
+      agents[id].dyingFrame = 0;
+      agents[id].stateTimer = 0;
+      agents[id].currentSpeech = '';
+      agents[id].speechTimer = 0;
+    }
   }
 }
 
@@ -310,6 +316,11 @@ function startAnimLoop() {
     try {
       for (var id in agents) {
         var a = agents[id];
+        if (a.state === 'dying') {
+          a.dyingFrame = (a.dyingFrame || 0) + 1;
+          if (a.dyingFrame >= 60) { delete agents[id]; }
+          continue;
+        }
         if (!a.data || a.data.status !== 'alive') continue;
         updateAgent(a, lastWorldData.world);
       }
@@ -789,45 +800,53 @@ function renderScene(data) {
       }
     }
 
-    // Fog: deep ground fog gradient (6 rows) + drifting fog banks
+    // Fog: smooth ground mist + drifting fog banks (deterministic, no Math.random)
     if (world.weather === 'fog') {
-      // Ground fog gradient — densest at bottom, wisps at top
-      var fogLayers = [
-        { offset: 1, chance: 0.50, ch: '\u2592', cls: 'c-w-fog-dense' },
-        { offset: 2, chance: 0.40, ch: '\u2592', cls: 'c-w-fog-dense' },
-        { offset: 3, chance: 0.30, ch: '\u2591', cls: 'c-w-fog' },
-        { offset: 4, chance: 0.20, ch: '\u2591', cls: 'c-w-fog' },
-        { offset: 5, chance: 0.12, ch: '\u2591', cls: 'c-w-fog-wisp' },
-        { offset: 6, chance: 0.06, ch: '\u2591', cls: 'c-w-fog-wisp' },
-      ];
-      for (var fli = 0; fli < fogLayers.length; fli++) {
-        var fl = fogLayers[fli];
-        var fly = groundY - fl.offset;
-        if (fly < 0) continue;
-        for (var flx = 0; flx < W; flx++) {
-          if (Math.random() < fl.chance && getCell(grid, flx, fly).ch === ' ') {
-            setCell(grid, flx, fly, fl.ch, fl.cls);
+      // Smooth ground fog using layered sine waves — "breathes" in and out
+      for (var fogRow = 1; fogRow <= 8; fogRow++) {
+        var fogY = groundY - fogRow;
+        if (fogY < 0) continue;
+        var baseDensity = 1.0 - (fogRow - 1) / 8;
+        for (var fogX = 0; fogX < W; fogX++) {
+          var n1 = Math.sin(fogX * 0.08 + waveCounter * 0.015 + fogRow * 0.5);
+          var n2 = Math.sin(fogX * 0.17 - waveCounter * 0.022 + fogRow * 1.3);
+          var n3 = Math.sin(fogX * 0.04 + waveCounter * 0.008);
+          var breathe = Math.sin(waveCounter * 0.012) * 0.15;
+          var density = baseDensity + breathe + (n1 * 0.25 + n2 * 0.15 + n3 * 0.1);
+          if (density > 0.35 && getCell(grid, fogX, fogY).ch === ' ') {
+            if (density > 0.7) {
+              setCell(grid, fogX, fogY, '\u2592', 'c-w-fog-dense');
+            } else if (density > 0.5) {
+              setCell(grid, fogX, fogY, '\u2591', 'c-w-fog');
+            } else {
+              setCell(grid, fogX, fogY, '\u2591', 'c-w-fog-wisp');
+            }
           }
         }
       }
 
-      // Drifting fog banks — 3 bands at different heights
+      // Drifting fog banks — 5 bands, wider, soft-edged, with wispy tendrils
       var fogSeed = (world.seed || 0);
-      for (var fbi = 0; fbi < 3; fbi++) {
+      for (var fbi = 0; fbi < 5; fbi++) {
         var fbHash = ((fogSeed * 2654435761 + fbi * 7919) >>> 0) % 100000;
-        var fbWidth = 15 + (fbHash % 11);
-        var fbY = groundY - 3 - fbi * 3 - (fbHash % 3);
+        var fbWidth = 20 + (fbHash % 15);
+        var fbY = groundY - 2 - fbi * 2 - (fbHash % 4);
         var fbBaseX = (fbHash % W);
-        var fbX = Math.round(fbBaseX + Math.sin(waveCounter * 0.02 + fbi * 2) * 8);
+        var fbX = Math.round(fbBaseX + Math.sin(waveCounter * (0.012 + fbi * 0.004) + fbi * 1.5) * 12);
         for (var fbc = 0; fbc < fbWidth; fbc++) {
-          var fbpx = (fbX + fbc) % W;
-          if (fbpx < 0) fbpx += W;
+          var fbpx = ((fbX + fbc) % W + W) % W;
+          var edgeFade = Math.min(fbc, fbWidth - 1 - fbc) / 4;
+          if (edgeFade < 1 && Math.sin(waveCounter * 0.03 + fbc) < edgeFade) continue;
           if (fbY >= 0 && fbY < groundY && getCell(grid, fbpx, fbY).ch === ' ') {
             setCell(grid, fbpx, fbY, '\u2592', 'c-w-fog-dense');
           }
-          // Second row for thickness
           if (fbY + 1 >= 0 && fbY + 1 < groundY && getCell(grid, fbpx, fbY + 1).ch === ' ') {
             setCell(grid, fbpx, fbY + 1, '\u2591', 'c-w-fog');
+          }
+          // Wispy tendrils reaching upward
+          var tendrilH = Math.sin(fbpx * 0.15 + waveCounter * 0.02 + fbi);
+          if (tendrilH > 0.6 && fbY - 1 >= 0 && getCell(grid, fbpx, fbY - 1).ch === ' ') {
+            setCell(grid, fbpx, fbY - 1, '\u2591', 'c-w-fog-wisp');
           }
         }
       }
@@ -1727,10 +1746,11 @@ function renderScene(data) {
     }
   }
 
-  // Agents (villagers)
+  // Agents (villagers — alive + dying)
   var aliveAgents = [];
   for (var aid in agents) {
-    if (agents[aid].data && agents[aid].data.status === 'alive') aliveAgents.push(agents[aid]);
+    if (agents[aid].state === 'dying') { aliveAgents.push(agents[aid]); }
+    else if (agents[aid].data && agents[aid].data.status === 'alive') { aliveAgents.push(agents[aid]); }
   }
 
   for (var ai = 0; ai < aliveAgents.length; ai++) {
@@ -1865,6 +1885,59 @@ function renderScene(data) {
         "'" + ap.body.slice(1, -1) + "'" + workChars[workFrame],
         ' d   b ',
       ];
+    } else if (a.state === 'dying') {
+      var df = a.dyingFrame || 0;
+      if (df < 20) {
+        // Phase 1: Cracking — sprite fractures
+        var crk = Math.floor(df / 4) % 5;
+        var crkCh = ['|', '/', '#', '\\', 'X'];
+        charLines = [
+          '  ' + crkCh[crk] + ' ' + crkCh[(crk + 2) % 5] + '  ',
+          ap.head.replace(/[.\-]/g, crk > 2 ? '#' : '|'),
+          '|' + ap.eyes + '|',
+          '|' + ap.mouth + '|',
+          "'" + ap.body.slice(1, -1) + "'",
+          ' d   b ',
+        ];
+        vColor = 'c-dying';
+      } else if (df < 40) {
+        // Phase 2: Collapsing into shell
+        if (df < 30) {
+          charLines = [
+            '  ###  ',
+            ' .#.#. ',
+            '  |#|  ',
+            " '---' ",
+            '  ___  ',
+            ' (___) ',
+          ];
+        } else {
+          charLines = [
+            '       ',
+            '       ',
+            '  .-.  ',
+            ' (   ) ',
+            "  '-'  ",
+            '  ___  ',
+          ];
+        }
+        vColor = 'c-dying';
+      } else {
+        // Phase 3: Shell on ground, fading
+        if (df % 4 === 0 && df > 50) {
+          charLines = ['       ', '       ', '       ', '       ', '       ', '       '];
+        } else {
+          charLines = [
+            '       ',
+            '       ',
+            '       ',
+            '       ',
+            '  .-.  ',
+            " '(_)' ",
+          ];
+        }
+        vColor = 'c-shell';
+      }
     } else {
       charLines = [
         hat,
@@ -2032,6 +2105,32 @@ function updateSidebar(data) {
     var pct = Math.min(100, (r.amount / r.capacity) * 100);
     fill.style.width = pct + '%';
     fill.className = 'res-fill' + (pct < 15 ? ' low' : pct < 40 ? ' mid' : '');
+  }
+
+  // Dynamic unique resources from megastructures
+  var UNIQUE_RES_NAMES = { shell_lore: 'Lore', abyssal_essence: 'Abyss', divine_carapace: 'Carapace', life_essence: 'Life' };
+  var UNIQUE_RES_ICONS = { shell_lore: '\u2606', abyssal_essence: '\u2234', divine_carapace: '\u2726', life_essence: '\u2665' };
+  var resPanel = document.getElementById('resources-panel');
+  for (var uKey in UNIQUE_RES_NAMES) {
+    if (!data.resources[uKey]) {
+      var existingEl = document.getElementById('res-' + uKey);
+      if (existingEl) existingEl.remove();
+      continue;
+    }
+    var uRes = data.resources[uKey];
+    var uEl = document.getElementById('res-' + uKey);
+    if (!uEl) {
+      uEl = document.createElement('div');
+      uEl.id = 'res-' + uKey;
+      uEl.className = 'res-row res-unique';
+      uEl.innerHTML = '<span class="res-icon">' + UNIQUE_RES_ICONS[uKey] + '</span> <span class="res-label">' + UNIQUE_RES_NAMES[uKey] + '</span> <span class="res-val">0</span><div class="res-bar"><div class="res-fill"></div></div>';
+      resPanel.appendChild(uEl);
+    }
+    uEl.querySelector('.res-val').textContent = uRes.amount;
+    var uFill = uEl.querySelector('.res-fill');
+    var uPct = Math.min(100, (uRes.amount / uRes.capacity) * 100);
+    uFill.style.width = uPct + '%';
+    uFill.className = 'res-fill unique';
   }
 
   document.getElementById('pop-count').textContent = data.population.alive + '/' + data.population.capacity;

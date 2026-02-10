@@ -125,6 +125,13 @@ body {
   background: linear-gradient(90deg, #aa8800, #ffcc00);
 }
 
+.res-fill.unique {
+  background: linear-gradient(90deg, #6633aa, #aa66ff);
+}
+
+.res-unique .res-label { color: #aa88cc; }
+.res-unique .res-icon { color: #cc99ff; }
+
 @keyframes lowPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
@@ -491,6 +498,10 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 
 /* Ghost echoes */
 #world .c-ghost { color: #334455; opacity: 0.6; }
+
+/* Death → shell animation */
+#world .c-dying { color: #886644; opacity: 0.8; }
+#world .c-shell { color: #997744; opacity: 0.5; }
 
 /* Molting shimmer */
 #world .c-molt     { color: #ffcc33; }

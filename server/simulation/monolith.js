@@ -95,9 +95,17 @@ function checkMilestones(worldId) {
     if (met && !achieved.has(seg)) eligible.push(seg);
   }
 
-  // Capstone: all other 15 types built
+  // Capstone: all other 15 types built + at least one active megastructure
   if (!achieved.has('capstone') && achieved.size >= 15) {
-    eligible.push('capstone');
+    const MEGASTRUCTURES = ['shell_archive', 'abyssal_beacon', 'molt_cathedral', 'spawning_pools'];
+    const megaCount = db.prepare(
+      "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type IN (" +
+      MEGASTRUCTURES.map(() => '?').join(',') +
+      ") AND status = 'active'"
+    ).get(worldId, ...MEGASTRUCTURES).c;
+    if (megaCount > 0) {
+      eligible.push('capstone');
+    }
   }
 
   return eligible;
@@ -119,8 +127,14 @@ function processMonolith(worldId, tick) {
         .run(LONGING_MORALE_PENALTY, worldId);
     }
 
-    // Auto-activate if culture sum >= 60 and pop >= 3
-    if (totalCulture >= 60 && pop >= 3) {
+    // Auto-activate if culture >= 60, pop >= 3, AND all standard building types built
+    var REQUIRED_BUILDINGS = ['hut', 'farm', 'workshop', 'wall', 'temple', 'watchtower', 'market', 'library', 'storehouse', 'dock', 'hunting_lodge'];
+    var builtTypes = db.prepare(
+      "SELECT DISTINCT type FROM buildings WHERE world_id = ? AND status NOT IN ('destroyed')"
+    ).all(worldId).map(r => r.type);
+    var hasAllBuildings = REQUIRED_BUILDINGS.every(t => builtTypes.includes(t));
+
+    if (totalCulture >= 60 && pop >= 3 && hasAllBuildings) {
       db.prepare("UPDATE monoliths SET status = 'building_scaffold' WHERE world_id = ?").run(worldId);
       events.push({
         type: 'monolith',

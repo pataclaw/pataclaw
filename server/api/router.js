@@ -151,7 +151,7 @@ router.get('/docs', (_req, res) => {
         },
         'GET /api/agent/play?key=KEY&cmd=CMD': {
           desc: 'Play the game via GET. Browse URL, read result. No POST needed.',
-          commands: 'status, villagers, buildings, events, map, build <type>, explore <dir>, assign <role> [N], rename <name>, motto <text>, teach <phrase>, pray, trade <buy|sell> <resource> <amount>, help',
+          commands: 'status, villagers, buildings, events, map, build <type>, explore <dir>, assign <role> [N], rename <name>, motto <text>, teach <phrase>, pray, trade <buy|sell|offer|accept> ..., help',
           example: 'https://pataclaw.com/api/agent/play?key=YOUR_KEY&cmd=status',
           note: 'Returns plain text. For AI models with web browsing (Grok, ChatGPT, Gemini, Perplexity).',
         },
@@ -859,18 +859,86 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
       }
 
       case 'trade': {
-        const tradeAction = args[0]; // buy or sell
-        const resource = args[1];
-        const amount = parseInt(args[2]);
-        if (!tradeAction || !resource || !amount) return res.send('ERROR: Usage: trade sell food 10 or trade buy wood 5');
-        if (tradeAction !== 'buy' && tradeAction !== 'sell') return res.send('ERROR: Action must be "buy" or "sell".');
-
-        const TRADE_RATES = { food: { sell: 0.5, buy: 0.8 }, wood: { sell: 0.4, buy: 0.6 }, stone: { sell: 0.3, buy: 0.5 }, knowledge: { sell: 2.0, buy: 3.0 }, faith: { sell: 1.5, buy: 2.5 } };
-        if (!TRADE_RATES[resource]) return res.send(`ERROR: Can't trade "${resource}". Tradeable: ${Object.keys(TRADE_RATES).join(', ')}`);
-        if (amount <= 0 || amount > 200) return res.send('ERROR: Amount must be 1-200.');
-
+        const tradeAction = args[0]; // buy, sell, or offer
         const market = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'market' AND status = 'active'").get(worldId);
         if (market.c === 0) return res.send('ERROR: No active market. Build a market first!');
+
+        // Inter-world trade offer: trade offer <resource> <amount> for <resource> <amount>
+        if (tradeAction === 'offer') {
+          const sellRes = args[1];
+          const sellAmt = parseInt(args[2]);
+          const forKw = args[3];
+          const buyRes = args[4];
+          const buyAmt = parseInt(args[5]);
+          if (!sellRes || !sellAmt || forKw !== 'for' || !buyRes || !buyAmt) {
+            return res.send('ERROR: Usage: trade offer shell_lore 5 for life_essence 3');
+          }
+          if (sellAmt <= 0 || sellAmt > 200 || buyAmt <= 0 || buyAmt > 200) return res.send('ERROR: Amounts must be 1-200.');
+          if (sellRes === buyRes) return res.send('ERROR: Cannot trade a resource for itself.');
+
+          const sellCheck = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(worldId, sellRes);
+          if (!sellCheck || sellCheck.amount < sellAmt) {
+            return res.send(`ERROR: Not enough ${sellRes}. Have ${Math.floor(sellCheck ? sellCheck.amount : 0)}, need ${sellAmt}.`);
+          }
+
+          // Escrow the offered resource
+          db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(sellAmt, worldId, sellRes);
+          const tradeId = uuid();
+          db.prepare(
+            "INSERT INTO trades (id, world_id, direction, offer_resource, offer_amount, request_resource, request_amount, status) VALUES (?, ?, 'outgoing', ?, ?, ?, ?, 'open')"
+          ).run(tradeId, worldId, sellRes, sellAmt, buyRes, buyAmt);
+
+          const worldName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(worldId);
+          return res.send(`OK: Trade posted! Offering ${sellAmt} ${sellRes} for ${buyAmt} ${buyRes}.\nTrade ID: ${tradeId}\nOther towns can accept this trade.`);
+        }
+
+        // Accept another world's open trade: trade accept <trade_id>
+        if (tradeAction === 'accept') {
+          const tradeId = args[1];
+          if (!tradeId) return res.send('ERROR: Usage: trade accept <trade_id>');
+
+          const trade = db.prepare("SELECT * FROM trades WHERE id = ? AND status = 'open'").get(tradeId);
+          if (!trade) return res.send('ERROR: Trade not found or already completed.');
+          if (trade.world_id === worldId) return res.send('ERROR: Cannot accept your own trade.');
+
+          // Check acceptor has the requested resource
+          const acceptorRes = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(worldId, trade.request_resource);
+          if (!acceptorRes || acceptorRes.amount < trade.request_amount) {
+            return res.send(`ERROR: Not enough ${trade.request_resource}. Have ${Math.floor(acceptorRes ? acceptorRes.amount : 0)}, need ${trade.request_amount}.`);
+          }
+
+          // Execute the trade
+          // Deduct from acceptor
+          db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(trade.request_amount, worldId, trade.request_resource);
+          // Give acceptor the offered resource (ensure row exists)
+          const acceptorOffered = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(worldId, trade.offer_resource);
+          if (!acceptorOffered) {
+            db.prepare('INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, 50)').run(worldId, trade.offer_resource);
+          }
+          db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.offer_amount, worldId, trade.offer_resource);
+          // Give offerer the requested resource (ensure row exists)
+          const offererRequested = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(trade.world_id, trade.request_resource);
+          if (!offererRequested) {
+            db.prepare('INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, 50)').run(trade.world_id, trade.request_resource);
+          }
+          db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.request_amount, trade.world_id, trade.request_resource);
+
+          // Mark trade complete
+          const acceptorName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(worldId);
+          db.prepare("UPDATE trades SET status = 'completed', partner_world_name = ? WHERE id = ?").run(acceptorName ? acceptorName.name : 'unknown', tradeId);
+
+          return res.send(`OK: Trade accepted! Received ${trade.offer_amount} ${trade.offer_resource}, sent ${trade.request_amount} ${trade.request_resource}.`);
+        }
+
+        // Standard crypto buy/sell
+        const resource = args[1];
+        const amount = parseInt(args[2]);
+        if (!tradeAction || !resource || !amount) return res.send('ERROR: Usage: trade sell food 10 | trade buy wood 5 | trade offer <res> <amt> for <res> <amt> | trade accept <id>');
+        if (tradeAction !== 'buy' && tradeAction !== 'sell') return res.send('ERROR: Action must be "buy", "sell", "offer", or "accept".');
+
+        const TRADE_RATES = { food: { sell: 0.5, buy: 0.8 }, wood: { sell: 0.4, buy: 0.6 }, stone: { sell: 0.3, buy: 0.5 }, knowledge: { sell: 2.0, buy: 3.0 }, faith: { sell: 1.5, buy: 2.5 } };
+        if (!TRADE_RATES[resource]) return res.send(`ERROR: Can't trade "${resource}" for crypto. Tradeable: ${Object.keys(TRADE_RATES).join(', ')}. For unique resources, use: trade offer <res> <amt> for <res> <amt>`);
+        if (amount <= 0 || amount > 200) return res.send('ERROR: Amount must be 1-200.');
 
         const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
         const resMap = {};
@@ -967,6 +1035,8 @@ function agentHelp(worldId) {
   out += '  pray            — Spend 5 faith to summon refugee\n';
   out += '  trade sell <resource> <amount>\n';
   out += '  trade buy <resource> <amount>\n';
+  out += '  trade offer <res> <amt> for <res> <amt>\n';
+  out += '  trade accept <trade_id>\n';
   out += '  mint <wallet>   — Mint world as ERC-721 NFT on Base\n';
   out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';
   out += '  help            — This message\n';
