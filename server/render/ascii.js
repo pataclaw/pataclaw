@@ -1,5 +1,5 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, BIOME_WALLS, BIOME_WATCHTOWERS, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
 const { hasMegastructure } = require('../simulation/megastructures');
 const { MAP_SIZE, deriveBiomeWeights } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
@@ -117,12 +117,14 @@ function buildTownFrame(worldId) {
     if (row.c > maxCount) { maxCount = row.c; dominantBiome = row.terrain; }
   }
 
-  // Enrich buildings with sprite data (status-appropriate)
+  // Enrich buildings with sprite data (status-appropriate, biome-variant for defenses)
   const enrichedBuildings = buildings.map((b) => {
     let sprite;
     if (b.status === 'rubble') sprite = RUBBLE_SPRITE;
     else if (b.status === 'overgrown') sprite = OVERGROWN_SPRITE;
     else if (b.type === 'town_center' && BIOME_TOWN_CENTERS[dominantBiome]) sprite = BIOME_TOWN_CENTERS[dominantBiome];
+    else if (b.type === 'wall' && BIOME_WALLS[dominantBiome]) sprite = BIOME_WALLS[dominantBiome];
+    else if (b.type === 'watchtower' && BIOME_WATCHTOWERS[dominantBiome]) sprite = BIOME_WATCHTOWERS[dominantBiome];
     else sprite = BUILDING_SPRITES[b.type] || BUILDING_SPRITES.hut;
     return { ...b, sprite };
   });

@@ -1,4 +1,5 @@
 const db = require('../db/connection');
+const { BIOME_DEFENSE_MULS } = require('../render/sprites');
 
 // Raid type behavior modifiers
 const RAID_CONFIG = {
@@ -53,24 +54,43 @@ function processRaids(worldId, raidEvents) {
     const raidType = data.raidType || 'bandits';
     const config = RAID_CONFIG[raidType] || RAID_CONFIG.bandits;
 
-    // Defense: warriors + walls + watchtowers
+    // Defense: warriors (stats matter) + walls (level matters) + watchtowers (level matters) + biome
     const warriors = db.prepare(
-      "SELECT id, name, hp FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive'"
+      "SELECT id, name, hp, experience, molt_count FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive'"
     ).all(worldId);
 
-    const walls = db.prepare(
-      "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'wall' AND status = 'active'"
-    ).get(worldId).c;
+    const wallBuildings = db.prepare(
+      "SELECT level FROM buildings WHERE world_id = ? AND type = 'wall' AND status = 'active'"
+    ).all(worldId);
 
-    const watchtowers = db.prepare(
-      "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'watchtower' AND status = 'active'"
-    ).get(worldId).c;
+    const towerBuildings = db.prepare(
+      "SELECT level FROM buildings WHERE world_id = ? AND type = 'watchtower' AND status = 'active'"
+    ).all(worldId);
 
-    const defenseScore = warriors.length * 2 + walls * 3 + watchtowers * 1;
+    // Biome defense multiplier
+    const biomeRow = db.prepare(
+      "SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain ORDER BY c DESC LIMIT 1"
+    ).get(worldId);
+    const biomeMul = BIOME_DEFENSE_MULS[(biomeRow && biomeRow.terrain) || 'plains'] || 1.0;
+
+    // Warrior power: base 2 + experience bonus + molt level bonus
+    let warriorDefense = 0;
+    for (const w of warriors) {
+      warriorDefense += 2 + Math.floor((w.experience || 0) / 50) + (w.molt_count || 0);
+    }
+
+    // Wall defense: level * 3 per wall
+    const wallDefense = wallBuildings.reduce((sum, w) => sum + w.level * 3, 0);
+
+    // Watchtower defense: level * 1.5 per tower
+    const towerDefense = towerBuildings.reduce((sum, t) => sum + Math.ceil(t.level * 1.5), 0);
+
+    const defenseScore = Math.ceil((warriorDefense + wallDefense + towerDefense) * biomeMul);
     const attackScore = Math.ceil(raidStrength * 3 * config.attackMul);
 
-    // Watchtower mitigation: each watchtower reduces damage taken by 20% (max 60%)
-    const mitigationPct = Math.min(0.6, watchtowers * 0.2);
+    // Watchtower mitigation: each tower level reduces damage by 10% (max 60%)
+    const totalTowerLevels = towerBuildings.reduce((sum, t) => sum + t.level, 0);
+    const mitigationPct = Math.min(0.6, totalTowerLevels * 0.1);
 
     if (defenseScore >= attackScore) {
       // ── RAID REPELLED ──

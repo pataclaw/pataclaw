@@ -958,6 +958,165 @@ const BIOME_TOWN_CENTERS = {
   ],
 };
 
+// Biome-variant walls — each biome builds defenses from what's available
+const BIOME_WALLS = {
+  forest: [
+    ']||=||=||[',
+    '|//\\//\\//|',
+    '||  ||  ||',
+    '|| /<>\\ ||',
+    '||  ||  ||',
+    '|\\\\//\\\\//|',
+    ']||=||=||[',
+  ],
+  mountain: [
+    ']########[',
+    '|##/\\/\\##|',
+    '|##|  |##|',
+    '|##|<>|##|',
+    '|##|  |##|',
+    '|##/\\/\\##|',
+    ']########[',
+  ],
+  desert: [
+    '.oooooooo.',
+    '|o/\\/\\/\\o|',
+    '|o|    |o|',
+    '|o| <> |o|',
+    '|o|    |o|',
+    '|o/\\/\\/\\o|',
+    "'oooooooo'",
+  ],
+  swamp: [
+    '~]=====[~ ',
+    '~|/^/^\\|~ ',
+    ' |~    |  ',
+    ' | /<>\\ | ',
+    ' |~    |  ',
+    '~|\\v\\v/|~ ',
+    '~]=====[~ ',
+  ],
+  ice: [
+    ']*:*:*:*[',
+    '|::/\\/::|',
+    '|::    ::|',
+    '|:: <> ::|',
+    '|::    ::|',
+    '|::\\/\\/::|',
+    ']*:*:*:*[',
+  ],
+  tundra: [
+    ']/\\/\\/\\/\\[',
+    '|()()()  |',
+    '|)()(    |',
+    '|()| <> ||',
+    '|)(|    ||',
+    '|()()()  |',
+    ']/\\/\\/\\/\\[',
+  ],
+  plains: [
+    ']========[',
+    '|/\\/\\/\\/\\|',
+    '|        |',
+    '|  /<>\\  |',
+    '|        |',
+    '|/\\/\\/\\/\\|',
+    ']========[',
+  ],
+};
+
+// Biome-variant watchtowers
+const BIOME_WATCHTOWERS = {
+  forest: [
+    '  ,@@@,  ',
+    ' /@*.*@\\ ',
+    ' |@/\\@|  ',
+    '  |  |   ',
+    '  |/\\|   ',
+    ' /|  |\\ ',
+    '|_|  |_| ',
+    '  |/\\|   ',
+    '|__[]__| ',
+  ],
+  mountain: [
+    '  _/##\\_  ',
+    ' |#*..*#| ',
+    ' |#_/\\_#| ',
+    '  |## |   ',
+    ' _|##|_   ',
+    '|#|  |#|  ',
+    '  |##|    ',
+    ' _|##|_   ',
+    '|##[]##|  ',
+  ],
+  desert: [
+    '  .oOo.   ',
+    ' (o*.*o)  ',
+    ' (o/\\o)   ',
+    '  |oo|    ',
+    ' _|oo|_   ',
+    '|o|  |o|  ',
+    '  |oo|    ',
+    ' _|oo|_   ',
+    '|o_[]_o|  ',
+  ],
+  swamp: [
+    '  ~/\\~    ',
+    ' ~|*.*|~  ',
+    ' ~|/\\|~   ',
+    '  |~~|    ',
+    ' /|~~|\\   ',
+    '|~|  |~|  ',
+    '  |~~|    ',
+    '~/~~~~\\~  ',
+    '~|_[]_|~  ',
+  ],
+  ice: [
+    '  *<::>*  ',
+    ' |:*..*:| ',
+    ' |:_/\\_:| ',
+    '  |::|    ',
+    ' _|::|_   ',
+    '|:|  |:|  ',
+    '  |::|    ',
+    ' _|::|_   ',
+    '|:_[]_:|  ',
+  ],
+  tundra: [
+    '  _/()\\_ ',
+    ' |()*.()|',
+    ' |()_/()|',
+    '  |)(|   ',
+    ' _|)(|_  ',
+    '|()||()|',
+    '  |)(|   ',
+    ' _|)(|_  ',
+    '|()[]()| ',
+  ],
+  plains: [
+    '  _/\\_  ',
+    ' |*..*| ',
+    ' |_/\\_| ',
+    '  |  |  ',
+    ' _|  |_ ',
+    '|_|  |_|',
+    '  |  |  ',
+    ' _|  |_ ',
+    '|__[]__|',
+  ],
+};
+
+// Biome defense multipliers for combat
+const BIOME_DEFENSE_MULS = {
+  mountain: 1.5,   // natural cliff protection
+  forest: 1.2,     // tree cover
+  swamp: 1.3,      // bog slows attackers
+  ice: 1.2,        // frozen terrain is treacherous
+  tundra: 1.1,     // exposed but harsh conditions
+  desert: 1.0,     // flat, no natural cover
+  plains: 1.0,     // open ground
+};
+
 // Project sprites — in_progress and complete for each type
 const PROJECT_SPRITES = {
   obelisk: {
@@ -1239,4 +1398,7 @@ module.exports = {
   RUBBLE_SPRITE,
   OVERGROWN_SPRITE,
   NOMAD_CAMP_SPRITE,
+  BIOME_WALLS,
+  BIOME_WATCHTOWERS,
+  BIOME_DEFENSE_MULS,
 };
