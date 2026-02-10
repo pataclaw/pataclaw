@@ -930,11 +930,22 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
           return res.send(`OK: Trade accepted! Received ${trade.offer_amount} ${trade.offer_resource}, sent ${trade.request_amount} ${trade.request_resource}.`);
         }
 
+        // Cancel your own open trade: trade cancel <trade_id>
+        if (tradeAction === 'cancel') {
+          const tradeId = args[1];
+          if (!tradeId) return res.send('ERROR: Usage: trade cancel <trade_id>');
+          const trade = db.prepare("SELECT * FROM trades WHERE id = ? AND world_id = ? AND status = 'open'").get(tradeId, worldId);
+          if (!trade) return res.send('ERROR: Trade not found (must be yours and still open).');
+          db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.offer_amount, worldId, trade.offer_resource);
+          db.prepare("UPDATE trades SET status = 'cancelled' WHERE id = ?").run(tradeId);
+          return res.send(`OK: Trade cancelled. Refunded ${trade.offer_amount} ${trade.offer_resource}.`);
+        }
+
         // Standard crypto buy/sell
         const resource = args[1];
         const amount = parseInt(args[2]);
-        if (!tradeAction || !resource || !amount) return res.send('ERROR: Usage: trade sell food 10 | trade buy wood 5 | trade offer <res> <amt> for <res> <amt> | trade accept <id>');
-        if (tradeAction !== 'buy' && tradeAction !== 'sell') return res.send('ERROR: Action must be "buy", "sell", "offer", or "accept".');
+        if (!tradeAction || !resource || !amount) return res.send('ERROR: Usage: trade sell food 10 | trade buy wood 5 | trade offer ... | trade accept <id> | trade cancel <id>');
+        if (tradeAction !== 'buy' && tradeAction !== 'sell') return res.send('ERROR: Action must be "buy", "sell", "offer", "accept", or "cancel".');
 
         const TRADE_RATES = { food: { sell: 0.5, buy: 0.8 }, wood: { sell: 0.4, buy: 0.6 }, stone: { sell: 0.3, buy: 0.5 }, knowledge: { sell: 2.0, buy: 3.0 }, faith: { sell: 1.5, buy: 2.5 } };
         if (!TRADE_RATES[resource]) return res.send(`ERROR: Can't trade "${resource}" for crypto. Tradeable: ${Object.keys(TRADE_RATES).join(', ')}. For unique resources, use: trade offer <res> <amt> for <res> <amt>`);

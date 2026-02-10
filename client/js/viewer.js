@@ -1755,7 +1755,7 @@ function renderScene(data) {
 
   for (var ai = 0; ai < aliveAgents.length; ai++) {
     var a = aliveAgents[ai];
-    var v = a.data;
+    var v = a.data || {};
     var ap = v.appearance || { eyes: 'o o', mouth: '___', head: '.---.', body: '|===|' };
     var role = v.role || 'idle';
     var hat = ROLE_HATS[role] || ROLE_HATS.idle;

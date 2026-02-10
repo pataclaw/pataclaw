@@ -22,16 +22,10 @@ function processMegastructureResources(worldId) {
   for (const [megaType, resourceType] of Object.entries(MEGA_RESOURCE_MAP)) {
     if (!hasMegastructure(worldId, megaType)) continue;
 
-    // Ensure resource row exists
-    const existing = db.prepare(
-      'SELECT amount FROM resources WHERE world_id = ? AND type = ?'
-    ).get(worldId, resourceType);
-
-    if (!existing) {
-      db.prepare(
-        'INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, ?)'
-      ).run(worldId, resourceType, MEGA_RESOURCE_CAPACITY);
-    }
+    // Ensure resource row exists (INSERT OR IGNORE for safety)
+    db.prepare(
+      'INSERT OR IGNORE INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, ?)'
+    ).run(worldId, resourceType, MEGA_RESOURCE_CAPACITY);
 
     // Produce
     db.prepare(
