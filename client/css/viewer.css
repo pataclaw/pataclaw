@@ -521,6 +521,18 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-crop  { color: #66aa44; }
 #world .c-croph { color: #ddaa33; }
 
+/* Resource gathering activities */
+#world .c-chop { color: #aa8844; }
+#world .c-mine { color: #8899aa; }
+#world .c-fish { color: #4488cc; }
+#world .c-hunt { color: #88aa44; }
+
+/* Resource nodes */
+#world .c-tree { color: #668844; }
+#world .c-rock { color: #889999; }
+#world .c-fish-spot { color: #4488aa; }
+#world .c-depleted { color: #555555; opacity: 0.5; }
+
 /* ─── Hill depth layers ─── */
 #world .c-hill-far  { color: #334422; }
 #world .c-hill-mid  { color: #446633; }

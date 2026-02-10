@@ -1,6 +1,7 @@
 const db = require('../db/connection');
 const { getWeatherModifier } = require('./weather');
 const { getCulture } = require('./culture');
+const { getNodeRatio } = require('./resource-nodes');
 
 const SEASON_FOOD_MODIFIER = {
   spring: 1.0,
@@ -77,16 +78,21 @@ function processResources(worldId, weather, season, planetaryEffects) {
       case 'farm':
         foodProd += 2 * workers * wMod.food * sMod * workEthic * decayMul * pFoodMul * pProdMul * bMul;
         break;
-      case 'dock':
-        foodProd += 1.5 * workers * wMod.fish * sFishMod * workEthic * decayMul * pFishMul * pProdMul;
+      case 'dock': {
+        const fishRatio = getNodeRatio(worldId, b.id, 'fish_spot');
+        foodProd += 1.5 * workers * wMod.fish * sFishMod * workEthic * decayMul * pFishMul * pProdMul * fishRatio;
         break;
+      }
       case 'hunting_lodge':
         foodProd += 1.2 * workers * wMod.food * sHuntMod * workEthic * decayMul * pProdMul * bMul;
         break;
-      case 'workshop':
-        woodProd += 0.5 * workers * wMod.wood * workEthic * decayMul * pProdMul * bMul;
-        stoneProd += 0.3 * workers * wMod.stone * workEthic * decayMul * pProdMul * bMul;
+      case 'workshop': {
+        const treeRatio = getNodeRatio(worldId, b.id, 'tree');
+        const rockRatio = getNodeRatio(worldId, b.id, 'rock');
+        woodProd += 0.5 * workers * wMod.wood * workEthic * decayMul * pProdMul * bMul * treeRatio;
+        stoneProd += 0.3 * workers * wMod.stone * workEthic * decayMul * pProdMul * bMul * rockRatio;
         break;
+      }
       case 'temple':
         faithProd += 1 * workers * workEthic * decayMul * pFaithMul * pProdMul;
         break;

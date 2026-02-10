@@ -435,3 +435,19 @@ CREATE TABLE IF NOT EXISTS items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_items_world ON items(world_id, status);
+
+-- ============================================================
+-- RESOURCE NODES: Trees, rocks, fish spots tied to buildings
+-- ============================================================
+CREATE TABLE IF NOT EXISTS resource_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    building_id TEXT NOT NULL,
+    x INTEGER NOT NULL DEFAULT 0,
+    health INTEGER NOT NULL,
+    max_health INTEGER NOT NULL,
+    depleted_tick INTEGER DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_nodes_world ON resource_nodes(world_id);

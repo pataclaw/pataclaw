@@ -7,6 +7,7 @@ const { getActivePlanetaryEvent } = require('../simulation/planetary');
 const { getGrowthStage } = require('../simulation/buildings');
 const { getMonolithData } = require('../simulation/monolith');
 const { getOvergrowthState } = require('../simulation/overgrowth');
+const { getNodesForFrame } = require('../simulation/resource-nodes');
 
 // Build structured world state for the client to animate
 function buildFrame(worldId, viewType = 'town') {
@@ -182,6 +183,7 @@ function buildTownFrame(worldId) {
     villagers: enrichedVillagers,
     projects: enrichedProjects,
     crops,
+    resourceNodes: getNodesForFrame(worldId),
     resources: resMap,
     population: { alive: popAlive, capacity: buildingCap },
     recentEvents,

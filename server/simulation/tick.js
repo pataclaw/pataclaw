@@ -23,6 +23,7 @@ const { processDeepSea } = require('./deep-sea');
 const { processWildlife } = require('./wildlife');
 const { processHunting } = require('./hunting');
 const { hasMegastructure, processMegastructureResources } = require('./megastructures');
+const { processResourceNodes } = require('./resource-nodes');
 const { processGovernor } = require('./governor');
 const {
   MOLT_FESTIVAL_INTERVAL,
@@ -50,6 +51,9 @@ function processTick(worldId) {
 
   // 3.1. Megastructure unique resource production
   const megaResEvents = processMegastructureResources(worldId);
+
+  // 3.2. Resource node depletion + respawn (trees, rocks, fish spots)
+  const nodeEvents = processResourceNodes(worldId, time.tick);
 
   // 3.25. Planetary effects: stone bonus, building damage, morale
   let planetaryEvents = [];
@@ -216,7 +220,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...planetaryEvents, ...megaResEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...governorEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
+  const allEvents = [...planetaryEvents, ...megaResEvents, ...nodeEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...governorEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

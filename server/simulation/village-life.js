@@ -1,6 +1,7 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
 const { getGrowthStage } = require('./buildings');
+const { getNodeAvailability } = require('./resource-nodes');
 
 // ─── ACTIVITY TYPES ───
 const ACTIVITIES = [
@@ -8,6 +9,7 @@ const ACTIVITIES = [
   'playing_music', 'arguing', 'celebrating', 'mourning', 'sparring',
   'meditating', 'feasting', 'praying', 'teaching', 'brooding',
   'socializing', 'wandering', 'sleeping', 'fishing', 'hunting', 'molting',
+  'chopping', 'mining',
 ];
 
 // ─── MEMORY TYPES ───
@@ -187,6 +189,9 @@ function resolveActivities(worldId, villagers, world) {
   // Get avg morale
   const avgMorale = villagers.reduce((s, v) => s + v.morale, 0) / villagers.length;
 
+  // Resource node availability (gates chopping/mining/fishing activities)
+  const nodeAvail = getNodeAvailability(worldId);
+
   const upsert = db.prepare(`
     INSERT INTO villager_activities (villager_id, world_id, activity, target_id, duration_ticks)
     VALUES (?, ?, ?, ?, 1)
@@ -238,8 +243,10 @@ function resolveActivities(worldId, villagers, world) {
       weights.meditating = temp / 12;
       weights.wandering = 8;
       weights.praying = 3;
-      weights.fishing = v.role === 'fisherman' ? 12 : 2;
+      weights.fishing = nodeAvail.fish.active > 0 ? (v.role === 'fisherman' ? 12 : 2) : 0;
       weights.hunting = v.role === 'hunter' ? 12 : 2;
+      weights.chopping = nodeAvail.trees.active > 0 ? (v.role === 'builder' ? 12 : 2) : 0;
+      weights.mining = nodeAvail.rocks.active > 0 ? (v.role === 'builder' ? 12 : 2) : 0;
       weights.idle = 5;
     }
 

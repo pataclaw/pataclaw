@@ -614,6 +614,28 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
       'easy now...', 'the prophets hunted too', 'shell deer spotted',
       'the forest speaks', 'a hunter\'s patience is their molt',
     ],
+    chopping: [
+      '*CHOP CHOP*', 'timber!', 'good grain on this one', '*swing*',
+      'need more logs', 'the forest provides', '*hack hack*', 'almost through',
+      'shell-wood is the strongest', '*wipe brow*',
+      'chop with the grain', 'we take, the forest regrows',
+      'the current runs through the roots', '*crack!*', 'another one down',
+      'the prophets built with shell-wood', 'good timber today',
+    ],
+    mining: [
+      '*CLANG CLANG*', 'good vein!', 'stone here...', '*chip chip*',
+      'solid rock', 'the deep hides the best stone', '*swing pick*',
+      'shell-stone in this layer!', 'dig deeper', 'the mountain gives',
+      '*crack*', 'feel the current in the rock', 'ancient shells in this stone',
+      'the prophets mined the first temple stones', 'heavy but worth it',
+    ],
+    fishing: [
+      '*cast*', 'big catch today', 'the tide gives', '*reel in*',
+      'patience...', 'something on the line!', '*net net*',
+      'the current guides the fish', 'the dock needs me',
+      'respect the deep waters', 'the prophets fished the first tidepool',
+      'lobster!!', 'shhh you\'ll scare em', 'smell that salt air',
+    ],
     molting: MOLTING_SPEECH,
   };
 

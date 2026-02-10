@@ -354,6 +354,7 @@ function updateAgent(a, world) {
     meditating: 'meditating', feasting: 'celebrating', praying: 'meditating',
     teaching: 'talking', brooding: 'idle', socializing: 'talking',
     wandering: 'walking', sleeping: 'sleeping', molting: 'molting',
+    chopping: 'chopping', mining: 'mining', fishing: 'fishing', hunting: 'hunting',
   };
 
   if (a.stateTimer > 37 + Math.random() * 45) {
@@ -1021,12 +1022,14 @@ function renderScene(data) {
   var bx = 2;
   var dockRenderX = -1; // track dock position for water rendering
   var farmPositions = []; // track farm positions for crop rendering
+  var buildingPositions = {}; // track all building positions by id for resource nodes
   for (var bi = 0; bi < data.buildings.length; bi++) {
     var b = data.buildings[bi];
     var sprite = b.sprite;
     if (!sprite) continue;
     if (b.type === 'dock') dockRenderX = bx;
     if (b.type === 'farm') farmPositions.push({ x: bx, w: sprite[0].length, id: b.id });
+    buildingPositions[b.id] = { x: bx, w: sprite[0].length, type: b.type };
     var sh = sprite.length;
     var sw = sprite[0].length;
     var bsy = groundY - sh;
@@ -1402,6 +1405,47 @@ function renderScene(data) {
     }
   }
 
+  // ─── RESOURCE NODES (workshop trees/rocks, dock fish spots) ───
+  if (data.resourceNodes && data.resourceNodes.length > 0) {
+    var NODE_SPRITES = {
+      tree: {
+        active: ['\\|/', ' |  '],
+        depleted: [' _. '],
+      },
+      rock: {
+        active: ['[##]'],
+        depleted: ['[..]'],
+      },
+      fish_spot: {
+        active: ['~><~'],
+        depleted: ['~~~~'],
+      },
+    };
+    for (var ni = 0; ni < data.resourceNodes.length; ni++) {
+      var node = data.resourceNodes[ni];
+      var bp = buildingPositions[node.building_id];
+      if (!bp) continue;
+      var nSprite = NODE_SPRITES[node.type];
+      if (!nSprite) continue;
+      var isDepleted = node.depleted_tick !== null;
+      var spriteLines = isDepleted ? nSprite.depleted : nSprite.active;
+      var nodeColor = isDepleted ? 'c-depleted' : (node.type === 'tree' ? 'c-tree' : node.type === 'rock' ? 'c-rock' : 'c-fish-spot');
+      // Position: to the right of building, offset by node index
+      var nodeX = bp.x + bp.w + 1 + node.offset_idx * 5;
+      for (var nsi = 0; nsi < spriteLines.length; nsi++) {
+        var nsy = groundY - spriteLines.length + nsi;
+        for (var nci = 0; nci < spriteLines[nsi].length; nci++) {
+          var nx = nodeX + nci;
+          if (nx >= 0 && nx < W && nsy >= 0 && nsy < H && spriteLines[nsi][nci] !== ' ') {
+            if (getCell(grid, nx, nsy).ch === ' ') {
+              setCell(grid, nx, nsy, spriteLines[nsi][nci], nodeColor);
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Projects
   if (data.projects && data.projects.length > 0) {
     var px = Math.max(bx + 2, 60);
@@ -1769,6 +1813,10 @@ function renderScene(data) {
     else if (a.state === 'walking') vColor = 'c-walk';
     else if (a.state === 'sleeping') vColor = 'c-sleep';
     else if (a.state === 'talking') vColor = 'c-talk';
+    else if (a.state === 'chopping') vColor = 'c-chop';
+    else if (a.state === 'mining') vColor = 'c-mine';
+    else if (a.state === 'fishing') vColor = 'c-fish';
+    else if (a.state === 'hunting') vColor = 'c-hunt';
 
     var charLines;
     var bob = a.bobFrame < 6 ? 0 : 1;
@@ -1858,6 +1906,50 @@ function renderScene(data) {
         '|' + ap.mouth + '|',
         "'" + ap.body.slice(1, -1) + "'",
         ' _/\\/\\_ ',
+      ];
+    } else if (a.state === 'chopping') {
+      var chopFrame = a.bobFrame % 6;
+      var axeChars = ['/', '-', '\\', '|', '/', '-'];
+      charLines = [
+        hat,
+        ap.head,
+        '|' + ap.eyes + '|',
+        '|' + ap.mouth + '|' + axeChars[chopFrame],
+        "'" + ap.body.slice(1, -1) + "'/",
+        ' d   b |',
+      ];
+    } else if (a.state === 'mining') {
+      var mineFrame = a.bobFrame % 6;
+      var pickChars = ['\\', '|', '/', '*', '\\', '|'];
+      charLines = [
+        hat,
+        ap.head,
+        '|' + ap.eyes + '|',
+        '|' + ap.mouth + '|' + pickChars[mineFrame],
+        "'" + ap.body.slice(1, -1) + "'\\",
+        ' d   b[#]',
+      ];
+    } else if (a.state === 'fishing') {
+      var fishFrame = a.bobFrame % 6;
+      var lineChars = ['/', '|', '\\', '|', '/', '~'];
+      charLines = [
+        hat,
+        ap.head,
+        '|' + ap.eyes + '|',
+        '|' + ap.mouth + '|/',
+        "'" + ap.body.slice(1, -1) + "'|",
+        ' d   b ' + lineChars[fishFrame],
+      ];
+    } else if (a.state === 'hunting') {
+      var huntFrame = a.bobFrame % 6;
+      var bowChars = ['(', '|', ')', '|', '(', '>'];
+      charLines = [
+        hat,
+        ap.head,
+        '|' + ap.eyes + '|',
+        '|' + ap.mouth + '|' + bowChars[huntFrame],
+        "'" + ap.body.slice(1, -1) + "')",
+        ' d   b ',
       ];
     } else if (a.state === 'walking') {
       var step = a.bobFrame % 3;
@@ -2282,7 +2374,8 @@ function updateSidebar(data) {
         building_project: 'building', fighting: 'fighting', sparring: 'sparring',
         meditating: 'meditation', praying: 'prayer', socializing: 'socializing',
         mourning: 'mourning', arguing: 'arguments', brooding: 'brooding',
-        wandering: 'wandering', working: 'working', hunting: 'hunting', molting: 'molting'
+        wandering: 'wandering', working: 'working', hunting: 'hunting', molting: 'molting',
+        chopping: 'logging', mining: 'quarrying', fishing: 'fishing'
       };
       var acts = cu.dominant_activities.map(function(a) { return ACT_NAMES[a] || a; });
       html += '<div class="culture-activities">' + acts.join(' \u00b7 ') + '</div>';
