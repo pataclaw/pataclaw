@@ -124,7 +124,7 @@ async function gameLoop() {
 
   try {
     // 1. Heartbeat
-    const heartbeat = await api('POST', '/api/heartbeat');
+    const heartbeat = await api('POST', '/api/heartbeat', { model: LLM_MODEL });
     if (heartbeat.error) {
       log(`Heartbeat error: ${heartbeat.error}`);
       return;

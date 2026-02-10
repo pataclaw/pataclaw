@@ -193,6 +193,11 @@ function processGovernor(worldId, tick) {
     if (assignRole('scout')) return events;
   }
 
+  // 3c. MODEL SHRINE: dedicate a shrine to the world's AI model
+  if (!buildingSet.has('model_shrine') && !constructingSet.has('model_shrine') && pop >= 6) {
+    if (tryBuild('model_shrine')) return events;
+  }
+
   // 4. DEFENSE: watchtower + wall + warrior
   if (!buildingSet.has('watchtower') && pop >= 5) {
     if (tryBuild('watchtower')) return events;

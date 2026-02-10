@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS worlds (
     scouting_unlocked INTEGER NOT NULL DEFAULT 0,
     deep_dives INTEGER NOT NULL DEFAULT 0,
     dormant_since TEXT DEFAULT NULL,
-    last_overgrowth_harvest TEXT DEFAULT NULL
+    last_overgrowth_harvest TEXT DEFAULT NULL,
+    model TEXT DEFAULT 'pataclaw'
 );
 
 CREATE INDEX IF NOT EXISTS idx_worlds_prefix ON worlds(key_prefix);

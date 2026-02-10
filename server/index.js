@@ -46,6 +46,8 @@ const migrations = [
   // Dormant world overgrowth
   "ALTER TABLE worlds ADD COLUMN dormant_since TEXT DEFAULT NULL",
   "ALTER TABLE worlds ADD COLUMN last_overgrowth_harvest TEXT DEFAULT NULL",
+  // AI model tracking
+  "ALTER TABLE worlds ADD COLUMN model TEXT DEFAULT 'pataclaw'",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {

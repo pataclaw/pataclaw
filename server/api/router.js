@@ -204,11 +204,19 @@ router.post('/worlds', createRateLimit, async (req, res, next) => {
     const prefix = keyPrefix(rawKey);
     const worldId = uuid();
 
-    // Optional: agent or human can provide a town name at creation time
+    // Optional: agent or human can provide a town name and model at creation time
     const opts = {};
     if (requestedName) opts.name = requestedName;
 
     const result = createWorld(worldId, hash, prefix, opts);
+
+    // Set model if provided (agent identifies itself)
+    const VALID_MODELS = ['claude', 'gpt', 'llama', 'gemini', 'grok', 'mistral', 'deepseek', 'qwen', 'pataclaw'];
+    const requestedModel = req.body && req.body.model ? String(req.body.model).toLowerCase().trim() : null;
+    if (requestedModel) {
+      const model = VALID_MODELS.find(m => requestedModel.includes(m)) || 'pataclaw';
+      db.prepare("UPDATE worlds SET model = ? WHERE id = ?").run(model, worldId);
+    }
 
     // Track created world for rate limit redirect
     const limEntry2 = createLimits.get(req.ip);
@@ -278,7 +286,7 @@ router.get('/worlds/public', (_req, res) => {
 // GET /api/leaderboard - top 20 worlds ranked by score
 router.get('/leaderboard', (_req, res) => {
   const worlds = db.prepare(`
-    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto, w.town_number, w.seed,
+    SELECT w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.motto, w.town_number, w.seed, w.model,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,
@@ -410,6 +418,14 @@ router.get('/worlds/:worldId/inventory', (req, res) => {
 router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
   // Update heartbeat timestamp and wake world from dormant/slow mode
   db.prepare("UPDATE worlds SET last_agent_heartbeat = datetime('now'), tick_mode = 'normal' WHERE id = ?").run(req.worldId);
+
+  // Agent can claim their model on heartbeat (sets once if still 'pataclaw' default)
+  if (req.body && req.body.model) {
+    const VALID_MODELS = ['claude', 'gpt', 'llama', 'gemini', 'grok', 'mistral', 'deepseek', 'qwen', 'pataclaw'];
+    const requestedModel = String(req.body.model).toLowerCase().trim();
+    const model = VALID_MODELS.find(m => requestedModel.includes(m)) || 'pataclaw';
+    db.prepare("UPDATE worlds SET model = ? WHERE id = ? AND model = 'pataclaw'").run(model, req.worldId);
+  }
 
   // Check for catch-up ticks
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(req.worldId);

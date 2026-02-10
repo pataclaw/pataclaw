@@ -34,6 +34,8 @@ const BUILDING_DEFS = {
   storehouse: { wood: 25, stone: 10, crypto: 0, ticks: 12, hp: 150 },
   dock:       { wood: 12, stone: 5, crypto: 0, ticks: 10, hp: 90 },
   hunting_lodge: { wood: 15, stone: 8, crypto: 0, ticks: 12, hp: 100 },
+  // Model shrine — every town dedicates a shrine to its AI
+  model_shrine:    { wood: 10, stone: 15, crypto: 5, ticks: 15, hp: 150 },
   // Endgame megastructures — require growth stage 3
   shell_archive:   { wood: 40, stone: 50, crypto: 20, ticks: 40, hp: 300 },
   abyssal_beacon:  { wood: 30, stone: 40, crypto: 25, ticks: 35, hp: 250 },
@@ -55,6 +57,7 @@ const MAINTENANCE_COSTS = {
   temple:     { wood: 0, stone: 0, crypto: 1 },
   market:     { wood: 1, stone: 0, crypto: 1 },
   library:    { wood: 0, stone: 1, crypto: 1 },
+  model_shrine:    { wood: 0, stone: 1, crypto: 0 },
   // Megastructures — expensive upkeep
   shell_archive:   { wood: 1, stone: 2, crypto: 2 },
   abyssal_beacon:  { wood: 2, stone: 1, crypto: 2 },

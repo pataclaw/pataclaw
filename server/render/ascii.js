@@ -1,5 +1,5 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, BIOME_WALLS, BIOME_WATCHTOWERS, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, BIOME_WALLS, BIOME_WATCHTOWERS, MODEL_SHRINES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
 const { hasMegastructure } = require('../simulation/megastructures');
 const { MAP_SIZE, deriveBiomeWeights } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
@@ -125,6 +125,7 @@ function buildTownFrame(worldId) {
     else if (b.type === 'town_center' && BIOME_TOWN_CENTERS[dominantBiome]) sprite = BIOME_TOWN_CENTERS[dominantBiome];
     else if (b.type === 'wall' && BIOME_WALLS[dominantBiome]) sprite = BIOME_WALLS[dominantBiome];
     else if (b.type === 'watchtower' && BIOME_WATCHTOWERS[dominantBiome]) sprite = BIOME_WATCHTOWERS[dominantBiome];
+    else if (b.type === 'model_shrine') sprite = MODEL_SHRINES[world.model || 'pataclaw'] || MODEL_SHRINES.pataclaw;
     else sprite = BUILDING_SPRITES[b.type] || BUILDING_SPRITES.hut;
     return { ...b, sprite };
   });
@@ -168,6 +169,7 @@ function buildTownFrame(worldId) {
       map_size: world.map_size || 40,
       seed: world.seed,
       town_number: world.town_number,
+      model: world.model || 'pataclaw',
     },
     culture: {
       mood: culture.village_mood,
