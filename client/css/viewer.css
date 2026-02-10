@@ -543,9 +543,9 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-hill-near { color: #558844; }
 
 /* Hill colors respond to time of day */
-body.dawn #world .c-hill-far  { color: #4a3a22; }
-body.dawn #world .c-hill-mid  { color: #5c4a2a; }
-body.dawn #world .c-hill-near { color: #6e5c33; }
+body.dawn #world .c-hill-far  { color: #5a3828; }
+body.dawn #world .c-hill-mid  { color: #7a5535; }
+body.dawn #world .c-hill-near { color: #a07845; }
 
 body.noon #world .c-hill-far  { color: #445533; }
 body.noon #world .c-hill-mid  { color: #557744; }
@@ -555,9 +555,9 @@ body.afternoon #world .c-hill-far  { color: #3e4c28; }
 body.afternoon #world .c-hill-mid  { color: #4e5e35; }
 body.afternoon #world .c-hill-near { color: #5e6e45; }
 
-body.dusk #world .c-hill-far  { color: #3d2a1a; }
-body.dusk #world .c-hill-mid  { color: #4e3822; }
-body.dusk #world .c-hill-near { color: #5f462a; }
+body.dusk #world .c-hill-far  { color: #3a2233; }
+body.dusk #world .c-hill-mid  { color: #5a3538; }
+body.dusk #world .c-hill-near { color: #7a5040; }
 
 body.night #world .c-hill-far  { color: #1a2218; }
 body.night #world .c-hill-mid  { color: #223320; }
@@ -594,13 +594,24 @@ body.weather-snow #world .c-gnd-ed, body.season-winter #world .c-gnd-ed, body.bi
 body.weather-snow #world .c-hill-far, body.season-winter #world .c-hill-far, body.biome-ice #world .c-hill-far, body.biome-tundra #world .c-hill-far { color: #889999; }
 body.weather-snow #world .c-hill-mid, body.season-winter #world .c-hill-mid, body.biome-ice #world .c-hill-mid, body.biome-tundra #world .c-hill-mid { color: #aabbbb; }
 body.weather-snow #world .c-hill-near, body.season-winter #world .c-hill-near, body.biome-ice #world .c-hill-near, body.biome-tundra #world .c-hill-near { color: #ccdddd; }
+/* Snow/ice hills at sunrise — warm pink glow on frost */
+body.biome-ice.dawn #world .c-hill-far, body.biome-tundra.dawn #world .c-hill-far   { color: #7a6677; }
+body.biome-ice.dawn #world .c-hill-mid, body.biome-tundra.dawn #world .c-hill-mid   { color: #9a8090; }
+body.biome-ice.dawn #world .c-hill-near, body.biome-tundra.dawn #world .c-hill-near { color: #bb9aaa; }
+/* Snow/ice hills at sunset — purple-violet frost */
+body.biome-ice.dusk #world .c-hill-far, body.biome-tundra.dusk #world .c-hill-far   { color: #5a4460; }
+body.biome-ice.dusk #world .c-hill-mid, body.biome-tundra.dusk #world .c-hill-mid   { color: #7a5a78; }
+body.biome-ice.dusk #world .c-hill-near, body.biome-tundra.dusk #world .c-hill-near { color: #9a7090; }
 /* Desert hills — sandy tan/brown */
 body.biome-desert #world .c-hill-far  { color: #8a7a55; }
 body.biome-desert #world .c-hill-mid  { color: #aa9966; }
 body.biome-desert #world .c-hill-near { color: #ccbb77; }
-body.biome-desert.dawn #world .c-hill-far  { color: #7a6a45; }
-body.biome-desert.dawn #world .c-hill-mid  { color: #9a8955; }
-body.biome-desert.dawn #world .c-hill-near { color: #bbaa66; }
+body.biome-desert.dawn #world .c-hill-far  { color: #8a6040; }
+body.biome-desert.dawn #world .c-hill-mid  { color: #aa7750; }
+body.biome-desert.dawn #world .c-hill-near { color: #cc9960; }
+body.biome-desert.dusk #world .c-hill-far  { color: #6a4030; }
+body.biome-desert.dusk #world .c-hill-mid  { color: #8a5538; }
+body.biome-desert.dusk #world .c-hill-near { color: #aa7045; }
 body.biome-desert.night #world .c-hill-far  { color: #3a3522; }
 body.biome-desert.night #world .c-hill-mid  { color: #4a4530; }
 body.biome-desert.night #world .c-hill-near { color: #5a5540; }
@@ -608,9 +619,12 @@ body.biome-desert.night #world .c-hill-near { color: #5a5540; }
 body.biome-mountain #world .c-hill-far  { color: #556666; }
 body.biome-mountain #world .c-hill-mid  { color: #778888; }
 body.biome-mountain #world .c-hill-near { color: #99aaaa; }
-body.biome-mountain.dawn #world .c-hill-far  { color: #5a5a55; }
-body.biome-mountain.dawn #world .c-hill-mid  { color: #7a7a70; }
-body.biome-mountain.dawn #world .c-hill-near { color: #9a9a88; }
+body.biome-mountain.dawn #world .c-hill-far  { color: #6a5555; }
+body.biome-mountain.dawn #world .c-hill-mid  { color: #8a7070; }
+body.biome-mountain.dawn #world .c-hill-near { color: #aa8888; }
+body.biome-mountain.dusk #world .c-hill-far  { color: #4a3850; }
+body.biome-mountain.dusk #world .c-hill-mid  { color: #6a5068; }
+body.biome-mountain.dusk #world .c-hill-near { color: #8a6880; }
 body.biome-mountain.night #world .c-hill-far  { color: #2a3333; }
 body.biome-mountain.night #world .c-hill-mid  { color: #3a4444; }
 body.biome-mountain.night #world .c-hill-near { color: #4a5555; }
@@ -618,9 +632,12 @@ body.biome-mountain.night #world .c-hill-near { color: #4a5555; }
 body.biome-swamp #world .c-hill-far  { color: #3a4422; }
 body.biome-swamp #world .c-hill-mid  { color: #4a5533; }
 body.biome-swamp #world .c-hill-near { color: #5a6644; }
-body.biome-swamp.dawn #world .c-hill-far  { color: #3a3a1a; }
-body.biome-swamp.dawn #world .c-hill-mid  { color: #4a4a28; }
-body.biome-swamp.dawn #world .c-hill-near { color: #5a5a38; }
+body.biome-swamp.dawn #world .c-hill-far  { color: #4a3a20; }
+body.biome-swamp.dawn #world .c-hill-mid  { color: #5a4a2a; }
+body.biome-swamp.dawn #world .c-hill-near { color: #6a5a35; }
+body.biome-swamp.dusk #world .c-hill-far  { color: #3a2828; }
+body.biome-swamp.dusk #world .c-hill-mid  { color: #4a3530; }
+body.biome-swamp.dusk #world .c-hill-near { color: #5a4538; }
 body.biome-swamp.night #world .c-hill-far  { color: #1a2211; }
 body.biome-swamp.night #world .c-hill-mid  { color: #223318; }
 body.biome-swamp.night #world .c-hill-near { color: #2a3a22; }
@@ -628,6 +645,12 @@ body.biome-swamp.night #world .c-hill-near { color: #2a3a22; }
 body.biome-forest #world .c-hill-far  { color: #224422; }
 body.biome-forest #world .c-hill-mid  { color: #336633; }
 body.biome-forest #world .c-hill-near { color: #448844; }
+body.biome-forest.dawn #world .c-hill-far  { color: #4a4a22; }
+body.biome-forest.dawn #world .c-hill-mid  { color: #5a5a30; }
+body.biome-forest.dawn #world .c-hill-near { color: #6a6a40; }
+body.biome-forest.dusk #world .c-hill-far  { color: #3a2a22; }
+body.biome-forest.dusk #world .c-hill-mid  { color: #4a3a2a; }
+body.biome-forest.dusk #world .c-hill-near { color: #5a4a35; }
 body.biome-forest.night #world .c-hill-far  { color: #112211; }
 body.biome-forest.night #world .c-hill-mid  { color: #1a331a; }
 body.biome-forest.night #world .c-hill-near { color: #224422; }
@@ -635,6 +658,12 @@ body.biome-forest.night #world .c-hill-near { color: #224422; }
 body.biome-water #world .c-hill-far  { color: #335566; }
 body.biome-water #world .c-hill-mid  { color: #447788; }
 body.biome-water #world .c-hill-near { color: #5599aa; }
+body.biome-water.dawn #world .c-hill-far  { color: #5a4a66; }
+body.biome-water.dawn #world .c-hill-mid  { color: #6a5a77; }
+body.biome-water.dawn #world .c-hill-near { color: #8a7099; }
+body.biome-water.dusk #world .c-hill-far  { color: #3a2a44; }
+body.biome-water.dusk #world .c-hill-mid  { color: #4a3a55; }
+body.biome-water.dusk #world .c-hill-near { color: #5a4a66; }
 body.biome-water.night #world .c-hill-far  { color: #1a2a33; }
 body.biome-water.night #world .c-hill-mid  { color: #2a3a44; }
 body.biome-water.night #world .c-hill-near { color: #3a4a55; }
