@@ -50,23 +50,24 @@ function processTick(worldId, globalTime) {
     time = advanceTime(world);
   }
 
-  // 1.5. Planetary events (global effects)
+  // 1.5. Determine dominant biome (used for weather, planetary effects, season events)
+  const domRow = db.prepare("SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain ORDER BY c DESC LIMIT 1").get(worldId);
+  const domBiome = domRow ? domRow.terrain : 'plains';
+
+  // 1.6. Planetary events (global effects)
   const planetaryEvent = getActivePlanetaryEvent();
-  // If event has biome restriction, check world's dominant biome
   let pEffects = {};
   if (planetaryEvent) {
     const rawEffects = planetaryEvent.effects;
     if (rawEffects.biomes) {
-      const domRow = db.prepare("SELECT terrain, COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 GROUP BY terrain ORDER BY c DESC LIMIT 1").get(worldId);
-      const domBiome = domRow ? domRow.terrain : 'plains';
       pEffects = rawEffects.biomes.includes(domBiome) ? rawEffects : {};
     } else {
       pEffects = rawEffects;
     }
   }
 
-  // 2. Weather — use global weather if provided, else roll per-world (for catchup)
-  const weather = globalTime ? globalTime.weather : rollWeather(world.weather, time.season);
+  // 2. Weather — per-world, biome-modulated (each world gets weather matching its biome)
+  const weather = rollWeather(world.weather, time.season, domBiome);
 
   // 3. Resources (pass planetary modifiers)
   const resResult = processResources(worldId, weather, time.season, pEffects);
@@ -104,7 +105,7 @@ function processTick(worldId, globalTime) {
       }
     }
     if (pEffects.buildingDamageChance && Math.random() < pEffects.buildingDamageChance) {
-      const target = db.prepare("SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type != 'town_center' ORDER BY RANDOM() LIMIT 1").get(worldId);
+      const target = db.prepare("SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type NOT IN ('town_center', 'farm') ORDER BY RANDOM() LIMIT 1").get(worldId);
       if (target) {
         db.prepare('UPDATE buildings SET hp = MAX(0, hp - ?) WHERE id = ?').run(pEffects.buildingDamage || 10, target.id);
         planetaryEvents.push({
@@ -230,10 +231,10 @@ function processTick(worldId, globalTime) {
     }
   }
 
-  // 10b. Season change events
+  // 10b. Season change events (biome-flavored)
   let seasonEvents = [];
   if (time.season !== world.season) {
-    seasonEvents = generateSeasonEvent(worldId, time.season, world.season);
+    seasonEvents = generateSeasonEvent(worldId, time.season, world.season, domBiome);
   }
 
   // Update world state
@@ -341,54 +342,111 @@ function expandWorld(worldId, world, targetSize) {
   }];
 }
 
-// Season change effects + events
-function generateSeasonEvent(worldId, newSeason, oldSeason) {
+// ─── BIOME-FLAVORED SEASON EVENTS ───
+// Each biome experiences seasons differently. Ice worlds barely thaw in summer.
+// Desert worlds barely freeze in winter. The planet is one, but the land remembers.
+
+const SEASON_FLAVOR = {
+  spring: {
+    ice:      { food: 5,  morale: 3,  title: 'The Thaw Begins',        desc: 'Meltwater pools form between the ice sheets. Lichen creeps across exposed rock. A brief reprieve.' },
+    tundra:   { food: 5,  morale: 3,  title: 'Permafrost Softens',     desc: 'The frozen ground yields slightly. Hardy moss pushes through cracks. The wind carries a hint of warmth.' },
+    mountain: { food: 8,  morale: 4,  title: 'Mountain Streams Swell',  desc: 'Snowmelt cascades down the peaks. Alpine flowers push through rocky soil. The passes begin to clear.' },
+    desert:   { food: 6,  morale: 5,  title: 'Desert Bloom!',           desc: 'Brief rains coax dormant seeds to life. The dunes are spotted with color for a fleeting moment.' },
+    swamp:    { food: 12, morale: 3,  title: 'The Bog Awakens',         desc: 'The marsh thaws and teems with life. Insects swarm, fish spawn in the murk. Everything is alive and hungry.' },
+    water:    { food: 10, morale: 5,  title: 'Currents Warm',           desc: 'The sea warms and teems with life. Schools of fish return to the shallows. Fishing season begins.' },
+    default:  { food: 10, morale: 5,  title: 'Spring has arrived!',     desc: 'The snow melts and flowers bloom. Crops grow faster, spirits rise.' },
+  },
+  summer: {
+    ice:      { food: 3,  morale: 5,  title: 'The Brief Polar Summer',  desc: 'Ice pools glimmer in perpetual twilight. Lichen grows on exposed rock. The villagers savor the rare warmth.' },
+    tundra:   { food: 5,  morale: 4,  title: 'Midnight Sun',            desc: 'The sun barely sets. Hardy grasses green the tundra. Mosquitoes cloud the air but spirits are high.' },
+    mountain: { food: 5,  morale: 5,  title: 'Alpine Meadows Bloom',    desc: 'Clear days reveal distant peaks. Wildflowers carpet the slopes above the treeline.' },
+    desert:   { food: -5, morale: -2, title: 'The Scorching',           desc: 'The sun is merciless. Sand burns through shells. Only the hardiest venture out during the day.' },
+    swamp:    { food: 0,  morale: -2, title: 'The Festering',           desc: 'The bog festers in the heat. Thick mists and biting flies plague the village. Everything rots faster.' },
+    water:    { food: 5,  morale: 5,  title: 'Calm Seas',               desc: 'Calm waters and long days. Perfect weather for fishing and coastal exploration.' },
+    default:  { food: 0,  morale: 3,  title: 'Summer begins!',          desc: 'Long warm days ahead. Farms will peak but beware the scorching heat.' },
+  },
+  autumn: {
+    ice:      { food: 3,  morale: 2,  harvestMul: 0.5, title: 'First Frost Returns', desc: 'The brief warmth fades. Ice reclaims the pools. The villagers rush to store what little they gathered.' },
+    tundra:   { food: 4,  morale: 3,  harvestMul: 0.6, title: 'The Darkening',       desc: 'Days shorten rapidly. First snows dust the tundra. Stock up now — the long dark approaches.' },
+    mountain: { food: 6,  morale: 5,  harvestMul: 0.8, title: 'Mountain Fog Rolls In', desc: 'Mist clings to the valleys. The last herbs are gathered before snowfall seals the passes.' },
+    desert:   { food: 5,  morale: 8,  harvestMul: 0.7, title: 'Cooler Nights Return', desc: 'The desert breathes easier. Cool winds sweep the dunes at dusk. A time of relief and gratitude.' },
+    swamp:    { food: 8,  morale: 6,  harvestMul: 1.0, title: 'Mushroom Season',      desc: 'Fog clings to the wetlands. Mushrooms and tubers are abundant in the damp earth.' },
+    water:    { food: 8,  morale: 6,  harvestMul: 1.2, title: 'Storm Fishing',        desc: 'Autumn storms churn rich waters. The fishing is dangerous but bountiful.' },
+    default:  { food: 0,  morale: 8,  harvestMul: 1.0, title: 'Harvest Festival!',    desc: 'Autumn brings the harvest. The village celebrates!' },
+  },
+  winter: {
+    ice:      { morale: -8, farmDmg: 15, title: 'The Long Dark',        desc: 'Blizzards rage for days without end. The sun vanishes below the horizon. Survival is everything.' },
+    tundra:   { morale: -7, farmDmg: 12, title: 'Polar Night',          desc: 'Darkness descends. The wind howls across frozen wastes. Only the walls keep the cold at bay.' },
+    mountain: { morale: -6, farmDmg: 12, title: 'Snowed In',            desc: 'Heavy snow blankets the peaks. Passes close. The village is isolated until the thaw.' },
+    desert:   { morale: -2, farmDmg: 3,  title: 'Cold Desert Nights',   desc: 'Days remain clear but nights bite with cold. Frost dusts the dunes at dawn, gone by noon.' },
+    swamp:    { morale: -4, farmDmg: 8,  title: 'The Frozen Bog',       desc: 'The marsh freezes over. An eerie silence settles. Strange shapes are locked beneath the ice.' },
+    water:    { morale: -5, farmDmg: 10, title: 'Storm Season',         desc: 'Huge waves batter the coast. Fishing becomes treacherous. The sea takes more than it gives.' },
+    default:  { morale: -5, farmDmg: 10, title: 'Winter descends!',     desc: 'Cold winds sweep the land. Food production drops sharply.' },
+  },
+};
+
+function generateSeasonEvent(worldId, newSeason, oldSeason, biome) {
   const events = [];
+  const flavorTable = SEASON_FLAVOR[newSeason];
+  if (!flavorTable) return events;
+  const f = flavorTable[biome] || flavorTable.default;
 
   if (newSeason === 'spring') {
-    // Spring bloom: +10 food, morale boost
-    db.prepare("UPDATE resources SET amount = MIN(capacity, amount + 10) WHERE world_id = ? AND type = 'food'").run(worldId);
-    db.prepare("UPDATE villagers SET morale = MIN(100, morale + 5) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    if (f.food > 0) db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'food'").run(f.food, worldId);
+    if (f.morale > 0) db.prepare("UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'").run(f.morale, worldId);
     events.push({
-      type: 'season',
-      title: 'Spring has arrived!',
-      description: 'The snow melts and flowers bloom. Crops grow faster, spirits rise. +10 food, +5 morale to all.',
+      type: 'season', title: f.title,
+      description: `${f.desc} +${f.food} food, +${f.morale} morale.`,
       severity: 'celebration',
     });
   } else if (newSeason === 'summer') {
-    // Summer: morale boost, heat warning
-    db.prepare("UPDATE villagers SET morale = MIN(100, morale + 3) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    if (f.food > 0) {
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'food'").run(f.food, worldId);
+    } else if (f.food < 0) {
+      db.prepare("UPDATE resources SET amount = MAX(0, amount + ?) WHERE world_id = ? AND type = 'food'").run(f.food, worldId);
+    }
+    if (f.morale > 0) {
+      db.prepare("UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'").run(f.morale, worldId);
+    } else if (f.morale < 0) {
+      db.prepare("UPDATE villagers SET morale = MAX(0, morale + ?) WHERE world_id = ? AND status = 'alive'").run(f.morale, worldId);
+    }
+    const parts = [f.desc];
+    if (f.food !== 0) parts.push(`${f.food > 0 ? '+' : ''}${f.food} food.`);
+    if (f.morale !== 0) parts.push(`${f.morale > 0 ? '+' : ''}${f.morale} morale.`);
     events.push({
-      type: 'season',
-      title: 'Summer begins!',
-      description: 'Long warm days ahead. Farms will peak but beware the scorching heat. +3 morale.',
-      severity: 'info',
+      type: 'season', title: f.title,
+      description: parts.join(' '),
+      severity: f.morale < 0 ? 'warning' : 'info',
     });
   } else if (newSeason === 'autumn') {
-    // Harvest festival: big food bonus if farms exist
     const farmCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").get(worldId).c;
-    const harvestBonus = farmCount * 8;
+    const harvestMul = f.harvestMul || 1.0;
+    const harvestBonus = Math.floor(farmCount * 8 * harvestMul) + (f.food || 0);
     if (harvestBonus > 0) {
       db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'food'").run(harvestBonus, worldId);
     }
-    db.prepare("UPDATE villagers SET morale = MIN(100, morale + 8) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    db.prepare("UPDATE villagers SET morale = MIN(100, morale + ?) WHERE world_id = ? AND status = 'alive'").run(f.morale, worldId);
+    const parts = [f.desc];
+    if (harvestBonus > 0) parts.push(`+${harvestBonus} food from the harvest.`);
+    parts.push(`+${f.morale} morale.`);
     events.push({
-      type: 'season',
-      title: 'Harvest Festival!',
-      description: `Autumn brings the harvest. The village celebrates!${harvestBonus > 0 ? ` ${farmCount} farm(s) yielded +${harvestBonus} bonus food.` : ''} +8 morale to all. Fishermen thrive this season.`,
+      type: 'season', title: f.title,
+      description: parts.join(' '),
       severity: 'celebration',
     });
   } else if (newSeason === 'winter') {
-    // Winter: morale hit, frost damage to farms
-    db.prepare("UPDATE villagers SET morale = MAX(0, morale - 5) WHERE world_id = ? AND status = 'alive'").run(worldId);
+    db.prepare("UPDATE villagers SET morale = MAX(0, morale + ?) WHERE world_id = ? AND status = 'alive'").run(f.morale, worldId);
     const farms = db.prepare("SELECT id, hp FROM buildings WHERE world_id = ? AND type = 'farm' AND status = 'active'").all(worldId);
-    for (const f of farms) {
-      db.prepare('UPDATE buildings SET hp = MAX(1, hp - 10) WHERE id = ?').run(f.id);
+    const frostDmg = f.farmDmg || 10;
+    for (const farm of farms) {
+      db.prepare('UPDATE buildings SET hp = MAX(1, hp - ?) WHERE id = ?').run(frostDmg, farm.id);
     }
+    const parts = [f.desc];
+    if (farms.length > 0) parts.push(`${farms.length} farm(s) took frost damage (-${frostDmg} HP).`);
+    parts.push(`${f.morale} morale.`);
     events.push({
-      type: 'season',
-      title: 'Winter descends!',
-      description: `Cold winds sweep the land. Food production drops sharply. ${farms.length > 0 ? `${farms.length} farm(s) took frost damage (-10 HP each).` : ''} -5 morale. Stock up on food and build docks for fishing!`,
+      type: 'season', title: f.title,
+      description: parts.join(' '),
       severity: 'warning',
     });
   }

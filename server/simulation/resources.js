@@ -10,6 +10,18 @@ const SEASON_FOOD_MODIFIER = {
   winter: 0.5,
 };
 
+// Biome adjustments to seasonal food production
+// Ice/tundra: adapted to cold (winter less harsh), but summer barely helps
+// Desert: summer is brutal, winter is mild
+const BIOME_SEASON_FOOD = {
+  ice:      { spring: 0.7, summer: 0.8, autumn: 0.7, winter: 0.7 },
+  tundra:   { spring: 0.8, summer: 0.9, autumn: 0.8, winter: 0.65 },
+  mountain: { spring: 0.9, summer: 1.2, autumn: 1.0, winter: 0.6 },
+  desert:   { spring: 1.1, summer: 0.6, autumn: 1.1, winter: 0.9 },
+  swamp:    { spring: 1.2, summer: 1.0, autumn: 1.3, winter: 0.6 },
+  water:    { spring: 1.0, summer: 1.3, autumn: 1.1, winter: 0.7 },
+};
+
 const SEASON_FISH_MODIFIER = {
   spring: 1.0,
   summer: 1.2,
@@ -24,6 +36,12 @@ const SEASON_HUNT_MODIFIER = {
   winter: 0.7,
 };
 
+// Cold biomes have better hunting in winter (animals are slower, easier to track)
+const BIOME_SEASON_HUNT = {
+  ice:    { spring: 1.0, summer: 0.9, autumn: 1.1, winter: 1.3 },
+  tundra: { spring: 1.0, summer: 1.0, autumn: 1.2, winter: 1.2 },
+};
+
 // Biome production bonuses: [building_type] → multiplier
 const BIOME_BONUSES = {
   forest:   { hunting_lodge: 1.3, workshop: 1.2 },
@@ -36,9 +54,6 @@ const BIOME_BONUSES = {
 
 function processResources(worldId, weather, season, planetaryEffects) {
   const wMod = getWeatherModifier(weather);
-  const sMod = SEASON_FOOD_MODIFIER[season] || 1.0;
-  const sFishMod = SEASON_FISH_MODIFIER[season] || 1.0;
-  const sHuntMod = SEASON_HUNT_MODIFIER[season] || 1.0;
   const culture = getCulture(worldId);
   const workEthic = 1 + (culture.work_ethic_modifier || 0);
   const pEffects = planetaryEffects || {};
@@ -53,6 +68,13 @@ function processResources(worldId, weather, season, planetaryEffects) {
   ).get(worldId);
   const dominantBiome = biomeRow ? biomeRow.terrain : 'plains';
   const biomeBonuses = BIOME_BONUSES[dominantBiome] || {};
+
+  // Biome-modulated seasonal production: ice worlds don't get full summer food bonus
+  const biomeFoodAdj = (BIOME_SEASON_FOOD[dominantBiome] && BIOME_SEASON_FOOD[dominantBiome][season]) || 1.0;
+  const sMod = (SEASON_FOOD_MODIFIER[season] || 1.0) * biomeFoodAdj;
+  const sFishMod = SEASON_FISH_MODIFIER[season] || 1.0;
+  const biomeHuntAdj = (BIOME_SEASON_HUNT[dominantBiome] && BIOME_SEASON_HUNT[dominantBiome][season]) || 1.0;
+  const sHuntMod = (SEASON_HUNT_MODIFIER[season] || 1.0) * biomeHuntAdj;
 
   // Get active and decaying buildings with assigned workers
   const buildings = db.prepare(

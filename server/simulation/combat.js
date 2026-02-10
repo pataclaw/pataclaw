@@ -157,12 +157,15 @@ function processRaids(worldId, raidEvents) {
         ).run(defDmg, worldId);
       }
 
-      // Building damage
-      const targetBuilding = db.prepare(
+      // Building damage (farms are last resort — essential infrastructure)
+      let targetBuilding = db.prepare(
         raidType === 'sea_raiders'
           ? "SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type = 'dock' ORDER BY RANDOM() LIMIT 1"
-          : "SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type != 'town_center' ORDER BY RANDOM() LIMIT 1"
+          : "SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type NOT IN ('town_center', 'farm') ORDER BY RANDOM() LIMIT 1"
       ).get(worldId);
+      if (!targetBuilding && raidType !== 'sea_raiders') {
+        targetBuilding = db.prepare("SELECT id, type, hp FROM buildings WHERE world_id = ? AND status = 'active' AND type = 'farm' ORDER BY RANDOM() LIMIT 1").get(worldId);
+      }
 
       let bldgMsg = '';
       if (targetBuilding) {

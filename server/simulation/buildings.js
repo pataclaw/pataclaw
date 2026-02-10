@@ -47,7 +47,7 @@ const BUILDING_DEFS = {
 const MAINTENANCE_COSTS = {
   hut:        { wood: 0, stone: 0, crypto: 0 },
   town_center:{ wood: 0, stone: 0, crypto: 0 },
-  farm:       { wood: 1, stone: 0, crypto: 0 },
+  farm:       { wood: 0, stone: 0, crypto: 0 },
   watchtower: { wood: 1, stone: 0, crypto: 0 },
   storehouse: { wood: 1, stone: 0, crypto: 0 },
   dock:       { wood: 1, stone: 0, crypto: 0 },
@@ -302,19 +302,35 @@ function autoBuilding(worldId, currentTick) {
   ).get(worldId).c;
 
   if (activeFarm === 0) {
-    const farmX = tc.x + (Math.random() > 0.5 ? 8 : -8);
-    const farmY = tc.y + Math.floor(Math.random() * 3) - 1;
-    const farmId = uuid();
-    db.prepare(`
-      INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining)
-      VALUES (?, ?, 'farm', ?, ?, 80, 80, 'constructing', 5)
-    `).run(farmId, worldId, farmX, farmY);
-    events.push({
-      type: 'construction',
-      title: 'Villagers plant a new farm',
-      description: 'Driven by hunger, the villagers clear land and begin building a farm from scraps.',
-      severity: 'info',
-    });
+    // Check for abandoned/rubble farm to salvage first
+    const ruinFarm = db.prepare(
+      "SELECT id FROM buildings WHERE world_id = ? AND type = 'farm' AND status IN ('abandoned', 'rubble', 'overgrown') LIMIT 1"
+    ).get(worldId);
+
+    if (ruinFarm) {
+      // Restore the ruin instead of building from scratch
+      db.prepare("UPDATE buildings SET hp = 80, max_hp = 80, status = 'constructing', construction_ticks_remaining = 3 WHERE id = ?").run(ruinFarm.id);
+      events.push({
+        type: 'construction',
+        title: 'Villagers salvage the old farm',
+        description: 'The villagers clear rubble and restore the farm from its ruins.',
+        severity: 'info',
+      });
+    } else {
+      const farmX = tc.x + (Math.random() > 0.5 ? 8 : -8);
+      const farmY = tc.y + Math.floor(Math.random() * 3) - 1;
+      const farmId = uuid();
+      db.prepare(`
+        INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining)
+        VALUES (?, ?, 'farm', ?, ?, 80, 80, 'constructing', 5)
+      `).run(farmId, worldId, farmX, farmY);
+      events.push({
+        type: 'construction',
+        title: 'Villagers plant a new farm',
+        description: 'Driven by hunger, the villagers clear land and begin building a farm from scraps.',
+        severity: 'info',
+      });
+    }
     return events; // Don't auto-build hut same tick as survival farm
   }
 
