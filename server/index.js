@@ -166,10 +166,108 @@ const tableMigrations = [
     depleted_tick INTEGER DEFAULT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_resource_nodes_world ON resource_nodes(world_id)`,
+  // Planet state singleton
+  `CREATE TABLE IF NOT EXISTS planet_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    global_tick INTEGER NOT NULL DEFAULT 0,
+    day_number INTEGER NOT NULL DEFAULT 1,
+    season TEXT NOT NULL DEFAULT 'spring',
+    weather TEXT NOT NULL DEFAULT 'clear',
+    time_of_day TEXT NOT NULL DEFAULT 'dawn',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  // Wars
+  `CREATE TABLE IF NOT EXISTS wars (
+    id TEXT PRIMARY KEY,
+    challenger_id TEXT NOT NULL REFERENCES worlds(id),
+    defender_id TEXT NOT NULL REFERENCES worlds(id),
+    status TEXT NOT NULL DEFAULT 'pending',
+    challenger_hp INTEGER NOT NULL DEFAULT 100,
+    defender_hp INTEGER NOT NULL DEFAULT 100,
+    round_number INTEGER NOT NULL DEFAULT 0,
+    challenger_snapshot TEXT,
+    defender_snapshot TEXT,
+    winner_id TEXT,
+    loser_id TEXT,
+    summary TEXT,
+    challenged_at_tick INTEGER NOT NULL,
+    battle_started_tick INTEGER,
+    betting_closes_at TEXT,
+    resolved_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS war_rounds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    war_id TEXT NOT NULL REFERENCES wars(id),
+    round_number INTEGER NOT NULL,
+    challenger_attack REAL NOT NULL,
+    challenger_defense REAL NOT NULL,
+    defender_attack REAL NOT NULL,
+    defender_defense REAL NOT NULL,
+    challenger_damage INTEGER NOT NULL,
+    defender_damage INTEGER NOT NULL,
+    challenger_hp_after INTEGER NOT NULL,
+    defender_hp_after INTEGER NOT NULL,
+    tactical_event TEXT,
+    narrative TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_war_rounds_war ON war_rounds(war_id, round_number)`,
+  // Spectators (arena betting)
+  `CREATE TABLE IF NOT EXISTS spectators (
+    id TEXT PRIMARY KEY,
+    session_token TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    credits INTEGER NOT NULL DEFAULT 1000,
+    total_wagered INTEGER NOT NULL DEFAULT 0,
+    total_won INTEGER NOT NULL DEFAULT 0,
+    win_count INTEGER NOT NULL DEFAULT 0,
+    loss_count INTEGER NOT NULL DEFAULT 0,
+    wallet_address TEXT DEFAULT NULL,
+    world_id TEXT DEFAULT NULL,
+    is_agent INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS bets (
+    id TEXT PRIMARY KEY,
+    war_id TEXT NOT NULL REFERENCES wars(id),
+    spectator_id TEXT NOT NULL REFERENCES spectators(id),
+    backed_world_id TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    odds_at_placement REAL NOT NULL,
+    potential_payout INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    payout INTEGER DEFAULT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_bets_war ON bets(war_id, status)`,
+  `CREATE INDEX IF NOT EXISTS idx_bets_spectator ON bets(spectator_id)`,
+  `CREATE TABLE IF NOT EXISTS payouts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    spectator_id TEXT NOT NULL,
+    war_id TEXT,
+    type TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    balance_after INTEGER NOT NULL,
+    description TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
 ];
 for (const sql of tableMigrations) {
   try { db.exec(sql); } catch (e) { /* ignore */ }
 }
+
+// Seed planet_state singleton from existing world data
+try {
+  db.exec(`INSERT OR IGNORE INTO planet_state (id, global_tick, day_number, season, weather, time_of_day)
+    SELECT 1,
+      COALESCE(MAX(current_tick), 0),
+      COALESCE(MAX(day_number), 1),
+      COALESCE((SELECT season FROM worlds WHERE status='active' ORDER BY current_tick DESC LIMIT 1), 'spring'),
+      COALESCE((SELECT weather FROM worlds WHERE status='active' ORDER BY current_tick DESC LIMIT 1), 'clear'),
+      'dawn'
+    FROM worlds WHERE status = 'active'`);
+} catch (e) { /* ignore */ }
 
 // Backfill view_tokens for existing worlds that don't have one
 const { v4: uuidV4 } = require('uuid');
@@ -221,9 +319,13 @@ function sendPage(res, filename) {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'client'), { maxAge: 0 }));
 
-// API routes (loaded after Phase 4)
+// API routes
 const apiRouter = require('./api/router');
 app.use('/api', apiRouter);
+
+// Arena betting API
+const arenaRouter = require('./api/arena');
+app.use('/api/arena', arenaRouter);
 
 // Landing page
 app.get('/', (_req, res) => sendPage(res, 'index.html'));
@@ -236,6 +338,9 @@ app.get('/planet', (_req, res) => sendPage(res, 'planet.html'));
 
 // Leaderboard page
 app.get('/leaderboard', (_req, res) => sendPage(res, 'leaderboard.html'));
+
+// Arena page
+app.get('/arena', (_req, res) => sendPage(res, 'arena.html'));
 
 // Pretty URL: /view/:token -> /viewer?token=:token
 app.get('/view/:token', (req, res) => {

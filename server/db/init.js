@@ -61,5 +61,17 @@ for (const sql of migrations) {
 //              archetype, morale_modifier, birth_rate_modifier, work_ethic_modifier
 // These are harmlessly ignored by the new code.
 
+// Seed planet_state singleton if not exists
+try {
+  db.exec(`INSERT OR IGNORE INTO planet_state (id, global_tick, day_number, season, weather, time_of_day)
+    SELECT 1,
+      COALESCE(MAX(current_tick), 0),
+      COALESCE(MAX(day_number), 1),
+      COALESCE((SELECT season FROM worlds WHERE status='active' ORDER BY current_tick DESC LIMIT 1), 'spring'),
+      COALESCE((SELECT weather FROM worlds WHERE status='active' ORDER BY current_tick DESC LIMIT 1), 'clear'),
+      'dawn'
+    FROM worlds WHERE status = 'active'`);
+} catch (e) { /* ignore */ }
+
 console.log('Database initialized successfully.');
 process.exit(0);

@@ -19,8 +19,19 @@ function advanceTime(world) {
   return { tick, time_of_day, day_number, season };
 }
 
+function advanceGlobalTime(globalTick) {
+  const tick = globalTick;
+  const phaseIndex = Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_PHASE);
+  const time_of_day = DAY_PHASES[phaseIndex];
+  const day_number = Math.floor(tick / TICKS_PER_DAY) + 1;
+  const seasonIndex = Math.floor(((day_number - 1) % (DAYS_PER_SEASON * 4)) / DAYS_PER_SEASON);
+  const season = SEASONS[seasonIndex];
+
+  return { tick, time_of_day, day_number, season };
+}
+
 function isNight(time_of_day) {
   return time_of_day === 'night' || time_of_day === 'dusk';
 }
 
-module.exports = { advanceTime, isNight, DAY_PHASES, SEASONS, TICKS_PER_DAY, DAYS_PER_SEASON };
+module.exports = { advanceTime, advanceGlobalTime, isNight, DAY_PHASES, SEASONS, TICKS_PER_DAY, DAYS_PER_SEASON };

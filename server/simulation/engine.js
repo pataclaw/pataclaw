@@ -4,9 +4,14 @@ const { buildFrame } = require('../render/ascii');
 const config = require('../config');
 const { refreshMoltbookFeed } = require('./moltbook-feed');
 const { checkPlanetaryEvent, expirePlanetaryEvents } = require('./planetary');
+const { advanceGlobalTime } = require('./time');
+const { rollWeather } = require('./weather');
 
 // SSE viewer connections: worldId -> Set<res>
 const viewers = new Map();
+
+// SSE war spectator connections: warId -> Set<res>
+const warViewers = new Map();
 
 let intervalId = null;
 let tickCount = 0; // global tick counter for slow-mode gating
@@ -60,17 +65,71 @@ function determineTickMode(worldId, lastAgentHeartbeat) {
   return 'normal';
 }
 
+function advancePlanetState() {
+  // Read current planet state (or create it)
+  let ps = db.prepare('SELECT * FROM planet_state WHERE id = 1').get();
+  if (!ps) {
+    db.exec(`INSERT OR IGNORE INTO planet_state (id) VALUES (1)`);
+    ps = db.prepare('SELECT * FROM planet_state WHERE id = 1').get();
+  }
+
+  const newTick = ps.global_tick + 1;
+  const globalTime = advanceGlobalTime(newTick);
+  const weather = rollWeather(ps.weather, globalTime.season);
+
+  db.prepare(`
+    UPDATE planet_state
+    SET global_tick = ?, day_number = ?, season = ?, weather = ?,
+        time_of_day = ?, updated_at = datetime('now')
+    WHERE id = 1
+  `).run(newTick, globalTime.day_number, globalTime.season, weather, globalTime.time_of_day);
+
+  return { ...globalTime, weather, tick: newTick };
+}
+
 function tickAllWorlds() {
   tickCount++;
 
   // Refresh Moltbook feed periodically (global, not per-world)
   refreshMoltbookFeed(tickCount).catch(() => {});
 
+  // Advance global planet state once per cycle
+  const globalTime = advancePlanetState();
+
+  // Process active wars
+  try {
+    const { processWarCountdowns, processActiveWars } = require('./war');
+    processWarCountdowns(globalTime.tick);
+    const warResults = processActiveWars(globalTime);
+    // Push war events to spectators
+    for (const wr of warResults) {
+      pushWarEvent(wr.warId, wr);
+    }
+  } catch (e) {
+    // war module may not be loaded yet during phase 1
+    if (!e.message.includes('Cannot find module')) {
+      console.error('[ENGINE] War processing error:', e.message);
+    }
+  }
+
   const worlds = db.prepare(
     "SELECT id, last_agent_heartbeat, tick_mode FROM worlds WHERE status = 'active'"
   ).all();
 
+  // Get set of worlds currently in active war (frozen)
+  let frozenWorlds = new Set();
+  try {
+    const activeWars = db.prepare("SELECT challenger_id, defender_id FROM wars WHERE status = 'active'").all();
+    for (const w of activeWars) {
+      frozenWorlds.add(w.challenger_id);
+      frozenWorlds.add(w.defender_id);
+    }
+  } catch { /* table may not exist yet */ }
+
   for (const world of worlds) {
+    // Skip worlds in active war (frozen during battle)
+    if (frozenWorlds.has(world.id)) continue;
+
     // Determine and update tick mode based on agent activity
     const mode = determineTickMode(world.id, world.last_agent_heartbeat);
     if (mode !== world.tick_mode) {
@@ -87,7 +146,7 @@ function tickAllWorlds() {
     if (mode === 'dormant') continue;
     if (mode === 'slow' && tickCount % 10 !== 0) continue;
 
-    const result = processTick(world.id);
+    const result = processTick(world.id, globalTime);
     if (!result) continue;
 
     // Push frame to any connected viewers
@@ -156,4 +215,33 @@ function pushEvent(worldId, evt) {
   }
 }
 
-module.exports = { start, stop, addViewer, getViewerCount, pushEvent };
+function addWarViewer(warId, res) {
+  if (!warViewers.has(warId)) warViewers.set(warId, new Set());
+  warViewers.get(warId).add(res);
+
+  res.on('close', () => {
+    const set = warViewers.get(warId);
+    if (set) {
+      set.delete(res);
+      if (set.size === 0) warViewers.delete(warId);
+    }
+  });
+}
+
+function pushWarEvent(warId, evt) {
+  const conns = warViewers.get(warId);
+  if (conns && conns.size > 0) {
+    const evtData = `event: war\ndata: ${JSON.stringify(evt)}\n\n`;
+    for (const res of conns) {
+      try { res.write(evtData); if (typeof res.flush === 'function') res.flush(); } catch { conns.delete(res); }
+    }
+  }
+}
+
+function getGlobalTime() {
+  const ps = db.prepare('SELECT * FROM planet_state WHERE id = 1').get();
+  if (!ps) return { tick: 0, day_number: 1, season: 'spring', weather: 'clear', time_of_day: 'dawn' };
+  return { tick: ps.global_tick, day_number: ps.day_number, season: ps.season, weather: ps.weather, time_of_day: ps.time_of_day };
+}
+
+module.exports = { start, stop, addViewer, getViewerCount, pushEvent, addWarViewer, pushWarEvent, getGlobalTime };

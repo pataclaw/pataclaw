@@ -452,3 +452,112 @@ CREATE TABLE IF NOT EXISTS resource_nodes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_resource_nodes_world ON resource_nodes(world_id);
+
+-- ============================================================
+-- PLANET STATE: Global time, season, weather (singleton)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS planet_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    global_tick INTEGER NOT NULL DEFAULT 0,
+    day_number INTEGER NOT NULL DEFAULT 1,
+    season TEXT NOT NULL DEFAULT 'spring',
+    weather TEXT NOT NULL DEFAULT 'clear',
+    time_of_day TEXT NOT NULL DEFAULT 'dawn',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- WARS: World vs World conflicts
+-- ============================================================
+CREATE TABLE IF NOT EXISTS wars (
+    id TEXT PRIMARY KEY,
+    challenger_id TEXT NOT NULL REFERENCES worlds(id),
+    defender_id TEXT NOT NULL REFERENCES worlds(id),
+    status TEXT NOT NULL DEFAULT 'pending',
+    challenger_hp INTEGER NOT NULL DEFAULT 100,
+    defender_hp INTEGER NOT NULL DEFAULT 100,
+    round_number INTEGER NOT NULL DEFAULT 0,
+    challenger_snapshot TEXT,
+    defender_snapshot TEXT,
+    winner_id TEXT,
+    loser_id TEXT,
+    summary TEXT,
+    challenged_at_tick INTEGER NOT NULL,
+    battle_started_tick INTEGER,
+    betting_closes_at TEXT,
+    resolved_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- WAR ROUNDS: Per-round battle data
+-- ============================================================
+CREATE TABLE IF NOT EXISTS war_rounds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    war_id TEXT NOT NULL REFERENCES wars(id),
+    round_number INTEGER NOT NULL,
+    challenger_attack REAL NOT NULL,
+    challenger_defense REAL NOT NULL,
+    defender_attack REAL NOT NULL,
+    defender_defense REAL NOT NULL,
+    challenger_damage INTEGER NOT NULL,
+    defender_damage INTEGER NOT NULL,
+    challenger_hp_after INTEGER NOT NULL,
+    defender_hp_after INTEGER NOT NULL,
+    tactical_event TEXT,
+    narrative TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_war_rounds_war ON war_rounds(war_id, round_number);
+
+-- ============================================================
+-- SPECTATORS: Arena betting accounts (cookie-based)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS spectators (
+    id TEXT PRIMARY KEY,
+    session_token TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    credits INTEGER NOT NULL DEFAULT 1000,
+    total_wagered INTEGER NOT NULL DEFAULT 0,
+    total_won INTEGER NOT NULL DEFAULT 0,
+    win_count INTEGER NOT NULL DEFAULT 0,
+    loss_count INTEGER NOT NULL DEFAULT 0,
+    wallet_address TEXT DEFAULT NULL,
+    world_id TEXT DEFAULT NULL,
+    is_agent INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- BETS: Wagers on wars
+-- ============================================================
+CREATE TABLE IF NOT EXISTS bets (
+    id TEXT PRIMARY KEY,
+    war_id TEXT NOT NULL REFERENCES wars(id),
+    spectator_id TEXT NOT NULL REFERENCES spectators(id),
+    backed_world_id TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    odds_at_placement REAL NOT NULL,
+    potential_payout INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    payout INTEGER DEFAULT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_bets_war ON bets(war_id, status);
+CREATE INDEX IF NOT EXISTS idx_bets_spectator ON bets(spectator_id);
+
+-- ============================================================
+-- PAYOUTS: Credit transaction log
+-- ============================================================
+CREATE TABLE IF NOT EXISTS payouts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    spectator_id TEXT NOT NULL,
+    war_id TEXT,
+    type TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    balance_after INTEGER NOT NULL,
+    description TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

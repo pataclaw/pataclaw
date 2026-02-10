@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { authViewToken, authMiddleware } = require('../auth/middleware');
-const { addViewer, pushEvent } = require('../simulation/engine');
+const { addViewer, pushEvent, addWarViewer } = require('../simulation/engine');
 const { buildFrame } = require('../render/ascii');
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
@@ -107,6 +107,58 @@ router.post('/whisper', authViewToken, (req, res) => {
   pushEvent(req.worldId, { type: 'whisper', title: 'A voice from beyond...', description: desc, severity: 'info' });
 
   res.json({ ok: true, whisper: clean, heardBy });
+});
+
+// GET /api/stream/war?war_id=... - SSE stream for war spectators (public, no auth)
+router.get('/stream/war', (req, res) => {
+  const warId = req.query.war_id;
+  if (!warId) return res.status(400).json({ error: 'Missing war_id' });
+
+  try {
+    const war = db.prepare('SELECT id, status FROM wars WHERE id = ?').get(warId);
+    if (!war) return res.status(404).json({ error: 'War not found' });
+  } catch {
+    return res.status(404).json({ error: 'War not found' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  if (res.socket) res.socket.setNoDelay(true);
+
+  // Send current war state immediately
+  try {
+    const war = db.prepare(`
+      SELECT w.*, c.name as challenger_name, d.name as defender_name
+      FROM wars w
+      JOIN worlds c ON c.id = w.challenger_id
+      JOIN worlds d ON d.id = w.defender_id
+      WHERE w.id = ?
+    `).get(warId);
+    const rounds = db.prepare('SELECT * FROM war_rounds WHERE war_id = ? ORDER BY round_number ASC').all(warId);
+    const payload = `event: war\ndata: ${JSON.stringify({ type: 'state', war, rounds })}\n\n`;
+    res.write(payload);
+    if (typeof res.flush === 'function') res.flush();
+  } catch (err) {
+    res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
+    if (typeof res.flush === 'function') res.flush();
+  }
+
+  addWarViewer(warId, res);
+
+  const keepalive = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+      if (typeof res.flush === 'function') res.flush();
+    } catch {
+      clearInterval(keepalive);
+    }
+  }, 30_000);
+
+  req.on('close', () => clearInterval(keepalive));
 });
 
 module.exports = router;

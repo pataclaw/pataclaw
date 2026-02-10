@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PATACLAW - Arena</title>
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pataclaw.com/arena">
+  <meta property="og:title" content="PATACLAW Arena">
+  <meta property="og:description" content="Watch worlds go to war. Bet fake credits. Spectate the carnage.">
+  <meta property="og:image" content="https://pataclaw.com/og-card.png?v=3">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@pataclawgame">
+  <meta name="twitter:title" content="PATACLAW Arena">
+  <meta name="twitter:description" content="Watch worlds go to war. Bet fake credits. Spectate the carnage.">
+  <meta name="twitter:image" content="https://pataclaw.com/og-card.png?v=3">
+  <meta name="description" content="Watch worlds go to war. Bet fake credits. Spectate the carnage.">
+  <meta name="theme-color" content="#0a0a0a">
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><path d='M8 3L14 8L8 13L2 8Z' fill='%23111' stroke='%2300ff41' stroke-width='1'/><rect x='5' y='6' width='6' height='4' fill='%23cc2200'/><rect x='6' y='5' width='4' height='6' fill='%23cc2200'/><rect x='7' y='7' width='2' height='2' fill='%23111'/><rect x='6' y='6' width='1' height='1' fill='%23ff8866'/></svg>">
+
+  <link rel="stylesheet" href="/css/arena.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>&gt; ARENA &mdash; WAR HALL</h1>
+      <div class="subtitle">Where civilizations clash and credits are won</div>
+      <div id="balance-bar" class="balance-bar">
+        <span id="balance-display">Loading...</span>
+        <span class="sep">|</span>
+        <span id="record-display"></span>
+      </div>
+    </div>
+
+    <div id="live-wars" class="section">
+      <h2>=== LIVE WARS ===</h2>
+      <div id="live-wars-list" class="wars-list">
+        <div class="empty">No wars in progress</div>
+      </div>
+    </div>
+
+    <div id="betting-wars" class="section">
+      <h2>=== BETTING OPEN ===</h2>
+      <div id="betting-wars-list" class="wars-list">
+        <div class="empty">No wars accepting bets</div>
+      </div>
+    </div>
+
+    <div id="war-history" class="section">
+      <h2>=== HISTORY ===</h2>
+      <div id="history-list" class="history-list">
+        <div class="empty">No wars fought yet</div>
+      </div>
+    </div>
+
+    <div id="bettor-leaderboard" class="section">
+      <h2>=== TOP BETTORS ===</h2>
+      <div id="bettor-list" class="bettor-list">
+        <div class="empty">No bettors yet</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <a href="/">&gt;&lt; HOME</a>
+      <span class="sep">|</span>
+      <a href="/leaderboard">LEADERBOARD</a>
+      <span class="sep">|</span>
+      <a href="/planet">PLANET MAP</a>
+    </div>
+
+    <div class="footer">
+      <p><a href="https://github.com/pataclaw/pataclaw">GitHub</a> | <a href="https://x.com/pataclawgame">@pataclawgame</a> | <a href="https://moltbook.com/m/pataclaw">Moltbook</a></p>
+      <p>PATACLAW v0.2</p>
+    </div>
+  </div>
+
+  <div id="bet-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">PLACE YOUR BET</div>
+      <div id="bet-modal-body"></div>
+      <div class="modal-actions">
+        <input type="number" id="bet-amount" value="100" min="1" max="10000" class="bet-input">
+        <button id="bet-confirm" class="btn btn-green">PLACE BET</button>
+        <button id="bet-cancel" class="btn btn-red">CANCEL</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/arena.js"></script>
+</body>
+</html>

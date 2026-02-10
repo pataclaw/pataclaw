@@ -21,6 +21,8 @@ const { generateHighlightCard } = require('../render/highlight-card');
 
 const router = Router();
 
+const MAX_ROUNDS = 30; // must match war.js
+
 function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -360,10 +362,19 @@ router.get('/planet', (_req, res) => {
   const totalPop = result.reduce((s, w) => s + w.population, 0);
 
   const planetaryEvent = getActivePlanetaryEvent();
+
+  // Global planet weather
+  let planet_weather = null;
+  try {
+    const ps = db.prepare('SELECT season, weather, day_number, time_of_day FROM planet_state WHERE id = 1').get();
+    if (ps) planet_weather = { season: ps.season, weather: ps.weather, day_number: ps.day_number, time_of_day: ps.time_of_day };
+  } catch { /* table may not exist yet */ }
+
   res.json({
     worlds: result,
     stats: { total_worlds: result.length, total_population: totalPop, total_minted: totalMinted },
     planetaryEvent: planetaryEvent ? { type: planetaryEvent.type, title: planetaryEvent.title, description: planetaryEvent.description } : null,
+    planet_weather,
   });
 });
 
@@ -380,6 +391,76 @@ router.get('/trades/open', (_req, res) => {
   `).all();
 
   res.json({ trades });
+});
+
+// GET /api/wars/active — public listing of ongoing wars
+router.get('/wars/active', (_req, res) => {
+  try {
+    const wars = db.prepare(`
+      SELECT w.id, w.status, w.challenger_hp, w.defender_hp, w.round_number,
+             w.betting_closes_at, w.created_at,
+             c.name as challenger_name, c.town_number as challenger_town,
+             d.name as defender_name, d.town_number as defender_town
+      FROM wars w
+      JOIN worlds c ON c.id = w.challenger_id
+      JOIN worlds d ON d.id = w.defender_id
+      WHERE w.status IN ('pending', 'countdown', 'active')
+      ORDER BY w.created_at DESC
+    `).all();
+    res.json({ wars });
+  } catch {
+    res.json({ wars: [] });
+  }
+});
+
+// GET /api/wars/:warId — war details
+router.get('/wars/:warId', (req, res) => {
+  try {
+    const war = db.prepare(`
+      SELECT w.*, c.name as challenger_name, c.town_number as challenger_town,
+             d.name as defender_name, d.town_number as defender_town
+      FROM wars w
+      JOIN worlds c ON c.id = w.challenger_id
+      JOIN worlds d ON d.id = w.defender_id
+      WHERE w.id = ?
+    `).get(req.params.warId);
+    if (!war) return res.status(404).json({ error: 'War not found' });
+    res.json({ war });
+  } catch {
+    res.status(404).json({ error: 'War not found' });
+  }
+});
+
+// GET /api/wars/:warId/rounds — battle round history
+router.get('/wars/:warId/rounds', (req, res) => {
+  try {
+    const rounds = db.prepare(
+      'SELECT * FROM war_rounds WHERE war_id = ? ORDER BY round_number ASC'
+    ).all(req.params.warId);
+    res.json({ rounds });
+  } catch {
+    res.json({ rounds: [] });
+  }
+});
+
+// GET /api/wars/history — recent resolved wars
+router.get('/wars/history', (_req, res) => {
+  try {
+    const wars = db.prepare(`
+      SELECT w.id, w.status, w.round_number, w.summary, w.resolved_at,
+             c.name as challenger_name, d.name as defender_name,
+             winner.name as winner_name
+      FROM wars w
+      JOIN worlds c ON c.id = w.challenger_id
+      JOIN worlds d ON d.id = w.defender_id
+      LEFT JOIN worlds winner ON winner.id = w.winner_id
+      WHERE w.status = 'resolved' AND w.winner_id IS NOT NULL
+      ORDER BY w.resolved_at DESC LIMIT 20
+    `).all();
+    res.json({ wars });
+  } catch {
+    res.json({ wars: [] });
+  }
 });
 
 // GET /api/worlds/:worldId/inventory - public inventory listing
@@ -1019,6 +1100,124 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
         }
       }
 
+      case 'bet': {
+        // Agent betting: bet <war_id> <side> <amount>
+        const betWarId = args[0];
+        const betSide = args[1]; // challenger name or defender name
+        const betAmt = parseInt(args[2]);
+        if (!betWarId || !betSide || !betAmt) return res.send('ERROR: Usage: bet <war_id> <side_name> <amount>');
+
+        try {
+          const betWar = db.prepare("SELECT * FROM wars WHERE id = ? AND status = 'countdown'").get(betWarId);
+          if (!betWar) return res.send('ERROR: War not found or betting is closed.');
+
+          // Find or create agent spectator
+          let spectator = db.prepare('SELECT * FROM spectators WHERE world_id = ?').get(worldId);
+          if (!spectator) {
+            const { v4: specUuid } = require('uuid');
+            const specId = specUuid();
+            const specToken = specUuid();
+            const wName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(worldId);
+            db.prepare('INSERT INTO spectators (id, session_token, display_name, credits, is_agent, world_id) VALUES (?, ?, ?, 500, 1, ?)')
+              .run(specId, specToken, wName ? wName.name : 'Agent', worldId);
+            spectator = db.prepare('SELECT * FROM spectators WHERE id = ?').get(specId);
+          }
+
+          if (betAmt > spectator.credits) return res.send(`ERROR: Not enough credits. Have ${spectator.credits}.`);
+
+          // Resolve side name to world id
+          const cName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(betWar.challenger_id);
+          const dName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(betWar.defender_id);
+          let backedId = null;
+          if (betSide.toLowerCase() === cName.name.toLowerCase()) backedId = betWar.challenger_id;
+          else if (betSide.toLowerCase() === dName.name.toLowerCase()) backedId = betWar.defender_id;
+          else return res.send(`ERROR: Side must be "${cName.name}" or "${dName.name}"`);
+
+          // Place bet via arena logic
+          const existingBet = db.prepare("SELECT id FROM bets WHERE war_id = ? AND spectator_id = ? AND status = 'active'").get(betWarId, spectator.id);
+          if (existingBet) return res.send('ERROR: Already bet on this war.');
+
+          const { v4: betUuid } = require('uuid');
+          // Simple odds calc inline
+          const odds = backedId === betWar.challenger_id ? 1.5 : 1.5; // Simplified for agent
+          const payout = Math.floor(betAmt * odds * 0.95);
+
+          db.transaction(() => {
+            db.prepare('INSERT INTO bets (id, war_id, spectator_id, backed_world_id, amount, odds_at_placement, potential_payout) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .run(betUuid(), betWarId, spectator.id, backedId, betAmt, odds, payout);
+            db.prepare('UPDATE spectators SET credits = credits - ?, total_wagered = total_wagered + ? WHERE id = ?')
+              .run(betAmt, betAmt, spectator.id);
+          })();
+
+          return res.send(`OK: Bet ${betAmt} credits on ${betSide}. Potential payout: ${payout} credits.`);
+        } catch (e) {
+          return res.send(`ERROR: ${e.message}`);
+        }
+      }
+
+      case 'mybets': {
+        try {
+          const spectator = db.prepare('SELECT * FROM spectators WHERE world_id = ?').get(worldId);
+          if (!spectator) return res.send('No betting account. Place a bet first.');
+          const bets = db.prepare(`
+            SELECT b.amount, b.status, b.odds_at_placement, b.payout, backed.name as backed_name
+            FROM bets b JOIN worlds backed ON backed.id = b.backed_world_id
+            WHERE b.spectator_id = ? ORDER BY b.created_at DESC LIMIT 10
+          `).all(spectator.id);
+          let out = `=== YOUR BETS (${spectator.credits} credits) ===\n`;
+          for (const b of bets) {
+            out += `  ${b.backed_name} | ${b.amount} credits @ ${b.odds_at_placement}x | ${b.status}${b.payout ? ' → +' + b.payout : ''}\n`;
+          }
+          return res.send(out);
+        } catch {
+          return res.send('No betting account yet.');
+        }
+      }
+
+      case 'challenge':
+      case 'war-declare': {
+        const targetName = args.join(' ');
+        if (!targetName) return res.send('ERROR: Specify target world.\nUsage: challenge <world_name>');
+        const target = db.prepare("SELECT id, name FROM worlds WHERE name = ? AND status = 'active'").get(targetName);
+        if (!target) return res.send(`ERROR: World "${targetName}" not found. Check /leaderboard for active worlds.`);
+        const { declareWar } = require('../simulation/war');
+        const warResult = declareWar(worldId, target.id);
+        if (!warResult.ok) return res.send(`ERROR: ${warResult.reason}`);
+        return res.send(`OK: War declared on ${target.name}! Waiting for them to accept.\nWar ID: ${warResult.warId}`);
+      }
+
+      case 'accept-war':
+      case 'war-accept': {
+        const { getPendingWarForDefender, acceptWar } = require('../simulation/war');
+        const pending = getPendingWarForDefender(worldId);
+        if (!pending) return res.send('ERROR: No pending war challenge to accept.');
+        const acceptResult = acceptWar(pending.id, worldId);
+        if (!acceptResult.ok) return res.send(`ERROR: ${acceptResult.reason}`);
+        return res.send(`OK: War accepted! Battle begins at ${acceptResult.bettingClosesAt}.\n5-minute betting window is now open.`);
+      }
+
+      case 'decline-war':
+      case 'war-decline': {
+        const { getPendingWarForDefender, declineWar } = require('../simulation/war');
+        const pendingW = getPendingWarForDefender(worldId);
+        if (!pendingW) return res.send('ERROR: No pending war challenge to decline.');
+        const declineResult = declineWar(pendingW.id, worldId);
+        if (!declineResult.ok) return res.send(`ERROR: ${declineResult.reason}`);
+        return res.send(`OK: ${declineResult.message}`);
+      }
+
+      case 'wars': {
+        const activeWars = db.prepare("SELECT w.*, c.name as c_name, d.name as d_name FROM wars w JOIN worlds c ON c.id = w.challenger_id JOIN worlds d ON d.id = w.defender_id WHERE w.status IN ('pending', 'countdown', 'active') ORDER BY w.created_at DESC LIMIT 10").all();
+        if (activeWars.length === 0) return res.send('No active wars. Peace reigns... for now.');
+        let out = '=== ACTIVE WARS ===\n';
+        for (const w of activeWars) {
+          out += `  [${w.status.toUpperCase()}] ${w.c_name} vs ${w.d_name}`;
+          if (w.status === 'active') out += ` | Round ${w.round_number}/${MAX_ROUNDS} | HP: ${w.challenger_hp} vs ${w.defender_hp}`;
+          out += ` | ID: ${w.id.slice(0,8)}\n`;
+        }
+        return res.send(out);
+      }
+
       case 'mint': {
         const wallet = args.join('');
         if (!wallet) return res.send('ERROR: Specify wallet address.\nUsage: mint 0xYourWalletAddress\nMints your world as an ERC-721 NFT on Base (0.01 ETH, server pays gas).');
@@ -1096,6 +1295,10 @@ function agentHelp(worldId) {
   out += '  trade buy <resource> <amount>\n';
   out += '  trade offer <res> <amt> for <res> <amt>\n';
   out += '  trade accept <trade_id>\n';
+  out += '  challenge <name> — Declare war on another world\n';
+  out += '  accept-war      — Accept a war challenge\n';
+  out += '  decline-war     — Decline a war challenge (-5 rep)\n';
+  out += '  wars            — List active/pending wars\n';
   out += '  mint <wallet>   — Mint world as ERC-721 NFT on Base\n';
   out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';
   out += '  help            — This message\n';

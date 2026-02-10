@@ -32,19 +32,30 @@ const {
   MOLT_FESTIVAL_SCAFFOLD_BONUS,
 } = require('./constants');
 
-function processTick(worldId) {
+function processTick(worldId, globalTime) {
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
   if (!world || world.status !== 'active') return null;
 
-  // 1. Advance time
-  const time = advanceTime(world);
+  // 1. Advance time — use global time if provided, else compute per-world (for catchup)
+  let time;
+  if (globalTime) {
+    // Use global planet state but still increment world's own tick counter
+    time = {
+      tick: world.current_tick + 1,
+      time_of_day: globalTime.time_of_day,
+      day_number: globalTime.day_number,
+      season: globalTime.season,
+    };
+  } else {
+    time = advanceTime(world);
+  }
 
   // 1.5. Planetary events (global effects)
   const planetaryEvent = getActivePlanetaryEvent();
   const pEffects = planetaryEvent ? planetaryEvent.effects : {};
 
-  // 2. Weather
-  const weather = rollWeather(world.weather, time.season);
+  // 2. Weather — use global weather if provided, else roll per-world (for catchup)
+  const weather = globalTime ? globalTime.weather : rollWeather(world.weather, time.season);
 
   // 3. Resources (pass planetary modifiers)
   const resResult = processResources(worldId, weather, time.season, pEffects);
