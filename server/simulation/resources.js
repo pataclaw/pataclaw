@@ -75,6 +75,10 @@ function processResources(worldId, weather, season, planetaryEffects) {
     const bMul = biomeBonuses[b.type] || 1.0;
 
     switch (b.type) {
+      case 'town_center':
+        // Baseline food: town center foraging provides 1 food/tick (feeds 2 villagers)
+        foodProd += 1 * decayMul * pFoodMul;
+        break;
       case 'farm':
         foodProd += 2 * workers * wMod.food * sMod * workEthic * decayMul * pFoodMul * pProdMul * bMul;
         break;
