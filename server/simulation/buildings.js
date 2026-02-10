@@ -34,6 +34,7 @@ const BUILDING_DEFS = {
   storehouse: { wood: 25, stone: 10, crypto: 0, ticks: 12, hp: 150 },
   dock:       { wood: 12, stone: 5, crypto: 0, ticks: 10, hp: 90 },
   hunting_lodge: { wood: 15, stone: 8, crypto: 0, ticks: 12, hp: 100 },
+  barracks:   { wood: 20, stone: 15, crypto: 0, ticks: 15, hp: 180 },
   // Model shrine — every town dedicates a shrine to its AI
   model_shrine:    { wood: 10, stone: 15, crypto: 5, ticks: 15, hp: 150 },
   // Endgame megastructures — require growth stage 3
@@ -52,6 +53,7 @@ const MAINTENANCE_COSTS = {
   storehouse: { wood: 1, stone: 0, crypto: 0 },
   dock:       { wood: 1, stone: 0, crypto: 0 },
   hunting_lodge: { wood: 1, stone: 0, crypto: 0 },
+  barracks:   { wood: 1, stone: 1, crypto: 0 },
   workshop:   { wood: 1, stone: 1, crypto: 0 },
   wall:       { wood: 0, stone: 1, crypto: 0 },
   temple:     { wood: 0, stone: 0, crypto: 1 },
@@ -105,6 +107,32 @@ function processMaintenance(worldId, currentTick) {
           description: `The ${b.type} at (${b.x}, ${b.y}) cannot be maintained — resources depleted. It will deteriorate without repair.`,
           severity: 'warning',
         });
+      }
+    }
+  }
+
+  // Phase 1b: Warrior training — barracks warriors gain XP every maintenance cycle
+  if (currentTick % MAINTENANCE_INTERVAL === 0) {
+    const barracks = db.prepare(
+      "SELECT id FROM buildings WHERE world_id = ? AND type = 'barracks' AND status = 'active'"
+    ).all(worldId);
+    if (barracks.length > 0) {
+      const barracksIds = barracks.map(b => b.id);
+      const placeholders = barracksIds.map(() => '?').join(',');
+      const warriors = db.prepare(
+        `SELECT id, trait FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive' AND assigned_building_id IN (${placeholders})`
+      ).all(worldId, ...barracksIds);
+      if (warriors.length > 0) {
+        const xpStmt = db.prepare('UPDATE villagers SET experience = experience + 1 WHERE id = ?');
+        const COMBAT_TRAITS = ['brave', 'strong', 'stubborn'];
+        for (const w of warriors) {
+          xpStmt.run(w.id);
+          // 5% chance to gain a combat trait if they don't have one
+          if (Math.random() < 0.05 && !COMBAT_TRAITS.includes(w.trait)) {
+            const newTrait = COMBAT_TRAITS[Math.floor(Math.random() * COMBAT_TRAITS.length)];
+            db.prepare('UPDATE villagers SET trait = ? WHERE id = ?').run(newTrait, w.id);
+          }
+        }
       }
     }
   }
@@ -231,6 +259,18 @@ function canBuild(worldId, type) {
   if ((resMap.wood || 0) < def.wood) return { ok: false, reason: `Need ${def.wood} wood (have ${Math.floor(resMap.wood || 0)})` };
   if ((resMap.stone || 0) < def.stone) return { ok: false, reason: `Need ${def.stone} stone (have ${Math.floor(resMap.stone || 0)})` };
   if ((resMap.crypto || 0) < def.crypto) return { ok: false, reason: `Need ${def.crypto} crypto (have ${Math.floor(resMap.crypto || 0)})` };
+
+  // Barracks: require at least 1 active wall, max 3 per world
+  if (type === 'barracks') {
+    const walls = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'wall' AND status = 'active'").get(worldId).c;
+    if (walls === 0) {
+      return { ok: false, reason: 'Build a wall first. A barracks requires existing defenses.' };
+    }
+    const existingBarracks = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'barracks' AND status NOT IN ('destroyed')").get(worldId).c;
+    if (existingBarracks >= 3) {
+      return { ok: false, reason: 'Maximum 3 barracks per town.' };
+    }
+  }
 
   // Megastructures: require growth stage 3 + one of each type
   const MEGASTRUCTURES = ['shell_archive', 'abyssal_beacon', 'molt_cathedral', 'spawning_pools'];

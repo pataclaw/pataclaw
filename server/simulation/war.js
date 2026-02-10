@@ -61,6 +61,10 @@ function isWarReady(worldId) {
   const segCount = db.prepare("SELECT COUNT(*) as c FROM monolith_segments WHERE world_id = ?").get(worldId).c;
   if (segCount < 16) return { ready: false, reason: `Need completed spire (16 segments, have ${segCount}). Build your monument first.` };
 
+  // Check barracks
+  const barracksCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'barracks' AND status = 'active'").get(worldId).c;
+  if (barracksCount === 0) return { ready: false, reason: 'Need at least 1 active barracks. Build a barracks to train warriors.' };
+
   // Check warriors
   const warriors = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND role = 'warrior' AND status = 'alive'").get(worldId).c;
   if (warriors < 10) return { ready: false, reason: `Need 10+ warriors (have ${warriors}). Train more soldiers.` };

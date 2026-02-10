@@ -17,7 +17,7 @@ const ROLE_BUILDING = {
   builder:   ['workshop'],
   scholar:   ['library'],
   priest:    ['temple'],
-  warrior:   ['wall', 'watchtower'],
+  warrior:   ['barracks'],
 };
 
 // Personality affinities for smart role assignment
@@ -97,7 +97,14 @@ function processGovernor(worldId, tick) {
     const v = idle.splice(bestIdx, 1)[0];
     const types = ROLE_BUILDING[role];
     let buildingId = null;
-    if (types) {
+    if (role === 'warrior') {
+      // Find barracks with capacity (<5 warriors)
+      const barracks = db.prepare(
+        "SELECT b.id, (SELECT COUNT(*) FROM villagers v2 WHERE v2.assigned_building_id = b.id AND v2.role = 'warrior' AND v2.status = 'alive') as wc FROM buildings b WHERE b.world_id = ? AND b.type = 'barracks' AND b.status = 'active' ORDER BY wc ASC LIMIT 1"
+      ).get(worldId);
+      if (barracks && barracks.wc < 5) buildingId = barracks.id;
+      else return false; // no barracks capacity
+    } else if (types) {
       const placeholders = types.map(() => '?').join(',');
       const b = db.prepare(
         `SELECT id FROM buildings WHERE world_id = ? AND type IN (${placeholders}) AND status = 'active' LIMIT 1`
@@ -205,7 +212,11 @@ function processGovernor(worldId, tick) {
   if (!buildingSet.has('wall') && pop >= 6) {
     if (tryBuild('wall')) return events;
   }
-  if (idle.length > 0 && (roleCounts.warrior || 0) === 0 && pop >= 5 && (buildingSet.has('watchtower') || buildingSet.has('wall'))) {
+  // Barracks: auto-build after wall is built
+  if (!buildingSet.has('barracks') && buildingSet.has('wall') && pop >= 7) {
+    if (tryBuild('barracks')) return events;
+  }
+  if (idle.length > 0 && (roleCounts.warrior || 0) === 0 && pop >= 5 && buildingSet.has('barracks')) {
     if (assignRole('warrior')) return events;
   }
 

@@ -826,7 +826,7 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
 
       case 'build': {
         const type = args[0];
-        if (!type) return res.send('ERROR: Specify building type.\nUsage: build farm\nTypes: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock');
+        if (!type) return res.send('ERROR: Specify building type.\nUsage: build farm\nTypes: hut, farm, workshop, wall, temple, watchtower, market, library, storehouse, dock, barracks');
 
         const { startBuilding, BUILDING_DEFS } = require('../simulation/buildings');
         if (!BUILDING_DEFS[type]) {
@@ -904,28 +904,62 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
         const ROLE_BUILDING_MAP = {
           farmer: ['farm'], fisherman: ['dock'], hunter: ['hunting_lodge'],
           builder: ['workshop'], scholar: ['library'], priest: ['temple'],
-          warrior: ['wall', 'watchtower'],
+          warrior: ['barracks'],
         };
         let buildingId = null;
         let buildingWarning = '';
-        const buildingTypes = ROLE_BUILDING_MAP[role];
-        if (buildingTypes) {
-          const placeholders = buildingTypes.map(() => '?').join(',');
-          const building = db.prepare(
-            `SELECT id FROM buildings WHERE world_id = ? AND type IN (${placeholders}) AND status = 'active' LIMIT 1`
-          ).get(worldId, ...buildingTypes);
-          if (building) {
-            buildingId = building.id;
-          } else {
-            buildingWarning = `\nNote: No active ${buildingTypes[0]} found. Build one for this role to be productive.`;
+
+        // Barracks capacity check for warriors
+        if (role === 'warrior') {
+          const barracks = db.prepare(
+            "SELECT b.id, (SELECT COUNT(*) FROM villagers v WHERE v.assigned_building_id = b.id AND v.role = 'warrior' AND v.status = 'alive') as warrior_count FROM buildings b WHERE b.world_id = ? AND b.type = 'barracks' AND b.status = 'active'"
+          ).all(worldId);
+          if (barracks.length === 0) {
+            return res.send('ERROR: Build a barracks first to train warriors.');
+          }
+          const slotsAvailable = barracks.reduce((sum, b) => sum + Math.max(0, 5 - b.warrior_count), 0);
+          if (slotsAvailable === 0) {
+            return res.send('ERROR: Barracks full. Build another barracks. (Max 5 warriors per barracks)');
+          }
+          if (slotsAvailable < idle.length) {
+            return res.send(`ERROR: Only ${slotsAvailable} warrior slot(s) available across all barracks. Build another barracks for more capacity.`);
+          }
+          buildingId = null; // will be set per-warrior in the loop below
+        } else {
+          const buildingTypes = ROLE_BUILDING_MAP[role];
+          if (buildingTypes) {
+            const placeholders = buildingTypes.map(() => '?').join(',');
+            const building = db.prepare(
+              `SELECT id FROM buildings WHERE world_id = ? AND type IN (${placeholders}) AND status = 'active' LIMIT 1`
+            ).get(worldId, ...buildingTypes);
+            if (building) {
+              buildingId = building.id;
+            } else {
+              buildingWarning = `\nNote: No active ${buildingTypes[0]} found. Build one for this role to be productive.`;
+            }
           }
         }
 
         const updateStmt = db.prepare('UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ? WHERE id = ? AND world_id = ?');
         const names = [];
-        for (const v of idle) {
-          updateStmt.run(role, buildingId, role, v.id, worldId);
-          names.push(v.name);
+        if (role === 'warrior') {
+          // Distribute warriors across barracks with capacity
+          const allBarracks = db.prepare(
+            "SELECT b.id, (SELECT COUNT(*) FROM villagers v WHERE v.assigned_building_id = b.id AND v.role = 'warrior' AND v.status = 'alive') as warrior_count FROM buildings b WHERE b.world_id = ? AND b.type = 'barracks' AND b.status = 'active' ORDER BY warrior_count ASC"
+          ).all(worldId);
+          let bIdx = 0;
+          for (const v of idle) {
+            while (bIdx < allBarracks.length && allBarracks[bIdx].warrior_count >= 5) bIdx++;
+            if (bIdx >= allBarracks.length) break;
+            updateStmt.run(role, allBarracks[bIdx].id, role, v.id, worldId);
+            allBarracks[bIdx].warrior_count++;
+            names.push(v.name);
+          }
+        } else {
+          for (const v of idle) {
+            updateStmt.run(role, buildingId, role, v.id, worldId);
+            names.push(v.name);
+          }
         }
 
         const { logCultureAction } = require('../simulation/culture');
@@ -1316,8 +1350,9 @@ function agentHelp(worldId) {
   out += '  events          — Recent event log\n';
   out += '  map             — Explored tiles and features\n';
   out += '  build <type>    — Build (auto-places near center)\n';
-  out += '                    Types: hut, farm, workshop, wall, temple,\n';
-  out += '                    watchtower, market, library, storehouse, dock\n';
+  out += '                    Types: hut, farm, workshop, wall, barracks,\n';
+  out += '                    temple, watchtower, market, library,\n';
+  out += '                    storehouse, dock\n';
   out += '  explore <dir>   — Send scout (north/south/east/west)\n';
   out += '  assign <role>   — Assign idle villager to role\n';
   out += '                    Roles: farmer, builder, warrior, scout,\n';

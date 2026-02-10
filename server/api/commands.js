@@ -56,14 +56,44 @@ router.post('/assign', (req, res) => {
     return res.status(400).json({ error: `Invalid role. Available: ${validRoles.join(', ')}` });
   }
 
+  // Barracks capacity check for warriors
+  let assignBuildingId = building_id || null;
+  if (role === 'warrior') {
+    const barracks = db.prepare(
+      "SELECT b.id, (SELECT COUNT(*) FROM villagers v WHERE v.assigned_building_id = b.id AND v.role = 'warrior' AND v.status = 'alive') as warrior_count FROM buildings b WHERE b.world_id = ? AND b.type = 'barracks' AND b.status = 'active'"
+    ).all(req.worldId);
+    if (barracks.length === 0) {
+      return res.status(400).json({ error: 'Build a barracks first to train warriors.' });
+    }
+    let slotsAvailable = barracks.reduce((sum, b) => sum + Math.max(0, 5 - b.warrior_count), 0);
+    if (slotsAvailable < villager_ids.length) {
+      return res.status(400).json({ error: `Barracks full. Only ${slotsAvailable} warrior slots available. Build another barracks. (Max 5 warriors per barracks)` });
+    }
+  }
+
   const updateStmt = db.prepare(
     'UPDATE villagers SET role = ?, assigned_building_id = ?, ascii_sprite = ? WHERE id = ? AND world_id = ? AND status = ?'
   );
 
   let updated = 0;
-  for (const vid of villager_ids) {
-    const result = updateStmt.run(role, building_id || null, role, vid, req.worldId, 'alive');
-    updated += result.changes;
+  if (role === 'warrior' && !building_id) {
+    // Auto-assign warriors to barracks with capacity
+    const barracks = db.prepare(
+      "SELECT b.id, (SELECT COUNT(*) FROM villagers v WHERE v.assigned_building_id = b.id AND v.role = 'warrior' AND v.status = 'alive') as warrior_count FROM buildings b WHERE b.world_id = ? AND b.type = 'barracks' AND b.status = 'active' ORDER BY warrior_count ASC"
+    ).all(req.worldId);
+    let bIdx = 0;
+    for (const vid of villager_ids) {
+      while (bIdx < barracks.length && barracks[bIdx].warrior_count >= 5) bIdx++;
+      if (bIdx >= barracks.length) break;
+      const result = updateStmt.run(role, barracks[bIdx].id, role, vid, req.worldId, 'alive');
+      updated += result.changes;
+      barracks[bIdx].warrior_count++;
+    }
+  } else {
+    for (const vid of villager_ids) {
+      const result = updateStmt.run(role, assignBuildingId, role, vid, req.worldId, 'alive');
+      updated += result.changes;
+    }
   }
 
   // Organic personality nudge from role assignment
