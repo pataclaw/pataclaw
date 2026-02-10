@@ -78,6 +78,8 @@ function processResources(worldId, weather, season, planetaryEffects) {
       case 'town_center':
         // Baseline food: town center foraging provides 1 food/tick (feeds 2 villagers)
         foodProd += 1 * decayMul * pFoodMul;
+        // Baseline wood: scavenging provides 0.3 wood/tick (enough to maintain a farm over time)
+        woodProd += 0.3 * decayMul * pProdMul;
         break;
       case 'farm':
         foodProd += 2 * workers * wMod.food * sMod * workEthic * decayMul * pFoodMul * pProdMul * bMul;

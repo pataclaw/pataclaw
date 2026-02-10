@@ -395,9 +395,10 @@ function processInteractions(worldId, villagers, tick) {
 }
 
 function findOpponent(worldId, fighter, villagers) {
+  // Require actual tension (>= 50) before picking a fight target
   const rels = db.prepare(`
     SELECT villager_a, villager_b, tension, affinity FROM villager_relationships
-    WHERE world_id = ? AND (villager_a = ? OR villager_b = ?)
+    WHERE world_id = ? AND (villager_a = ? OR villager_b = ?) AND tension >= 50
     ORDER BY tension DESC, affinity ASC LIMIT 1
   `).get(worldId, fighter.id, fighter.id);
 
@@ -447,14 +448,18 @@ function processFight(worldId, attacker, defender, allVillagers, tick) {
   // Update culture stats
   db.prepare('UPDATE culture SET total_fights = total_fights + 1 WHERE world_id = ?').run(worldId);
 
-  // Witnesses lose morale and form opinions
+  // Witnesses intervene — the town gangs up on the attacker
   for (const w of allVillagers) {
     if (w.id === attacker.id || w.id === defender.id) continue;
+    if (w.status !== 'alive') continue;
     db.prepare('UPDATE villagers SET morale = MAX(0, morale - 2) WHERE id = ?').run(w.id);
     addMemory(worldId, w.id, tick, 'saw_death', attacker.id, 40); // saw_violence really
     // Witnesses side with the defender
-    updateRelationship(worldId, w.id, attacker.id, { affinity: -3 });
-    updateRelationship(worldId, w.id, defender.id, { affinity: 1 });
+    updateRelationship(worldId, w.id, attacker.id, { affinity: -5, tension: 15 });
+    updateRelationship(worldId, w.id, defender.id, { affinity: 2 });
+    // Each witness deals a small hit to the attacker (mob justice)
+    var mobDmg = 2 + Math.floor(Math.random() * 3);
+    db.prepare('UPDATE villagers SET hp = MAX(0, hp - ?) WHERE id = ?').run(mobDmg, attacker.id);
   }
 
   events.push({

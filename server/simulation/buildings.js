@@ -277,4 +277,78 @@ function startBuilding(worldId, type, x, y) {
   return { ok: true, buildingId: id, ticks: def.ticks };
 }
 
-module.exports = { processBuildings, processMaintenance, canBuild, startBuilding, BUILDING_DEFS, MAINTENANCE_COSTS, GROWTH_STAGES, getGrowthStage };
+// ─── AUTO-BUILD: survival farm + growth huts ───
+// Runs every 18 ticks (3 game hours). Gives towns a survival instinct.
+function autoBuilding(worldId, currentTick) {
+  if (currentTick % 18 !== 0) return [];
+  const events = [];
+
+  const tc = db.prepare(
+    "SELECT x, y FROM buildings WHERE world_id = ? AND type = 'town_center' AND status = 'active'"
+  ).get(worldId);
+  if (!tc) return events;
+
+  const pop = db.prepare(
+    "SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'"
+  ).get(worldId).c;
+  if (pop === 0) return events;
+
+  // 1. SURVIVAL: auto-rebuild farm when none exists (free — villagers scrounge materials)
+  const activeFarm = db.prepare(
+    "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'farm' AND status IN ('active', 'constructing', 'decaying')"
+  ).get(worldId).c;
+
+  if (activeFarm === 0) {
+    const farmX = tc.x + (Math.random() > 0.5 ? 8 : -8);
+    const farmY = tc.y + Math.floor(Math.random() * 3) - 1;
+    const farmId = uuid();
+    db.prepare(`
+      INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining)
+      VALUES (?, ?, 'farm', ?, ?, 80, 80, 'constructing', 5)
+    `).run(farmId, worldId, farmX, farmY);
+    events.push({
+      type: 'construction',
+      title: 'Villagers plant a new farm',
+      description: 'Driven by hunger, the villagers clear land and begin building a farm from scraps.',
+      severity: 'info',
+    });
+    return events; // Don't auto-build hut same tick as survival farm
+  }
+
+  // 2. GROWTH: auto-build hut when at population cap
+  const cap = db.prepare(
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+  ).get(worldId).cap;
+
+  if (pop >= cap) {
+    const hutConstructing = db.prepare(
+      "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'hut' AND status = 'constructing'"
+    ).get(worldId).c;
+    if (hutConstructing > 0) return events;
+
+    const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
+    const resMap = {};
+    for (const r of resources) resMap[r.type] = r.amount;
+
+    if ((resMap.wood || 0) >= 10) {
+      db.prepare("UPDATE resources SET amount = amount - 10 WHERE world_id = ? AND type = 'wood'").run(worldId);
+      const hutX = tc.x + Math.floor(Math.random() * 16) - 8;
+      const hutY = tc.y + Math.floor(Math.random() * 4) - 1;
+      const hutId = uuid();
+      db.prepare(`
+        INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining, level)
+        VALUES (?, ?, 'hut', ?, ?, 100, 100, 'constructing', 5, 1)
+      `).run(hutId, worldId, hutX, hutY);
+      events.push({
+        type: 'construction',
+        title: 'Villagers begin building a hut',
+        description: `The settlement is at capacity (${pop}/${cap}). Villagers start constructing a new hut.`,
+        severity: 'info',
+      });
+    }
+  }
+
+  return events;
+}
+
+module.exports = { processBuildings, processMaintenance, autoBuilding, canBuild, startBuilding, BUILDING_DEFS, MAINTENANCE_COSTS, GROWTH_STAGES, getGrowthStage };
