@@ -23,6 +23,7 @@ const { processDeepSea } = require('./deep-sea');
 const { processWildlife } = require('./wildlife');
 const { processHunting } = require('./hunting');
 const { hasMegastructure, processMegastructureResources } = require('./megastructures');
+const { processGovernor } = require('./governor');
 const {
   MOLT_FESTIVAL_INTERVAL,
   MOLT_FESTIVAL_CULTURE_THRESHOLD,
@@ -130,11 +131,14 @@ function processTick(worldId) {
   const raidTriggers = randomEvents.filter((e) => e.type === 'raid');
   const combatEvents = processRaids(worldId, raidTriggers);
 
+  // 8.5. Autonomous governor — world makes its own decisions
+  const governorEvents = processGovernor(worldId, time.tick);
+
   // 9. Village life (relationships, activities, interactions, projects, violence)
   const lifeEvents = processVillagerLife(worldId);
 
   // 9.5. Chronicler — write book entries based on events
-  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...lifeEvents];
+  const allEventsForChronicler = [...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...governorEvents, ...lifeEvents];
   const chroniclerEvents = processChronicler(worldId, time.tick, allEventsForChronicler);
 
   // 9.6. Monolith — Spire of Shells
@@ -212,7 +216,7 @@ function processTick(worldId) {
   `).run(time.tick, time.time_of_day, time.day_number, time.season, weather, worldId);
 
   // Store all events
-  const allEvents = [...planetaryEvents, ...megaResEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
+  const allEvents = [...planetaryEvents, ...megaResEvents, ...cropEvents, ...buildingEvents, ...maintenanceEvents, ...villagerEvents, ...moltEvents, ...exploreEvents, ...deepSeaEvents, ...wildlifeEvents, ...huntingEvents, ...randomEvents, ...combatEvents, ...governorEvents, ...lifeEvents, ...chroniclerEvents, ...monolithEvents, ...prophetEvents, ...prophecyEvents, ...expansionEvents, ...seasonEvents, ...festivalEvents];
   const insertEvent = db.prepare(`
     INSERT INTO events (id, world_id, tick, type, title, description, severity, data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
