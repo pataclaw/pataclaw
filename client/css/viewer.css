@@ -516,8 +516,6 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-season-autumn      { color: #cc8833; }
 #world .c-season-autumn-dark { color: #995522; }
 #world .c-season-winter      { color: #ddeeff; }
-#world .c-season-winter-mid  { color: #bbccdd; }
-#world .c-season-winter-deep { color: #99aabb; }
 
 /* Crops */
 #world .c-crop  { color: #66aa44; }
@@ -527,9 +525,6 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-hill-far  { color: #334422; }
 #world .c-hill-mid  { color: #446633; }
 #world .c-hill-near { color: #558844; }
-#world .c-hill-snow-far  { color: #889999; }
-#world .c-hill-snow-mid  { color: #aabbbb; }
-#world .c-hill-snow-near { color: #ccdddd; }
 
 /* Hill colors respond to time of day */
 body.dawn #world .c-hill-far  { color: #4a3a22; }
@@ -551,6 +546,99 @@ body.dusk #world .c-hill-near { color: #5f462a; }
 body.night #world .c-hill-far  { color: #1a2218; }
 body.night #world .c-hill-mid  { color: #223320; }
 body.night #world .c-hill-near { color: #2a3a28; }
+
+/* ─── WEATHER / SEASON / BIOME TINTING ─── */
+/* Each weather tints the civ's ground toward a mood color while preserving identity */
+/* Snow: blend toward white-blue. Verdant→mint, Mystic→lavender, Ember→rose, etc. */
+body.weather-snow #world .c-gnd-v, body.season-winter #world .c-gnd-v, body.biome-ice #world .c-gnd-v, body.biome-tundra #world .c-gnd-v { color: #88ccaa; }
+body.weather-snow #world .c-gnd-vl, body.season-winter #world .c-gnd-vl, body.biome-ice #world .c-gnd-vl, body.biome-tundra #world .c-gnd-vl { color: #aaddbb; }
+body.weather-snow #world .c-gnd-vm, body.season-winter #world .c-gnd-vm, body.biome-ice #world .c-gnd-vm, body.biome-tundra #world .c-gnd-vm { color: #99ccaa; }
+body.weather-snow #world .c-gnd-vd, body.season-winter #world .c-gnd-vd, body.biome-ice #world .c-gnd-vd, body.biome-tundra #world .c-gnd-vd { color: #77bb99; }
+body.weather-snow #world .c-gnd-s, body.season-winter #world .c-gnd-s, body.biome-ice #world .c-gnd-s, body.biome-tundra #world .c-gnd-s { color: #aabbbb; }
+body.weather-snow #world .c-gnd-sl, body.season-winter #world .c-gnd-sl, body.biome-ice #world .c-gnd-sl, body.biome-tundra #world .c-gnd-sl { color: #bbcccc; }
+body.weather-snow #world .c-gnd-sm, body.season-winter #world .c-gnd-sm, body.biome-ice #world .c-gnd-sm, body.biome-tundra #world .c-gnd-sm { color: #aabbbb; }
+body.weather-snow #world .c-gnd-sd, body.season-winter #world .c-gnd-sd, body.biome-ice #world .c-gnd-sd, body.biome-tundra #world .c-gnd-sd { color: #99aaaa; }
+body.weather-snow #world .c-gnd-m, body.season-winter #world .c-gnd-m, body.biome-ice #world .c-gnd-m, body.biome-tundra #world .c-gnd-m { color: #aa99cc; }
+body.weather-snow #world .c-gnd-ml, body.season-winter #world .c-gnd-ml, body.biome-ice #world .c-gnd-ml, body.biome-tundra #world .c-gnd-ml { color: #bbaadd; }
+body.weather-snow #world .c-gnd-mm, body.season-winter #world .c-gnd-mm, body.biome-ice #world .c-gnd-mm, body.biome-tundra #world .c-gnd-mm { color: #aa99cc; }
+body.weather-snow #world .c-gnd-md, body.season-winter #world .c-gnd-md, body.biome-ice #world .c-gnd-md, body.biome-tundra #world .c-gnd-md { color: #9988bb; }
+body.weather-snow #world .c-gnd-d, body.season-winter #world .c-gnd-d, body.biome-ice #world .c-gnd-d, body.biome-tundra #world .c-gnd-d { color: #bbaa88; }
+body.weather-snow #world .c-gnd-dl, body.season-winter #world .c-gnd-dl, body.biome-ice #world .c-gnd-dl, body.biome-tundra #world .c-gnd-dl { color: #ccbb99; }
+body.weather-snow #world .c-gnd-dm, body.season-winter #world .c-gnd-dm, body.biome-ice #world .c-gnd-dm, body.biome-tundra #world .c-gnd-dm { color: #bbaa88; }
+body.weather-snow #world .c-gnd-dd, body.season-winter #world .c-gnd-dd, body.biome-ice #world .c-gnd-dd, body.biome-tundra #world .c-gnd-dd { color: #aa9977; }
+body.weather-snow #world .c-gnd-f, body.season-winter #world .c-gnd-f, body.biome-ice #world .c-gnd-f, body.biome-tundra #world .c-gnd-f { color: #99bbcc; }
+body.weather-snow #world .c-gnd-fl, body.season-winter #world .c-gnd-fl, body.biome-ice #world .c-gnd-fl, body.biome-tundra #world .c-gnd-fl { color: #aaccdd; }
+body.weather-snow #world .c-gnd-fm, body.season-winter #world .c-gnd-fm, body.biome-ice #world .c-gnd-fm, body.biome-tundra #world .c-gnd-fm { color: #99bbcc; }
+body.weather-snow #world .c-gnd-fd, body.season-winter #world .c-gnd-fd, body.biome-ice #world .c-gnd-fd, body.biome-tundra #world .c-gnd-fd { color: #88aabb; }
+body.weather-snow #world .c-gnd-e, body.season-winter #world .c-gnd-e, body.biome-ice #world .c-gnd-e, body.biome-tundra #world .c-gnd-e { color: #bb9988; }
+body.weather-snow #world .c-gnd-el, body.season-winter #world .c-gnd-el, body.biome-ice #world .c-gnd-el, body.biome-tundra #world .c-gnd-el { color: #ccaa99; }
+body.weather-snow #world .c-gnd-em, body.season-winter #world .c-gnd-em, body.biome-ice #world .c-gnd-em, body.biome-tundra #world .c-gnd-em { color: #bb9988; }
+body.weather-snow #world .c-gnd-ed, body.season-winter #world .c-gnd-ed, body.biome-ice #world .c-gnd-ed, body.biome-tundra #world .c-gnd-ed { color: #aa8877; }
+/* Snow hills */
+body.weather-snow #world .c-hill-far, body.season-winter #world .c-hill-far, body.biome-ice #world .c-hill-far, body.biome-tundra #world .c-hill-far { color: #889999; }
+body.weather-snow #world .c-hill-mid, body.season-winter #world .c-hill-mid, body.biome-ice #world .c-hill-mid, body.biome-tundra #world .c-hill-mid { color: #aabbbb; }
+body.weather-snow #world .c-hill-near, body.season-winter #world .c-hill-near, body.biome-ice #world .c-hill-near, body.biome-tundra #world .c-hill-near { color: #ccdddd; }
+/* Snow vegetation + decor */
+body.weather-snow #world .c-dec-v, body.season-winter #world .c-dec-v, body.biome-ice #world .c-dec-v, body.biome-tundra #world .c-dec-v { color: #99ccaa; }
+body.weather-snow #world .c-dec-s, body.season-winter #world .c-dec-s, body.biome-ice #world .c-dec-s, body.biome-tundra #world .c-dec-s { color: #aabbbb; }
+body.weather-snow #world .c-dec-m, body.season-winter #world .c-dec-m, body.biome-ice #world .c-dec-m, body.biome-tundra #world .c-dec-m { color: #bbaadd; }
+body.weather-snow #world .c-dec-d, body.season-winter #world .c-dec-d, body.biome-ice #world .c-dec-d, body.biome-tundra #world .c-dec-d { color: #ccbb99; }
+body.weather-snow #world .c-dec-f, body.season-winter #world .c-dec-f, body.biome-ice #world .c-dec-f, body.biome-tundra #world .c-dec-f { color: #aaccdd; }
+body.weather-snow #world .c-dec-e, body.season-winter #world .c-dec-e, body.biome-ice #world .c-dec-e, body.biome-tundra #world .c-dec-e { color: #ccaa99; }
+
+/* Rain: darken + desaturate — wet ground */
+body.weather-rain #world .c-gnd-v { color: #226633; } body.weather-rain #world .c-gnd-vl { color: #338844; } body.weather-rain #world .c-gnd-vm { color: #2a7738; } body.weather-rain #world .c-gnd-vd { color: #1a5522; }
+body.weather-rain #world .c-gnd-s { color: #666655; } body.weather-rain #world .c-gnd-sl { color: #888877; } body.weather-rain #world .c-gnd-sm { color: #777766; } body.weather-rain #world .c-gnd-sd { color: #555544; }
+body.weather-rain #world .c-gnd-m { color: #553388; } body.weather-rain #world .c-gnd-ml { color: #7744aa; } body.weather-rain #world .c-gnd-mm { color: #663899; } body.weather-rain #world .c-gnd-md { color: #442266; }
+body.weather-rain #world .c-gnd-d { color: #886622; } body.weather-rain #world .c-gnd-dl { color: #aa8833; } body.weather-rain #world .c-gnd-dm { color: #997733; } body.weather-rain #world .c-gnd-dd { color: #664411; }
+body.weather-rain #world .c-gnd-f { color: #447799; } body.weather-rain #world .c-gnd-fl { color: #6699bb; } body.weather-rain #world .c-gnd-fm { color: #5588aa; } body.weather-rain #world .c-gnd-fd { color: #336688; }
+body.weather-rain #world .c-gnd-e { color: #882211; } body.weather-rain #world .c-gnd-el { color: #aa3322; } body.weather-rain #world .c-gnd-em { color: #992a1a; } body.weather-rain #world .c-gnd-ed { color: #661100; }
+body.weather-rain #world .c-hill-far { color: #223311; } body.weather-rain #world .c-hill-mid { color: #335522; } body.weather-rain #world .c-hill-near { color: #446633; }
+
+/* Storm: very dark — dramatic contrast for lightning */
+body.weather-storm #world .c-gnd-v { color: #1a4422; } body.weather-storm #world .c-gnd-vl { color: #225533; } body.weather-storm #world .c-gnd-vm { color: #1e4d28; } body.weather-storm #world .c-gnd-vd { color: #113318; }
+body.weather-storm #world .c-gnd-s { color: #444433; } body.weather-storm #world .c-gnd-sl { color: #555544; } body.weather-storm #world .c-gnd-sm { color: #4d4d3e; } body.weather-storm #world .c-gnd-sd { color: #333322; }
+body.weather-storm #world .c-gnd-m { color: #331e55; } body.weather-storm #world .c-gnd-ml { color: #442266; } body.weather-storm #world .c-gnd-mm { color: #3a2060; } body.weather-storm #world .c-gnd-md { color: #221144; }
+body.weather-storm #world .c-gnd-d { color: #554411; } body.weather-storm #world .c-gnd-dl { color: #665522; } body.weather-storm #world .c-gnd-dm { color: #5e4d18; } body.weather-storm #world .c-gnd-dd { color: #443300; }
+body.weather-storm #world .c-gnd-f { color: #335566; } body.weather-storm #world .c-gnd-fl { color: #447788; } body.weather-storm #world .c-gnd-fm { color: #3a6677; } body.weather-storm #world .c-gnd-fd { color: #224455; }
+body.weather-storm #world .c-gnd-e { color: #551100; } body.weather-storm #world .c-gnd-el { color: #662200; } body.weather-storm #world .c-gnd-em { color: #5e1800; } body.weather-storm #world .c-gnd-ed { color: #440000; }
+body.weather-storm #world .c-hill-far { color: #111a0d; } body.weather-storm #world .c-hill-mid { color: #1a2a15; } body.weather-storm #world .c-hill-near { color: #22331e; }
+
+/* Fog: desaturate heavily — everything washed out */
+body.weather-fog #world .c-gnd-v { color: #669977; } body.weather-fog #world .c-gnd-vl { color: #77aa88; } body.weather-fog #world .c-gnd-vm { color: #6ea27e; } body.weather-fog #world .c-gnd-vd { color: #558866; }
+body.weather-fog #world .c-gnd-s { color: #888888; } body.weather-fog #world .c-gnd-sl { color: #999999; } body.weather-fog #world .c-gnd-sm { color: #909090; } body.weather-fog #world .c-gnd-sd { color: #777777; }
+body.weather-fog #world .c-gnd-m { color: #887799; } body.weather-fog #world .c-gnd-ml { color: #9988aa; } body.weather-fog #world .c-gnd-mm { color: #8e7ea2; } body.weather-fog #world .c-gnd-md { color: #776688; }
+body.weather-fog #world .c-gnd-d { color: #998866; } body.weather-fog #world .c-gnd-dl { color: #aa9977; } body.weather-fog #world .c-gnd-dm { color: #a2906e; } body.weather-fog #world .c-gnd-dd { color: #887755; }
+body.weather-fog #world .c-gnd-f { color: #889999; } body.weather-fog #world .c-gnd-fl { color: #99aaaa; } body.weather-fog #world .c-gnd-fm { color: #90a2a2; } body.weather-fog #world .c-gnd-fd { color: #778888; }
+body.weather-fog #world .c-gnd-e { color: #996655; } body.weather-fog #world .c-gnd-el { color: #aa7766; } body.weather-fog #world .c-gnd-em { color: #a2605e; } body.weather-fog #world .c-gnd-ed { color: #885544; }
+body.weather-fog #world .c-hill-far { color: #556655; } body.weather-fog #world .c-hill-mid { color: #667766; } body.weather-fog #world .c-hill-near { color: #778877; }
+
+/* Heat: warm yellowish tint */
+body.weather-heat #world .c-gnd-v { color: #66aa33; } body.weather-heat #world .c-gnd-vl { color: #88cc44; } body.weather-heat #world .c-gnd-vm { color: #77bb3a; } body.weather-heat #world .c-gnd-vd { color: #559922; }
+body.weather-heat #world .c-gnd-s { color: #999977; } body.weather-heat #world .c-gnd-sl { color: #bbbb99; } body.weather-heat #world .c-gnd-sm { color: #aaaa88; } body.weather-heat #world .c-gnd-sd { color: #777755; }
+body.weather-heat #world .c-gnd-m { color: #8855aa; } body.weather-heat #world .c-gnd-ml { color: #9966bb; } body.weather-heat #world .c-gnd-mm { color: #905dbb; } body.weather-heat #world .c-gnd-md { color: #664499; }
+body.weather-heat #world .c-gnd-d { color: #cc9933; } body.weather-heat #world .c-gnd-dl { color: #ddbb44; } body.weather-heat #world .c-gnd-dm { color: #d4aa3a; } body.weather-heat #world .c-gnd-dd { color: #aa7722; }
+body.weather-heat #world .c-gnd-f { color: #88aaaa; } body.weather-heat #world .c-gnd-fl { color: #99ccbb; } body.weather-heat #world .c-gnd-fm { color: #90bbbb; } body.weather-heat #world .c-gnd-fd { color: #669999; }
+body.weather-heat #world .c-gnd-e { color: #cc5522; } body.weather-heat #world .c-gnd-el { color: #dd6633; } body.weather-heat #world .c-gnd-em { color: #d45e2a; } body.weather-heat #world .c-gnd-ed { color: #aa3311; }
+body.weather-heat #world .c-hill-far { color: #445522; } body.weather-heat #world .c-hill-mid { color: #557733; } body.weather-heat #world .c-hill-near { color: #669944; }
+
+/* Spring season: vivid, saturated greens */
+body.season-spring #world .c-gnd-v { color: #44cc55; } body.season-spring #world .c-gnd-vl { color: #55ee66; } body.season-spring #world .c-gnd-vm { color: #4dd55e; } body.season-spring #world .c-gnd-vd { color: #33aa44; }
+body.season-spring #world .c-gnd-s { color: #99aa88; } body.season-spring #world .c-gnd-sl { color: #aabb99; } body.season-spring #world .c-gnd-sm { color: #a2b290; } body.season-spring #world .c-gnd-sd { color: #889977; }
+body.season-spring #world .c-gnd-m { color: #8855cc; } body.season-spring #world .c-gnd-ml { color: #aa66ee; } body.season-spring #world .c-gnd-mm { color: #995ddd; } body.season-spring #world .c-gnd-md { color: #6644aa; }
+body.season-spring #world .c-gnd-d { color: #bbaa44; } body.season-spring #world .c-gnd-dl { color: #ddcc55; } body.season-spring #world .c-gnd-dm { color: #ccbb4d; } body.season-spring #world .c-gnd-dd { color: #aa9933; }
+body.season-spring #world .c-gnd-f { color: #77bbcc; } body.season-spring #world .c-gnd-fl { color: #88ddee; } body.season-spring #world .c-gnd-fm { color: #80ccdd; } body.season-spring #world .c-gnd-fd { color: #66aabb; }
+body.season-spring #world .c-gnd-e { color: #cc5533; } body.season-spring #world .c-gnd-el { color: #ee6644; } body.season-spring #world .c-gnd-em { color: #dd5e3a; } body.season-spring #world .c-gnd-ed { color: #aa4422; }
+body.season-spring #world .c-hill-far { color: #335522; } body.season-spring #world .c-hill-mid { color: #448833; } body.season-spring #world .c-hill-near { color: #55aa44; }
+
+/* Autumn season: warm amber/orange shift */
+body.season-autumn #world .c-gnd-v { color: #889933; } body.season-autumn #world .c-gnd-vl { color: #aaaa44; } body.season-autumn #world .c-gnd-vm { color: #99a23a; } body.season-autumn #world .c-gnd-vd { color: #667722; }
+body.season-autumn #world .c-gnd-s { color: #998866; } body.season-autumn #world .c-gnd-sl { color: #aa9977; } body.season-autumn #world .c-gnd-sm { color: #a2906e; } body.season-autumn #world .c-gnd-sd { color: #887755; }
+body.season-autumn #world .c-gnd-m { color: #885588; } body.season-autumn #world .c-gnd-ml { color: #996699; } body.season-autumn #world .c-gnd-mm { color: #905e90; } body.season-autumn #world .c-gnd-md { color: #774477; }
+body.season-autumn #world .c-gnd-d { color: #bb8822; } body.season-autumn #world .c-gnd-dl { color: #cc9933; } body.season-autumn #world .c-gnd-dm { color: #c4902a; } body.season-autumn #world .c-gnd-dd { color: #996611; }
+body.season-autumn #world .c-gnd-f { color: #778899; } body.season-autumn #world .c-gnd-fl { color: #8899aa; } body.season-autumn #world .c-gnd-fm { color: #8090a2; } body.season-autumn #world .c-gnd-fd { color: #667788; }
+body.season-autumn #world .c-gnd-e { color: #bb5522; } body.season-autumn #world .c-gnd-el { color: #dd6633; } body.season-autumn #world .c-gnd-em { color: #cc5e2a; } body.season-autumn #world .c-gnd-ed { color: #993311; }
+body.season-autumn #world .c-hill-far { color: #443311; } body.season-autumn #world .c-hill-mid { color: #554422; } body.season-autumn #world .c-hill-near { color: #776633; }
 
 /* ─── Bonsai tree colors ─── */
 #world .c-tree   { color: #338833; }
@@ -671,8 +759,6 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-w-rain      { color: #5588cc; }
 #world .c-w-storm     { color: #7799dd; }
 #world .c-w-snow      { color: #ccddee; }
-#world .c-w-snow-mid  { color: #aabbcc; }
-#world .c-w-snow-deep { color: #8899aa; }
 #world .c-w-fog       { color: #889999; }
 #world .c-w-heat      { color: #ff6622; }
 #world .c-w-fog-dense { color: #667777; }

@@ -226,7 +226,7 @@ function connect() {
       updateSidebar(data);
       updatePlanetaryBanner(data.planetaryEvent);
       syncAgents(data.villagers);
-      document.body.className = data.world.time_of_day || 'morning';
+      document.body.className = (data.world.time_of_day || 'morning') + ' weather-' + (data.world.weather || 'clear') + ' season-' + (data.world.season || 'summer') + ' biome-' + ((data.biome && data.biome.dominant) || 'plains');
       document.getElementById('weather-display').textContent = weatherIcon(data.world.weather) + ' ' + data.world.weather;
       document.getElementById('tick-display').textContent = 'tick ' + data.world.current_tick;
     } catch (err) {
@@ -640,39 +640,9 @@ function renderScene(data) {
     }
   }
 
-  // ─── HILL HEIGHT MAP ───
-  // For each x column, find the highest y occupied by a hill or ground
-  // Weather particles, fog, and snow use this as effective ground level
-  var hillTopY = new Array(W);
-  for (var htx = 0; htx < W; htx++) {
-    hillTopY[htx] = groundY; // default: flat ground
-    for (var hty = 0; hty < groundY; hty++) {
-      var htc = getCell(grid, htx, hty).c;
-      if (htc === 'c-hill-far' || htc === 'c-hill-mid' || htc === 'c-hill-near') {
-        hillTopY[htx] = hty;
-        break;
-      }
-    }
-  }
-
-  // ─── SNOW / ICE SYSTEM ───
-  // Unified flag: ground + hills turn white for snow weather, winter, or cold biomes
+  // Weather/season/biome visual tinting is handled by CSS body classes
+  // (added at frame receive: body.weather-X body.season-X body.biome-X)
   var biomeKey = (data.biome && data.biome.dominant) || 'plains';
-  var isColdBiome = biomeKey === 'ice' || biomeKey === 'tundra';
-  var isSnowCovered = world.weather === 'snow' || world.season === 'winter' || isColdBiome;
-
-  // Recolor hills to snowy white when snow-covered
-  if (isSnowCovered) {
-    var HILL_SNOW = { 'c-hill-far': 'c-hill-snow-far', 'c-hill-mid': 'c-hill-snow-mid', 'c-hill-near': 'c-hill-snow-near' };
-    for (var shx = 0; shx < W; shx++) {
-      for (var shy = 0; shy < groundY; shy++) {
-        var shCell = getCell(grid, shx, shy);
-        if (HILL_SNOW[shCell.c]) {
-          setCell(grid, shx, shy, shCell.ch, HILL_SNOW[shCell.c]);
-        }
-      }
-    }
-  }
 
   // ─── CANOPY TREES (biome-specific) + small bonsai background detail ───
   var growthStage = data.growth_stage || 0;
@@ -795,7 +765,7 @@ function renderScene(data) {
       });
     }
 
-    // Update and render — particles stop at hill tops, not just groundY
+    // Update and render — particles fall to ground, skip over occupied cells (hills, trees)
     for (var wi = weatherParticles.length - 1; wi >= 0; wi--) {
       var p = weatherParticles[wi];
       p.y += p.speed;
@@ -807,16 +777,16 @@ function renderScene(data) {
         p.speed = fallSpeed * (0.7 + Math.random() * 0.6);
         continue;
       }
-      // Stop at effective ground (hill top or ground line)
-      var effectiveGround = hillTopY[px];
-      if (py >= effectiveGround - 1) {
+      // Stop at ground line
+      if (py >= groundY - 1) {
         p.x = Math.random() * W;
         p.y = -1;
         p.speed = fallSpeed * (0.7 + Math.random() * 0.6);
         continue;
       }
+      // Only draw in empty cells (particles pass behind hills/trees naturally)
       if (getCell(grid, px, py).ch === ' ') {
-        if (world.weather === 'fog' && py > effectiveGround / 2) {
+        if (world.weather === 'fog' && py > groundY / 2) {
           setCell(grid, px, py, '\u2592', 'c-w-fog-dense');
         } else {
           setCell(grid, px, py, wChar, wColor);
@@ -832,28 +802,22 @@ function renderScene(data) {
       for (var li = 0; li < boltLen; li++) {
         var boltY = ly + li;
         var boltX = lx + (li % 2 === 0 ? 0 : (Math.random() < 0.5 ? 1 : -1));
-        if (boltX >= 0 && boltX < W && boltY >= 0 && boltY < hillTopY[boltX]) {
-          var boltCh = li % 2 === 0 ? '/' : '\\';
-          setCell(grid, boltX, boltY, boltCh, 'c-w-lightning');
-        } else if (boltX >= 0 && boltX < W && boltY >= hillTopY[boltX]) {
-          break; // bolt hits hill, stop
+        if (boltX >= 0 && boltX < W && boltY >= 0 && boltY < groundY) {
+          if (getCell(grid, boltX, boltY).ch !== ' ') break; // bolt hits something, stop
+          setCell(grid, boltX, boltY, li % 2 === 0 ? '/' : '\\', 'c-w-lightning');
         }
       }
     }
 
     // Fog: smooth ground mist + drifting fog banks (deterministic, no Math.random)
-    // Fog respects hill terrain — pools in valleys, thins on slopes/peaks
     if (world.weather === 'fog') {
       // Smooth ground fog using layered sine waves — "breathes" in and out
+      // Fog rises from ground level (groundY), not from hills (which are background scenery)
       for (var fogRow = 1; fogRow <= 8; fogRow++) {
+        var fogY = groundY - fogRow;
+        if (fogY < 0) continue;
+        var baseDensity = 1.0 - (fogRow - 1) / 8;
         for (var fogX = 0; fogX < W; fogX++) {
-          // Fog rises from effective ground, not flat groundY
-          var fogBase = hillTopY[fogX];
-          var fogY = fogBase - fogRow;
-          if (fogY < 0) continue;
-          // Valley bonus: fog is denser where ground is lower (deeper valleys trap fog)
-          var valleyDepth = (groundY - fogBase) / groundY; // 0 = at ground, positive = hill
-          var baseDensity = 1.0 - (fogRow - 1) / 8 - valleyDepth * 1.5;
           var n1 = Math.sin(fogX * 0.08 + waveCounter * 0.015 + fogRow * 0.5);
           var n2 = Math.sin(fogX * 0.17 - waveCounter * 0.022 + fogRow * 1.3);
           var n3 = Math.sin(fogX * 0.04 + waveCounter * 0.008);
@@ -871,20 +835,18 @@ function renderScene(data) {
         }
       }
 
-      // Drifting fog banks — 5 bands, follow hill contour, soft-edged with tendrils
+      // Drifting fog banks — 5 bands, soft-edged with tendrils
       var fogSeed = (world.seed || 0);
       for (var fbi = 0; fbi < 5; fbi++) {
         var fbHash = ((fogSeed * 2654435761 + fbi * 7919) >>> 0) % 100000;
         var fbWidth = 20 + (fbHash % 15);
-        var fbOffset = 2 + fbi * 2 + (fbHash % 4); // rows above effective ground
+        var fbY = groundY - 2 - fbi * 2 - (fbHash % 4);
         var fbBaseX = (fbHash % W);
         var fbX = Math.round(fbBaseX + Math.sin(waveCounter * (0.012 + fbi * 0.004) + fbi * 1.5) * 12);
         for (var fbc = 0; fbc < fbWidth; fbc++) {
           var fbpx = ((fbX + fbc) % W + W) % W;
           var edgeFade = Math.min(fbc, fbWidth - 1 - fbc) / 4;
           if (edgeFade < 1 && Math.sin(waveCounter * 0.03 + fbc) < edgeFade) continue;
-          // Follow hill contour per column
-          var fbY = hillTopY[fbpx] - fbOffset;
           if (fbY >= 0 && fbY < groundY && getCell(grid, fbpx, fbY).ch === ' ') {
             setCell(grid, fbpx, fbY, '\u2592', 'c-w-fog-dense');
           }
@@ -900,7 +862,7 @@ function renderScene(data) {
       }
     }
 
-    // Snow: ground turns white via isSnowCovered flag in ground rendering (no overlay needed)
+    // Snow ground tinting handled by CSS body class (weather-snow / season-winter / biome-ice)
   } else {
     weatherParticles.length = 0;
   }
@@ -916,9 +878,11 @@ function renderScene(data) {
   var gndColorD = gndColor + 'd'; // deep variant
   var groundDepth = H - groundY - 1; // total ground rows
   var wSeed = (world.seed || 0);
-  // isSnowCovered already set above (snow weather / winter / ice / tundra)
+  // Weather/season/biome tinting is handled entirely by CSS body classes
+  // (body.weather-snow, body.season-winter, body.biome-ice, etc.)
+  // Ground always uses the civ's own color classes — CSS shifts them per weather
   for (var gx = 0; gx < W; gx++) {
-    setCell(grid, gx, groundY, borderChar, isSnowCovered ? 'c-w-snow' : gndColor);
+    setCell(grid, gx, groundY, borderChar, gndColor);
     // Biome zone: 3 zones based on horizontal position
     var biomeZone = (gx + wSeed) % 3;
     var zoneChars = biomeZone === 0 ? waveChars : (biomeZone === 1 ? waveCharsAlt : waveCharsSparse);
@@ -926,13 +890,7 @@ function renderScene(data) {
     for (var gy = groundY + 1; gy < H; gy++) {
       var depth = (gy - groundY - 1) / groundDepth; // 0.0 near border → 1.0 at bottom
       // 4 depth tiers: light (0-0.25), mid-accent (0.25-0.45), base (0.45-0.65), deep (0.65-1.0)
-      var rowColor;
-      if (isSnowCovered) {
-        // Snow weather: grass turns white, deeper rows fade to bluish
-        rowColor = depth < 0.3 ? 'c-w-snow' : (depth < 0.6 ? 'c-w-snow-mid' : 'c-w-snow-deep');
-      } else {
-        rowColor = depth < 0.25 ? gndColorL : (depth < 0.45 ? gndColorM : (depth > 0.65 ? gndColorD : gndColor));
-      }
+      var rowColor = depth < 0.25 ? gndColorL : (depth < 0.45 ? gndColorM : (depth > 0.65 ? gndColorD : gndColor));
 
       // Layer 1: primary wave
       var wave1 = Math.sin((gx * 0.3) + (gy * 0.5) - (waveCounter * 0.10));
@@ -946,8 +904,8 @@ function renderScene(data) {
 
       if (Math.abs(combined) > 0.12) {
         setCell(grid, gx, gy, zoneChars[charIdx], rowColor);
-      } else if (civStyle && !isSnowCovered) {
-        // Vegetation at different depth levels (hidden under snow)
+      } else if (civStyle) {
+        // Vegetation at different depth levels
         var vegSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
         if (depth < 0.35 && vegSeed < 5) {
           // Flowers in light zone (5%)
@@ -1011,7 +969,7 @@ function renderScene(data) {
     for (var afx = 0; afx < W; afx++) {
       var afSeed = ((afx * 13 + wSeed * 7) % 100);
       if (afSeed < 10) {
-        var afy = hillTopY[afx] - 1;
+        var afy = groundY - 1;
         if (afy >= 0 && getCell(grid, afx, afy).ch === ' ') {
           setCell(grid, afx, afy, autumnChars[afSeed % autumnChars.length], 'c-season-autumn');
         }
@@ -1026,10 +984,8 @@ function renderScene(data) {
         setCell(grid, leafX, leafY, leafCh, li2 % 2 === 0 ? 'c-season-autumn' : 'c-season-autumn-dark');
       }
     }
-  } else if (season === 'winter') {
-    // Winter ground recoloring is handled by isSnowCovered in the ground renderer above
-    // (winter is included in isSnowCovered — no separate pass needed)
   }
+  // Winter + snow ground tinting handled by CSS body classes (season-winter, weather-snow, biome-ice/tundra)
 
   // Track building top positions for winter snow-on-roofs
   var buildingRoofs = [];
