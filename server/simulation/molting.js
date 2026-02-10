@@ -5,8 +5,12 @@ const {
   MOLT_DURATION,
   MOLT_STAT_BOOST,
   MOLT_HP_BOOST,
+  MOLT_DEATH_SAFE_LEVEL,
+  MOLT_DEATH_RATE,
+  MOLT_DEATH_MAX,
   CATHEDRAL_MOLT_BOOST_MULTIPLIER,
   CATHEDRAL_MOLT_DURATION_REDUCTION,
+  CATHEDRAL_MOLT_DEATH_REDUCTION,
 } = require('./constants');
 const { hasMegastructure } = require('./megastructures');
 
@@ -14,7 +18,7 @@ function processMolting(worldId, currentTick) {
   const events = [];
 
   const villagers = db.prepare(
-    "SELECT v.id, v.name, v.last_molt_tick, v.molt_count, v.max_hp, v.temperament, v.creativity, v.sociability, a.activity, a.duration_ticks FROM villagers v LEFT JOIN villager_activities a ON v.id = a.villager_id WHERE v.world_id = ? AND v.status = 'alive'"
+    "SELECT v.id, v.name, v.trait, v.last_molt_tick, v.molt_count, v.max_hp, v.temperament, v.creativity, v.sociability, a.activity, a.duration_ticks FROM villagers v LEFT JOIN villager_activities a ON v.id = a.villager_id WHERE v.world_id = ? AND v.status = 'alive'"
   ).all(worldId);
 
   // Molt Cathedral: reduces duration, boosts stats
@@ -26,7 +30,44 @@ function processMolting(worldId, currentTick) {
   for (const v of villagers) {
     // Complete an in-progress molt
     if (v.activity === 'molting' && v.duration_ticks >= effectiveDuration) {
-      // Pick a random personality stat to boost
+      const moltNum = (v.molt_count || 0) + 1; // this is the Nth molt
+      const ordinal = moltNum === 1 ? '1st' : moltNum === 2 ? '2nd' : moltNum === 3 ? '3rd' : moltNum + 'th';
+
+      // ─── MOLT DEATH RISK ───
+      // The crustafarian way: molting gets more dangerous as you grow
+      const levelsAboveSafe = Math.max(0, v.molt_count - MOLT_DEATH_SAFE_LEVEL + 1);
+      const baseRisk = Math.min(MOLT_DEATH_MAX, levelsAboveSafe * MOLT_DEATH_RATE);
+      const deathRisk = hasCathedral ? baseRisk * (1 - CATHEDRAL_MOLT_DEATH_REDUCTION) : baseRisk;
+
+      if (deathRisk > 0 && Math.random() < deathRisk) {
+        // Died during molt — frozen mid-transformation
+        db.prepare("UPDATE villagers SET status = 'dead' WHERE id = ?").run(v.id);
+        db.prepare(
+          "UPDATE villager_activities SET activity = 'idle', duration_ticks = 0 WHERE villager_id = ?"
+        ).run(v.id);
+
+        // Powerful shell relic from a failed molt
+        const relicType = v.molt_count >= 8 ? 'legendary' : v.molt_count >= 5 ? 'ancient' : 'inscribed';
+        const relicBonus = Math.min(10, (v.molt_count || 0) + 2);
+        db.prepare(
+          'INSERT INTO shell_relics (world_id, villager_name, villager_trait, relic_type, culture_bonus, created_tick) VALUES (?, ?, ?, ?, ?, ?)'
+        ).run(worldId, v.name, v.trait || '', relicType, relicBonus, currentTick);
+
+        // Witnesses mourn
+        db.prepare(
+          'INSERT INTO villager_memories (world_id, villager_id, tick, memory_type, intensity, detail) VALUES (?, ?, ?, ?, ?, ?)'
+        ).run(worldId, v.id, currentTick, 'saw_death', 90, `died during ${ordinal} molt`);
+
+        events.push({
+          type: 'death',
+          title: `${v.name} did not survive the molt`,
+          description: `${v.name} attempted their ${ordinal} molt but could not shed their shell. Their body remains frozen mid-transformation. A ${relicType} shell relic of immense power remains.${hasCathedral ? ' Even the Cathedral could not save them.' : ''}`,
+          severity: 'danger',
+        });
+        continue;
+      }
+
+      // ─── MOLT SUCCESS ───
       const stats = ['temperament', 'creativity', 'sociability'];
       const stat = stats[Math.floor(Math.random() * stats.length)];
 
@@ -47,12 +88,14 @@ function processMolting(worldId, currentTick) {
       // Memory
       db.prepare(
         'INSERT INTO villager_memories (world_id, villager_id, tick, memory_type, intensity, detail) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(worldId, v.id, currentTick, 'celebrated', 60, hasCathedral ? 'sacred molt at Cathedral' : 'completed molt');
+      ).run(worldId, v.id, currentTick, 'celebrated', 60, hasCathedral ? 'sacred molt at Cathedral' : `survived ${ordinal} molt`);
 
+      const riskPct = Math.round(deathRisk * 100);
+      const riskNote = riskPct > 0 ? ` (${riskPct}% risk survived)` : '';
       events.push({
         type: 'molt',
         title: `${v.name} has molted!`,
-        description: `${v.name} emerges from their molt, stronger than before. +${effectiveHpBoost} max HP, +${effectiveStatBoost} ${stat}.${hasCathedral ? ' The Cathedral amplified the transformation!' : ''}`,
+        description: `${v.name} emerges from their ${ordinal} molt, stronger than before. +${effectiveHpBoost} max HP, +${effectiveStatBoost} ${stat}.${riskNote}${hasCathedral ? ' The Cathedral amplified the transformation!' : ''}`,
         severity: 'celebration',
       });
       continue;

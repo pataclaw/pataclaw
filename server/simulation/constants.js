@@ -57,6 +57,9 @@ module.exports = {
   MOLT_DURATION: 3,
   MOLT_STAT_BOOST: 2,
   MOLT_HP_BOOST: 5,
+  MOLT_DEATH_SAFE_LEVEL: 3,    // first 3 molts are safe (Lv1-3)
+  MOLT_DEATH_RATE: 0.05,       // 5% death risk per level above safe threshold
+  MOLT_DEATH_MAX: 0.50,        // 50% cap on molt death risk
 
   // Prophets
   PROPHET_CHECK_INTERVAL: 36,
@@ -81,6 +84,7 @@ module.exports = {
   BEACON_SILENCE_REDUCTION: 20,         // Abyssal Beacon: silence chance drops from 40% to 20%
   CATHEDRAL_MOLT_BOOST_MULTIPLIER: 2,   // Molt Cathedral: 2x stat boost on molt completion
   CATHEDRAL_MOLT_DURATION_REDUCTION: 1, // Molt Cathedral: molt finishes 1 tick faster
+  CATHEDRAL_MOLT_DEATH_REDUCTION: 0.5,  // Molt Cathedral: halves molt death risk
   POOLS_BIRTH_RATE_BONUS: 0.015,        // Spawning Pools: +1.5% birth rate
   POOLS_STAT_BONUS: 3,                  // Spawning Pools: newborns get +3 to a random stat
 
