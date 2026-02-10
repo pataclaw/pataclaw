@@ -548,6 +548,10 @@ function renderScene(data) {
   var dayProgress = (world.current_tick % 36) / 36; // 0.0 → ~0.97
   var horizonY = groundY - 2;
   var arcHeight = 26;
+  var peType = data.planetaryEvent ? data.planetaryEvent.type : null;
+  var isEclipse = peType === 'solar_eclipse';
+  var isBloodMoon = peType === 'blood_moon';
+  var isMeteorShower = peType === 'meteor_shower';
 
   // Sun: visible dawn (0.0) → dusk end (0.833)
   if (dayProgress < 0.833) {
@@ -556,13 +560,33 @@ function renderScene(data) {
     var sunY = Math.floor(horizonY - Math.sin(sunProg * Math.PI) * arcHeight);
     sunY = Math.max(1, Math.min(horizonY, sunY));
     if (sunX >= 0 && sunX < W && sunY >= 0 && sunY < 16) {
-      setCell(grid, sunX, sunY, 'O', 'c-sun');
-      // Glow around sun
-      var glowOff = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1]];
-      for (var gi = 0; gi < glowOff.length; gi++) {
-        var gx = sunX + glowOff[gi][0], gy = sunY + glowOff[gi][1];
-        if (gx >= 0 && gx < W && gy >= 0 && gy < 16 && getCell(grid, gx, gy).ch === ' ') {
-          setCell(grid, gx, gy, '.', 'c-sunglow');
+      if (isEclipse) {
+        // Solar eclipse: dark disc with corona ring
+        setCell(grid, sunX, sunY, '\u25cf', 'c-eclipse');
+        var coronaOff = [[-2,0],[2,0],[0,-2],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[-2,-1],[2,-1],[-2,1],[2,1]];
+        for (var ci = 0; ci < coronaOff.length; ci++) {
+          var cx = sunX + coronaOff[ci][0], cy = sunY + coronaOff[ci][1];
+          if (cx >= 0 && cx < W && cy >= 0 && cy < 16 && getCell(grid, cx, cy).ch === ' ') {
+            setCell(grid, cx, cy, '\u00b7', 'c-corona');
+          }
+        }
+        // Inner dark ring
+        var innerOff = [[-1,0],[1,0],[0,-1]];
+        for (var ii = 0; ii < innerOff.length; ii++) {
+          var ix = sunX + innerOff[ii][0], iy = sunY + innerOff[ii][1];
+          if (ix >= 0 && ix < W && iy >= 0 && iy < 16) {
+            setCell(grid, ix, iy, '\u2591', 'c-eclipse');
+          }
+        }
+      } else {
+        setCell(grid, sunX, sunY, 'O', 'c-sun');
+        // Glow around sun
+        var glowOff = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1]];
+        for (var gi = 0; gi < glowOff.length; gi++) {
+          var gx = sunX + glowOff[gi][0], gy = sunY + glowOff[gi][1];
+          if (gx >= 0 && gx < W && gy >= 0 && gy < 16 && getCell(grid, gx, gy).ch === ' ') {
+            setCell(grid, gx, gy, '.', 'c-sunglow');
+          }
         }
       }
     }
@@ -578,12 +602,31 @@ function renderScene(data) {
     var moonY = Math.floor(horizonY - Math.sin(moonProg * Math.PI) * arcHeight);
     moonY = Math.max(1, Math.min(horizonY, moonY));
     if (moonX >= 0 && moonX < W && moonY >= 0 && moonY < 16) {
-      setCell(grid, moonX, moonY, 'C', 'c-moon');
-      var mGlow = [[-1,0],[1,0],[0,-1]];
+      var moonCh = isBloodMoon ? 'O' : 'C';
+      var moonCls = isBloodMoon ? 'c-blood-moon' : 'c-moon';
+      setCell(grid, moonX, moonY, moonCh, moonCls);
+      var mGlow = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       for (var mi = 0; mi < mGlow.length; mi++) {
         var mx = moonX + mGlow[mi][0], my = moonY + mGlow[mi][1];
         if (mx >= 0 && mx < W && my >= 0 && my < 16 && getCell(grid, mx, my).ch === ' ') {
-          setCell(grid, mx, my, '.', 'c-moonglow');
+          setCell(grid, mx, my, '.', isBloodMoon ? 'c-blood-glow' : 'c-moonglow');
+        }
+      }
+      // Blood moon: crimson haze across the night sky
+      if (isBloodMoon && (world.time_of_day === 'night' || world.time_of_day === 'dusk')) {
+        var t = (world.current_tick || 0) * 0.1;
+        for (var bx = 0; bx < W; bx++) {
+          var haze = Math.sin(bx * 0.06 + t) * 0.3
+                   + Math.sin(bx * 0.1 - t * 0.4 + 1.5) * 0.2 + 0.3;
+          if (haze < 0.2) continue;
+          var hazeH = Math.floor(haze * 4);
+          for (var by = 0; by < hazeH; by++) {
+            var bpy = 1 + by;
+            if (bpy < 10 && getCell(grid, bx, bpy).ch === ' ') {
+              var bch = haze > 0.4 ? '\u00b7' : ' ';
+              if (bch !== ' ') setCell(grid, bx, bpy, bch, 'c-blood-haze');
+            }
+          }
         }
       }
     }
@@ -594,6 +637,8 @@ function renderScene(data) {
   if (dayProgress >= 0.75) starVis = Math.min(1.0, (dayProgress - 0.75) / 0.083);
   else if (dayProgress < 0.083) starVis = 1.0;
   else if (dayProgress < 0.167) starVis = Math.max(0, 1.0 - (dayProgress - 0.083) / 0.083);
+  // Eclipse dims stars slightly during day (eerie twilight)
+  if (isEclipse && dayProgress >= 0.167 && dayProgress < 0.75) starVis = 0.4;
 
   if (starVis > 0) {
     if (!starField || (lastTimeOfDay !== 'night' && lastTimeOfDay !== 'dusk' && world.time_of_day !== lastTimeOfDay)) {
@@ -615,6 +660,30 @@ function renderScene(data) {
     starField = null;
   }
   lastTimeOfDay = world.time_of_day;
+
+  // Meteor shower: smooth diagonal streaks across the sky
+  if (isMeteorShower) {
+    var t = (world.current_tick || 0);
+    for (var mi = 0; mi < 6; mi++) {
+      // Each meteor has a deterministic path based on tick + index
+      var mPhase = Math.sin(t * 0.2 + mi * 3.7) * 0.5 + 0.5;
+      var mStartX = Math.floor(mPhase * W);
+      var mStartY = Math.floor(Math.sin(t * 0.15 + mi * 2.3) * 3 + 2);
+      var mLen = 3 + Math.floor(Math.sin(t * 0.3 + mi * 1.1) * 2);
+      // Visibility pulses — each meteor fades in and out
+      var mVis = Math.sin(t * 0.4 + mi * 5.0) * 0.5 + 0.5;
+      if (mVis < 0.3) continue;
+      for (var mp = 0; mp < mLen; mp++) {
+        var mpx = mStartX + mp * 2;
+        var mpy = mStartY + mp;
+        if (mpx >= 0 && mpx < W && mpy >= 0 && mpy < 14) {
+          var mCls = mp === 0 ? 'c-meteor-head' : (mp === 1 ? 'c-meteor-mid' : 'c-meteor-tail');
+          var mCh = mp === 0 ? '*' : (mp === 1 ? '/' : '\u00b7');
+          setCell(grid, mpx, mpy, mCh, mCls);
+        }
+      }
+    }
+  }
 
   // Clouds (rendered before weather particles, after stars)
   renderClouds(grid, W, world.weather);
@@ -993,83 +1062,142 @@ function renderScene(data) {
       if (Math.abs(combined) > 0.12) {
         setCell(grid, gx, gy, zoneChars[charIdx], rowColor);
       } else if (civStyle) {
-        // Vegetation at different depth levels
+        // Vegetation at different depth levels — biome-specific
         var vegSeed = ((gx * 7 + gy * 13 + wSeed) % 100);
+        var BIOME_VEG = {
+          plains:   { light: ['\u273f','*','Y','\u2740','.'], mid: ['o','\u00b7'], deep: ['\u00a7'], lightCls: civStyle.decClass, midCls: 'c-veg-rock', deepCls: 'c-veg-root' },
+          forest:   { light: ['\u2663','Y','\u273f','*','.'], mid: ['o','\u00b7','#'], deep: ['\u00a7','|'], lightCls: civStyle.decClass, midCls: 'c-veg-rock', deepCls: 'c-veg-root' },
+          desert:   { light: ['\u00b7','.',',','~'], mid: ['\u00b0','.'], deep: ['~'], lightCls: civStyle.decClass, midCls: 'c-veg-sand', deepCls: 'c-veg-sand' },
+          mountain: { light: ['\u25aa','\u25b4','.','^'], mid: ['#','\u25a0','\u25c6'], deep: ['\u2593'], lightCls: civStyle.decClass, midCls: 'c-veg-ore', deepCls: 'c-veg-ore' },
+          swamp:    { light: ['~','\u00a7','.','\u2248'], mid: ['\u00a7','o'], deep: ['~','|'], lightCls: civStyle.decClass, midCls: 'c-veg-bog', deepCls: 'c-veg-root' },
+          ice:      { light: ['\u25c7','*','\u2591','.'], mid: ['\u2592','\u25c7'], deep: ['\u2593'], lightCls: civStyle.decClass, midCls: 'c-veg-ice', deepCls: 'c-veg-ice' },
+          tundra:   { light: ['*','.','\u2591','\u00b7'], mid: ['\u2592','o'], deep: ['\u2593'], lightCls: civStyle.decClass, midCls: 'c-veg-ice', deepCls: 'c-veg-ice' },
+          water:    { light: ['~','\u2248','.','\u00b7'], mid: ['\u25cb','\u00b7'], deep: ['~'], lightCls: civStyle.decClass, midCls: 'c-veg-shell', deepCls: 'c-veg-shell' },
+        };
+        var bv = BIOME_VEG[biomeKey] || BIOME_VEG.plains;
         if (depth < 0.35 && vegSeed < 5) {
-          // Flowers in light zone (5%)
-          setCell(grid, gx, gy, civStyle.decor[vegSeed % civStyle.decor.length], civStyle.decClass);
+          setCell(grid, gx, gy, bv.light[vegSeed % bv.light.length], bv.lightCls);
         } else if (depth >= 0.35 && depth < 0.65 && vegSeed < 2) {
-          // Rocks in mid zone (2%)
-          setCell(grid, gx, gy, vegSeed % 2 === 0 ? 'o' : '\u00b7', 'c-veg-rock');
+          setCell(grid, gx, gy, bv.mid[vegSeed % bv.mid.length], bv.midCls);
         } else if (depth >= 0.65 && vegSeed < 1) {
-          // Fungi/roots in deep zone (1%)
-          setCell(grid, gx, gy, '\u00a7', 'c-veg-root');
+          setCell(grid, gx, gy, bv.deep[vegSeed % bv.deep.length], bv.deepCls);
         }
       }
     }
   }
 
-  // ─── SEASONAL VISUAL EFFECTS ───
+  // ─── SEASONAL VISUAL EFFECTS (biome-specific) ───
   var season = world.season;
+  var SPRING_BIOME = {
+    plains:   { flowers: ['\u273f','\u2740','*','\u2698'], colors: ['c-season-spring1','c-season-spring2','c-season-spring3'], density: 8, petals: true },
+    forest:   { flowers: ['\u273f','\u2663','*','\u2740'], colors: ['c-season-spring1','c-season-spring2','c-season-spring3'], density: 10, petals: true },
+    desert:   { flowers: ['}','*','\u2217'], colors: ['c-season-spring-desert','c-season-spring-desert'], density: 3, petals: false },
+    mountain: { flowers: ['\u273f','*','.'], colors: ['c-season-spring1','c-season-spring3'], density: 4, petals: false },
+    swamp:    { flowers: ['\u2248','~','\u00a7','*'], colors: ['c-season-spring-swamp','c-season-spring2'], density: 6, petals: false },
+    ice:      { flowers: ['\u25c7','*','\u00b7'], colors: ['c-season-spring-ice','c-season-spring-ice'], density: 3, petals: false },
+    tundra:   { flowers: ['*','\u00b7','.'], colors: ['c-season-spring-ice','c-season-spring3'], density: 4, petals: false },
+    water:    { flowers: ['~','\u2248','*','\u273f'], colors: ['c-season-spring2','c-season-spring1'], density: 6, petals: true },
+  };
+  var SUMMER_BIOME = {
+    plains: true, forest: true, desert: true, mountain: true,
+    swamp: 'mist', ice: 'glisten', tundra: 'glisten', water: false,
+  };
+  var AUTUMN_BIOME = {
+    plains:   { ground: [',','.',"'",'`'], falling: ['\\','/',','], cls1: 'c-season-autumn', cls2: 'c-season-autumn-dark' },
+    forest:   { ground: [',','.',"'",'`','\\'], falling: ['\\','/',',','~'], cls1: 'c-season-autumn', cls2: 'c-season-autumn-dark' },
+    desert:   { ground: ['\u00b7','.',','], falling: ['\u00b7','.',','], cls1: 'c-season-autumn-sand', cls2: 'c-season-autumn-sand' },
+    mountain: { ground: ['.','\u25aa','\u00b7'], falling: ['\u00b7','.',','], cls1: 'c-season-autumn', cls2: 'c-season-autumn-dark' },
+    swamp:    { ground: ['~','\u00a7','.','`'], falling: ['~','.',','], cls1: 'c-season-autumn-dark', cls2: 'c-season-autumn-dark' },
+    ice:      { ground: ['*','\u00b7','.'], falling: ['*','\u00b7','.'], cls1: 'c-season-frost', cls2: 'c-season-frost' },
+    tundra:   { ground: ['*','\u00b7','.'], falling: ['*','\u00b7','.'], cls1: 'c-season-frost', cls2: 'c-season-frost' },
+    water:    { ground: ['~','\u2248','.'], falling: ['~','.'], cls1: 'c-season-autumn', cls2: 'c-season-autumn-dark' },
+  };
+
   if (season === 'spring') {
-    // Spring: scattered flowers on ground line and just above
-    var springFlowers = ['\u273f', '\u2740', '*', '\u2698', '\u2022'];
-    var springColors = ['c-season-spring1', 'c-season-spring2', 'c-season-spring3'];
+    var spCfg = SPRING_BIOME[biomeKey] || SPRING_BIOME.plains;
     for (var sfx = 0; sfx < W; sfx++) {
       var sfSeed = ((sfx * 17 + wSeed * 3) % 100);
-      if (sfSeed < 8) {
+      if (sfSeed < spCfg.density) {
         var fy = groundY - 1;
         if (getCell(grid, sfx, fy).ch === ' ') {
-          setCell(grid, sfx, fy, springFlowers[sfSeed % springFlowers.length], springColors[sfSeed % springColors.length]);
+          setCell(grid, sfx, fy, spCfg.flowers[sfSeed % spCfg.flowers.length], spCfg.colors[sfSeed % spCfg.colors.length]);
         }
       }
-      // Occasional petal drift above ground
-      if (sfSeed >= 95 && waveCounter % 3 === 0) {
+      if (spCfg.petals && sfSeed >= 95 && waveCounter % 3 === 0) {
         var petalY = groundY - 3 - (sfSeed % 4);
         var petalX = (sfx + Math.floor(waveCounter * 0.15)) % W;
         if (petalX >= 0 && petalX < W && petalY >= 0 && petalY < groundY && getCell(grid, petalX, petalY).ch === ' ') {
-          setCell(grid, petalX, petalY, '.', 'c-season-spring2');
+          setCell(grid, petalX, petalY, '.', spCfg.colors[1] || 'c-season-spring2');
         }
       }
     }
   } else if (season === 'summer') {
-    // Summer: heat shimmer — wavy distortion chars just above ground
-    for (var shx = 0; shx < W; shx++) {
-      var shimmerWave = Math.sin((shx * 0.2) + (waveCounter * 0.15));
-      if (shimmerWave > 0.5) {
-        var shy = groundY - 1;
-        if (getCell(grid, shx, shy).ch === ' ') {
-          var shimCh = waveCounter % 4 < 2 ? '~' : '\u00b7';
-          setCell(grid, shx, shy, shimCh, 'c-season-summer');
+    var sumType = SUMMER_BIOME[biomeKey];
+    if (sumType === 'glisten') {
+      // Ice/tundra: glistening melt sparkles instead of heat shimmer
+      for (var shx = 0; shx < W; shx++) {
+        var shimmerWave = Math.sin((shx * 0.25) + (waveCounter * 0.1));
+        if (shimmerWave > 0.6) {
+          var shy = groundY - 1;
+          if (getCell(grid, shx, shy).ch === ' ') {
+            setCell(grid, shx, shy, '*', 'c-season-summer-ice');
+          }
         }
       }
-      // Occasional heat ripple higher up
-      if (shimmerWave > 0.8) {
-        var ripY = groundY - 2 - Math.floor(Math.abs(shimmerWave) * 2);
-        if (ripY >= 0 && ripY < groundY && getCell(grid, shx, ripY).ch === ' ') {
-          setCell(grid, shx, ripY, '~', 'c-season-summer-faint');
+    } else if (sumType === 'mist') {
+      // Swamp: rising mist wisps
+      for (var shx = 0; shx < W; shx++) {
+        var mistWave = Math.sin((shx * 0.15) + (waveCounter * 0.08));
+        if (mistWave > 0.5) {
+          var shy = groundY - 1;
+          if (getCell(grid, shx, shy).ch === ' ') {
+            setCell(grid, shx, shy, '\u00b7', 'c-season-summer-faint');
+          }
+        }
+        if (mistWave > 0.75) {
+          var ripY = groundY - 2 - Math.floor(mistWave * 2);
+          if (ripY >= 0 && ripY < groundY && getCell(grid, shx, ripY).ch === ' ') {
+            setCell(grid, shx, ripY, '\u2591', 'c-season-summer-faint');
+          }
+        }
+      }
+    } else if (sumType) {
+      // Default heat shimmer (plains, forest, desert, mountain)
+      var shimmerMul = biomeKey === 'desert' ? 1.5 : 1.0;
+      for (var shx = 0; shx < W; shx++) {
+        var shimmerWave = Math.sin((shx * 0.2) + (waveCounter * 0.15));
+        if (shimmerWave > 0.5 / shimmerMul) {
+          var shy = groundY - 1;
+          if (getCell(grid, shx, shy).ch === ' ') {
+            var shimCh = waveCounter % 4 < 2 ? '~' : '\u00b7';
+            setCell(grid, shx, shy, shimCh, 'c-season-summer');
+          }
+        }
+        if (shimmerWave > 0.8 / shimmerMul) {
+          var ripY = groundY - 2 - Math.floor(Math.abs(shimmerWave) * 2);
+          if (ripY >= 0 && ripY < groundY && getCell(grid, shx, ripY).ch === ' ') {
+            setCell(grid, shx, ripY, '~', 'c-season-summer-faint');
+          }
         }
       }
     }
   } else if (season === 'autumn') {
-    // Autumn: amber/orange ground accents + falling leaves
-    var autumnChars = [',', '.', "'", '`'];
+    var auCfg = AUTUMN_BIOME[biomeKey] || AUTUMN_BIOME.plains;
     for (var afx = 0; afx < W; afx++) {
       var afSeed = ((afx * 13 + wSeed * 7) % 100);
       if (afSeed < 10) {
         var afy = groundY - 1;
         if (afy >= 0 && getCell(grid, afx, afy).ch === ' ') {
-          setCell(grid, afx, afy, autumnChars[afSeed % autumnChars.length], 'c-season-autumn');
+          setCell(grid, afx, afy, auCfg.ground[afSeed % auCfg.ground.length], auCfg.cls1);
         }
       }
     }
-    // Falling leaves (sparse, drifting particles)
-    for (var li2 = 0; li2 < 6; li2++) {
+    var fallCount = biomeKey === 'forest' ? 8 : 6;
+    for (var li2 = 0; li2 < fallCount; li2++) {
       var leafX = Math.floor((wSeed * 3 + li2 * 41 + waveCounter * 0.3) % W);
       var leafY = Math.floor((li2 * 7 + waveCounter * 0.2) % (groundY - 4)) + 2;
       if (leafX >= 0 && leafX < W && leafY >= 0 && leafY < groundY && getCell(grid, leafX, leafY).ch === ' ') {
-        var leafCh = li2 % 3 === 0 ? '\\' : li2 % 3 === 1 ? '/' : ',';
-        setCell(grid, leafX, leafY, leafCh, li2 % 2 === 0 ? 'c-season-autumn' : 'c-season-autumn-dark');
+        setCell(grid, leafX, leafY, auCfg.falling[li2 % auCfg.falling.length], li2 % 2 === 0 ? auCfg.cls1 : auCfg.cls2);
       }
     }
   }

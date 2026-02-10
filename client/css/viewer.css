@@ -441,6 +441,20 @@ body {
 #world .c-moon    { color: #ccddff; }
 #world .c-moonglow{ color: #8899bb; }
 
+/* Blood moon */
+#world .c-blood-moon { color: #ff3322; text-shadow: 0 0 8px rgba(255, 40, 20, 0.6); }
+#world .c-blood-glow { color: #aa2211; text-shadow: 0 0 5px rgba(180, 30, 15, 0.4); }
+#world .c-blood-haze { color: #551111; }
+
+/* Solar eclipse */
+#world .c-eclipse { color: #110011; }
+#world .c-corona  { color: #ffcc66; text-shadow: 0 0 6px rgba(255, 200, 100, 0.5); }
+
+/* Meteor shower */
+#world .c-meteor-head { color: #ffffff; text-shadow: 0 0 6px rgba(255, 255, 255, 0.7); }
+#world .c-meteor-mid  { color: #aaccff; text-shadow: 0 0 4px rgba(170, 200, 255, 0.4); }
+#world .c-meteor-tail { color: #556688; }
+
 /* Water */
 /* Decay states */
 #world .c-decay     { color: #cc8833; }
@@ -512,10 +526,16 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-season-spring1     { color: #ff88aa; }
 #world .c-season-spring2     { color: #ffaacc; }
 #world .c-season-spring3     { color: #ffcc88; }
+#world .c-season-spring-desert{ color: #ccaa44; }
+#world .c-season-spring-swamp{ color: #66aa77; }
+#world .c-season-spring-ice  { color: #88ccee; }
 #world .c-season-summer      { color: #ff8833; opacity: 0.5; }
 #world .c-season-summer-faint{ color: #ff6622; opacity: 0.25; }
+#world .c-season-summer-ice  { color: #aaddff; text-shadow: 0 0 3px rgba(170, 221, 255, 0.3); }
 #world .c-season-autumn      { color: #cc8833; }
 #world .c-season-autumn-dark { color: #995522; }
+#world .c-season-autumn-sand { color: #aa9966; }
+#world .c-season-frost       { color: #bbccdd; }
 #world .c-season-winter      { color: #ddeeff; }
 
 /* Crops */
@@ -789,8 +809,13 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-gnd-em { color: #bb3a2a; }
 
 /* ─── Vegetation accents ─── */
-#world .c-veg-rock { color: #667766; }
-#world .c-veg-root { color: #554433; }
+#world .c-veg-rock  { color: #667766; }
+#world .c-veg-root  { color: #554433; }
+#world .c-veg-sand  { color: #8a7a55; }
+#world .c-veg-ore   { color: #778899; }
+#world .c-veg-bog   { color: #4a5533; }
+#world .c-veg-ice   { color: #8899aa; }
+#world .c-veg-shell { color: #6688aa; }
 
 /* ─── Building tier colors (type-t2 / type-t3 = brighter) ─── */
 #world .c-b-hut-t2        { color: #ccbb88; }

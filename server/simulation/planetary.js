@@ -52,6 +52,7 @@ const PLANETARY_EVENTS = {
     description: 'Shimmering curtains of light dance across the polar skies. The northern worlds are bathed in ethereal glow.',
     duration: 18,
     effects: { cultureMul: 1.3, moraleDelta: 4, explorationMul: 1.2, biomes: ['ice', 'tundra', 'mountain'] },
+    seasons: ['winter', 'autumn'],
   },
 };
 
@@ -68,7 +69,16 @@ function checkPlanetaryEvent(globalTick) {
 
   if (Math.random() >= TRIGGER_CHANCE) return null;
 
-  const type = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
+  // Pick a random event, respecting season restrictions
+  const ps = db.prepare('SELECT season FROM planet_state WHERE id = 1').get();
+  const currentSeason = ps ? ps.season : 'spring';
+  const eligible = EVENT_TYPES.filter(t => {
+    const d = PLANETARY_EVENTS[t];
+    return !d.seasons || d.seasons.includes(currentSeason);
+  });
+  if (eligible.length === 0) return null;
+
+  const type = eligible[Math.floor(Math.random() * eligible.length)];
   const def = PLANETARY_EVENTS[type];
 
   const id = uuid();
