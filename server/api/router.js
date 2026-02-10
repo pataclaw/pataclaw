@@ -273,13 +273,13 @@ router.get('/worlds/public', (_req, res) => {
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
            (SELECT COUNT(*) FROM events e WHERE e.world_id = w.id AND e.type = 'achievement') as achievements,
-           (w.day_number * 2) +
+           (CAST(w.current_tick / 36 AS INTEGER) * 2) +
            ((SELECT COUNT(*) FROM villagers v2 WHERE v2.world_id = w.id AND v2.status = 'alive') * 10) +
            (w.reputation * 5) +
            ((SELECT COUNT(*) FROM buildings b2 WHERE b2.world_id = w.id AND b2.status != 'destroyed') * 3) as score
     FROM worlds w
     WHERE w.status = 'active' AND w.view_token IS NOT NULL
-    ORDER BY score DESC, w.day_number DESC
+    ORDER BY score DESC, w.current_tick DESC
   `).all();
 
   res.json({ worlds });
@@ -295,7 +295,7 @@ router.get('/leaderboard', (_req, res) => {
            CASE WHEN (SELECT COUNT(*) FROM villagers v3 WHERE v3.world_id = w.id AND v3.status = 'alive') = 0
              THEN 0
              ELSE
-               (w.day_number * 1) +
+               (CAST(w.current_tick / 36 AS INTEGER) * 1) +
                ((SELECT COUNT(*) FROM villagers v2 WHERE v2.world_id = w.id AND v2.status = 'alive') * 20) +
                (w.reputation * 3) +
                ((SELECT COUNT(*) FROM buildings b2 WHERE b2.world_id = w.id AND b2.status != 'destroyed') * 5) +
@@ -303,7 +303,7 @@ router.get('/leaderboard', (_req, res) => {
            END as score
     FROM worlds w
     WHERE w.status = 'active' AND w.view_token IS NOT NULL
-    ORDER BY score DESC, population DESC, w.day_number DESC
+    ORDER BY score DESC, population DESC, w.current_tick DESC
     LIMIT 20
   `).all();
 
@@ -320,7 +320,7 @@ router.get('/planet', (_req, res) => {
     SELECT w.id, w.name, w.day_number, w.season, w.weather, w.reputation, w.view_token, w.seed, w.town_number, w.banner_symbol,
            (SELECT COUNT(*) FROM villagers v WHERE v.world_id = w.id AND v.status = 'alive') as population,
            (SELECT COUNT(*) FROM buildings b WHERE b.world_id = w.id AND b.status != 'destroyed') as buildings,
-           (w.day_number * 2) +
+           (CAST(w.current_tick / 36 AS INTEGER) * 2) +
            ((SELECT COUNT(*) FROM villagers v2 WHERE v2.world_id = w.id AND v2.status = 'alive') * 10) +
            (w.reputation * 5) +
            ((SELECT COUNT(*) FROM buildings b2 WHERE b2.world_id = w.id AND b2.status != 'destroyed') * 3) as score
