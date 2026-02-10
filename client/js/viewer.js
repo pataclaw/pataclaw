@@ -543,13 +543,13 @@ function renderScene(data) {
     var sunX = Math.floor(sunProg * (W - 10)) + 5;
     var sunY = Math.floor(horizonY - Math.sin(sunProg * Math.PI) * arcHeight);
     sunY = Math.max(1, Math.min(horizonY, sunY));
-    if (sunX >= 0 && sunX < W && sunY >= 0 && sunY < groundY) {
+    if (sunX >= 0 && sunX < W && sunY >= 0 && sunY < 16) {
       setCell(grid, sunX, sunY, 'O', 'c-sun');
       // Glow around sun
       var glowOff = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1]];
       for (var gi = 0; gi < glowOff.length; gi++) {
         var gx = sunX + glowOff[gi][0], gy = sunY + glowOff[gi][1];
-        if (gx >= 0 && gx < W && gy >= 0 && gy < groundY && getCell(grid, gx, gy).ch === ' ') {
+        if (gx >= 0 && gx < W && gy >= 0 && gy < 16 && getCell(grid, gx, gy).ch === ' ') {
           setCell(grid, gx, gy, '.', 'c-sunglow');
         }
       }
@@ -565,12 +565,12 @@ function renderScene(data) {
     var moonX = Math.floor(moonProg * (W - 10)) + 5;
     var moonY = Math.floor(horizonY - Math.sin(moonProg * Math.PI) * arcHeight);
     moonY = Math.max(1, Math.min(horizonY, moonY));
-    if (moonX >= 0 && moonX < W && moonY >= 0 && moonY < groundY) {
+    if (moonX >= 0 && moonX < W && moonY >= 0 && moonY < 16) {
       setCell(grid, moonX, moonY, 'C', 'c-moon');
       var mGlow = [[-1,0],[1,0],[0,-1]];
       for (var mi = 0; mi < mGlow.length; mi++) {
         var mx = moonX + mGlow[mi][0], my = moonY + mGlow[mi][1];
-        if (mx >= 0 && mx < W && my >= 0 && my < groundY && getCell(grid, mx, my).ch === ' ') {
+        if (mx >= 0 && mx < W && my >= 0 && my < 16 && getCell(grid, mx, my).ch === ' ') {
           setCell(grid, mx, my, '.', 'c-moonglow');
         }
       }
