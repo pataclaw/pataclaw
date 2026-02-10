@@ -622,7 +622,8 @@ function renderScene(data) {
   // Aurora borealis — smooth flowing curtains for ice/tundra/mountain biomes
   var biomeKey = (data.biome && data.biome.dominant) || 'plains';
   if (data.planetaryEvent && data.planetaryEvent.type === 'aurora_borealis' &&
-      (biomeKey === 'ice' || biomeKey === 'tundra' || biomeKey === 'mountain')) {
+      (biomeKey === 'ice' || biomeKey === 'tundra' || biomeKey === 'mountain') &&
+      (world.time_of_day === 'night' || world.time_of_day === 'dusk')) {
     var aC = ['c-aurora-g', 'c-aurora-c', 'c-aurora-p', 'c-aurora-m'];
     var t = (world.current_tick || 0) * 0.15;
     for (var ax = 0; ax < W; ax++) {

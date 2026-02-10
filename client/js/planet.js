@@ -622,7 +622,7 @@
           else if (shade < 0.3) cls += ' globe-dim';
 
           // Aurora borealis — smooth flowing bands near poles
-          if (planetaryEvent && planetaryEvent.type === 'aurora_borealis' && shade > 0.08) {
+          if (planetaryEvent && planetaryEvent.type === 'aurora_borealis' && shade < 0.35) {
             var absLat = Math.abs(lat);
             // Aurora band between ~55° and ~80° latitude
             if (absLat > 0.96 && absLat < 1.40) {
