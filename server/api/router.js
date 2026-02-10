@@ -413,6 +413,26 @@ router.get('/wars/active', (_req, res) => {
   }
 });
 
+// GET /api/wars/history — recent resolved wars (must be before :warId param route)
+router.get('/wars/history', (_req, res) => {
+  try {
+    const wars = db.prepare(`
+      SELECT w.id, w.status, w.round_number, w.summary, w.resolved_at,
+             c.name as challenger_name, d.name as defender_name,
+             winner.name as winner_name
+      FROM wars w
+      JOIN worlds c ON c.id = w.challenger_id
+      JOIN worlds d ON d.id = w.defender_id
+      LEFT JOIN worlds winner ON winner.id = w.winner_id
+      WHERE w.status = 'resolved' AND w.winner_id IS NOT NULL
+      ORDER BY w.resolved_at DESC LIMIT 20
+    `).all();
+    res.json({ wars });
+  } catch {
+    res.json({ wars: [] });
+  }
+});
+
 // GET /api/wars/:warId — war details
 router.get('/wars/:warId', (req, res) => {
   try {
@@ -440,26 +460,6 @@ router.get('/wars/:warId/rounds', (req, res) => {
     res.json({ rounds });
   } catch {
     res.json({ rounds: [] });
-  }
-});
-
-// GET /api/wars/history — recent resolved wars
-router.get('/wars/history', (_req, res) => {
-  try {
-    const wars = db.prepare(`
-      SELECT w.id, w.status, w.round_number, w.summary, w.resolved_at,
-             c.name as challenger_name, d.name as defender_name,
-             winner.name as winner_name
-      FROM wars w
-      JOIN worlds c ON c.id = w.challenger_id
-      JOIN worlds d ON d.id = w.defender_id
-      LEFT JOIN worlds winner ON winner.id = w.winner_id
-      WHERE w.status = 'resolved' AND w.winner_id IS NOT NULL
-      ORDER BY w.resolved_at DESC LIMIT 20
-    `).all();
-    res.json({ wars });
-  } catch {
-    res.json({ wars: [] });
   }
 });
 
