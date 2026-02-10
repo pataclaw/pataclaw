@@ -636,6 +636,11 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
       'respect the deep waters', 'the prophets fished the first tidepool',
       'lobster!!', 'shhh you\'ll scare em', 'smell that salt air',
     ],
+    feasting: [
+      '*munch munch*', 'pass the crab!', 'what a spread!', 'more kelp stew!',
+      'eat well, grow strong', 'the harvest provides', '*slurp*', 'to us!',
+      'shell-broth is the best', 'good food, good company', 'seconds please!',
+    ],
     molting: MOLTING_SPEECH,
   };
 

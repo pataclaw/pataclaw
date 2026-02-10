@@ -192,6 +192,9 @@ function resolveActivities(worldId, villagers, world) {
   // Resource node availability (gates chopping/mining/fishing activities)
   const nodeAvail = getNodeAvailability(worldId);
 
+  // Food level affects feasting weight
+  const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
+
   const upsert = db.prepare(`
     INSERT INTO villager_activities (villager_id, world_id, activity, target_id, duration_ticks)
     VALUES (?, ?, ?, ?, 1)
@@ -240,6 +243,7 @@ function resolveActivities(worldId, villagers, world) {
       weights.sparring = (100 - temp) / 8;
       weights.building_project = activeProjects > 0 ? 15 : 2;
       weights.celebrating = avgMorale > 70 ? 8 : 1;
+      weights.feasting = food && food.amount > 20 ? (soc > 60 ? 10 : 5) : 1;
       weights.meditating = temp / 12;
       weights.wandering = 8;
       weights.praying = 3;
@@ -370,6 +374,20 @@ function processInteractions(worldId, villagers, tick) {
     for (const c of celebrators) {
       boostMorale.run(c.id);
       addMemory(worldId, c.id, tick, 'celebrated', null, 30);
+    }
+  }
+
+  // Feasting villagers share meals — boost morale, affinity, and create shared_meal memories
+  const feasters = villagers.filter(v => activities[v.id] && activities[v.id].activity === 'feasting');
+  if (feasters.length > 1) {
+    const boostMorale = db.prepare('UPDATE villagers SET morale = MIN(100, morale + 3) WHERE id = ?');
+    for (const f of feasters) {
+      boostMorale.run(f.id);
+      addMemory(worldId, f.id, tick, 'shared_meal', null, 35);
+    }
+    // Build affinity between feasting pairs
+    for (let i = 0; i < feasters.length - 1; i += 2) {
+      updateRelationship(worldId, feasters[i].id, feasters[i + 1].id, { affinity: 3, tension: -4, familiarity: 1 });
     }
   }
 

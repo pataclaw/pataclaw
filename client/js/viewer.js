@@ -2057,6 +2057,25 @@ function renderScene(data) {
       }
     }
 
+    // HP bar above character during combat
+    if ((a.state === 'fighting' || a.state === 'sparring') && v.hp !== undefined && v.max_hp) {
+      var hpPct = Math.max(0, Math.min(1, v.hp / v.max_hp));
+      var barW = 7;
+      var filled = Math.round(hpPct * barW);
+      var hpBar = '[';
+      for (var hi = 0; hi < barW; hi++) hpBar += hi < filled ? '\u2588' : '\u2591';
+      hpBar += ']';
+      var hpColor = hpPct > 0.6 ? 'c-hp-high' : hpPct > 0.3 ? 'c-hp-mid' : 'c-hp-low';
+      var hpY = groundY - charLines.length - 1;
+      if (a.currentSpeech && a.speechTimer > 0) hpY -= 4; // push above speech bubble
+      for (var hbi = 0; hbi < hpBar.length; hbi++) {
+        var hbx = x + hbi - 1, hby = hpY;
+        if (hbx >= 0 && hbx < W && hby >= 0 && hby < H) {
+          setCell(grid, hbx, hby, hpBar[hbi], hpColor);
+        }
+      }
+    }
+
     // Draw character
     var charStartY = groundY - charLines.length;
     for (var cr = 0; cr < charLines.length; cr++) {
@@ -2375,7 +2394,7 @@ function updateSidebar(data) {
         meditating: 'meditation', praying: 'prayer', socializing: 'socializing',
         mourning: 'mourning', arguing: 'arguments', brooding: 'brooding',
         wandering: 'wandering', working: 'working', hunting: 'hunting', molting: 'molting',
-        chopping: 'logging', mining: 'quarrying', fishing: 'fishing'
+        chopping: 'logging', mining: 'quarrying', fishing: 'fishing', feasting: 'feasting'
       };
       var acts = cu.dominant_activities.map(function(a) { return ACT_NAMES[a] || a; });
       html += '<div class="culture-activities">' + acts.join(' \u00b7 ') + '</div>';

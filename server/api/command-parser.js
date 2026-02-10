@@ -92,6 +92,14 @@ function parseCommand(text) {
       return { action: 'demolish', buildingType: type };
     }
 
+    case 'nomad': {
+      const nAction = tokens[1];
+      if (!nAction || !['kill', 'evict'].includes(nAction)) {
+        return { action: 'error', message: 'Usage: nomad <kill|evict>' };
+      }
+      return { action: 'nomad', nomadAction: nAction };
+    }
+
     case 'status':
       return { action: 'status' };
 

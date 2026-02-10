@@ -177,74 +177,89 @@ function processVillagers(worldId, isStarving, weather) {
     updateVillager.run(hp, morale, hunger, status, v.id);
   }
 
-  // Birth chance: if pop < capacity, morale > 60 avg, 2% chance per tick
+  // Social-gathering births: villagers have kids when celebrating, feasting, or socializing together
   const alive = villagers.filter((v) => v.status === 'alive' || (v.hp > 0));
   const buildingCap = db.prepare(
     "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId).cap;
 
-  const avgMorale = alive.length > 0 ? alive.reduce((s, v) => s + v.morale, 0) / alive.length : 0;
+  // Count villagers doing social gathering activities (set by previous tick's village-life)
+  const socialCount = db.prepare(
+    "SELECT COUNT(*) as c FROM villager_activities WHERE world_id = ? AND activity IN ('celebrating', 'feasting', 'socializing')"
+  ).get(worldId).c;
 
-  // Higher cooperation = slightly higher birth rate
-  const cooperationBonus = Math.max(0, (culture.cooperation_level || 0) - 50) / 2000;
-  const hasPools = hasMegastructure(worldId, 'spawning_pools');
-  const poolsBonus = hasPools ? POOLS_BIRTH_RATE_BONUS : 0;
-  const birthRate = Math.max(0.005, Math.min(0.06, 0.02 + cooperationBonus + poolsBonus));
+  // Need at least 2 villagers gathering AND room for more
+  if (alive.length < buildingCap && socialCount >= 2) {
+    // Base birth rate scales with gathering size
+    let birthRate = socialCount >= 5 ? 0.15 : socialCount >= 3 ? 0.10 : 0.05;
 
-  if (alive.length < buildingCap && avgMorale > 60 && Math.random() < birthRate) {
-    const rng = () => Math.random();
-    const name = randomName(rng);
+    // Cooperation bonus
+    const cooperationBonus = Math.max(0, (culture.cooperation_level || 0) - 50) / 2000;
+    const hasPools = hasMegastructure(worldId, 'spawning_pools');
+    const poolsBonus = hasPools ? POOLS_BIRTH_RATE_BONUS : 0;
+    birthRate = Math.min(0.25, birthRate + cooperationBonus + poolsBonus);
 
-    // Culture-influenced trait selection
-    let trait;
-    if (culture.preferred_trait && Math.random() < 0.4) {
-      trait = culture.preferred_trait;
-    } else {
-      trait = randomTrait(rng);
+    // Molt Festival active? Big bonus
+    const worldForBirth = db.prepare('SELECT current_tick, seed FROM worlds WHERE id = ?').get(worldId);
+    const recentFestival = db.prepare(
+      "SELECT 1 FROM events WHERE world_id = ? AND type = 'festival' AND tick >= ? LIMIT 1"
+    ).get(worldId, (worldForBirth.current_tick || 0) - 3);
+    if (recentFestival) birthRate = Math.min(0.30, birthRate + 0.10);
+
+    if (Math.random() < birthRate) {
+      const rng = () => Math.random();
+      const name = randomName(rng);
+
+      // Culture-influenced trait selection
+      let trait;
+      if (culture.preferred_trait && Math.random() < 0.4) {
+        trait = culture.preferred_trait;
+      } else {
+        trait = randomTrait(rng);
+      }
+
+      // Personality from trait + village influence
+      const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
+      const avgTemp = alive.length > 0 ? Math.round(alive.reduce((s, v) => s + (v.temperament || 50), 0) / alive.length) : 50;
+      const avgCre = alive.length > 0 ? Math.round(alive.reduce((s, v) => s + (v.creativity || 50), 0) / alive.length) : 50;
+      const avgSoc = alive.length > 0 ? Math.round(alive.reduce((s, v) => s + (v.sociability || 50), 0) / alive.length) : 50;
+
+      const blend = (base, avg) => Math.max(0, Math.min(100, Math.round(base * 0.7 + avg * 0.3) + Math.floor(Math.random() * 11) - 5));
+
+      let temperament = blend(basePers.temperament, avgTemp);
+      let creativity = blend(basePers.creativity, avgCre);
+      let sociability = blend(basePers.sociability, avgSoc);
+
+      // Spawning Pools: newborns get a bonus to a random stat
+      if (hasPools) {
+        const stats = ['temperament', 'creativity', 'sociability'];
+        const boosted = stats[Math.floor(Math.random() * stats.length)];
+        if (boosted === 'temperament') temperament = Math.min(100, temperament + POOLS_STAT_BONUS);
+        else if (boosted === 'creativity') creativity = Math.min(100, creativity + POOLS_STAT_BONUS);
+        else sociability = Math.min(100, sociability + POOLS_STAT_BONUS);
+      }
+
+      // Cultural imprinting — newborn absorbs a phrase from town culture
+      let culturalPhrase = null;
+      if (culture.custom_phrases && culture.custom_phrases.length > 0) {
+        culturalPhrase = culture.custom_phrases[Math.floor(Math.random() * culture.custom_phrases.length)];
+      }
+
+      const birthCenter = getCenter(worldForBirth.seed);
+
+      db.prepare(`
+        INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
+        VALUES (?, ?, ?, 'idle', ?, ?, 100, 100, 70, 0, 0, 'alive', ?, 'idle', ?, ?, ?, ?)
+      `).run(uuid(), worldId, name, birthCenter.x, birthCenter.y + 1, trait, culturalPhrase, temperament, creativity, sociability);
+
+      const gatherType = socialCount >= 5 ? 'a grand feast' : socialCount >= 3 ? 'a village celebration' : 'a gathering';
+      events.push({
+        type: 'birth',
+        title: `${name} has joined!`,
+        description: `After ${gatherType}, a new villager named ${name} (${trait}) has appeared in town.`,
+        severity: 'celebration',
+      });
     }
-
-    // Personality from trait + village influence
-    const basePers = TRAIT_PERSONALITY[trait] || { temperament: 50, creativity: 50, sociability: 50 };
-    // Newborns drift toward village average
-    const avgTemp = alive.length > 0 ? Math.round(alive.reduce((s, v) => s + (v.temperament || 50), 0) / alive.length) : 50;
-    const avgCre = alive.length > 0 ? Math.round(alive.reduce((s, v) => s + (v.creativity || 50), 0) / alive.length) : 50;
-    const avgSoc = alive.length > 0 ? Math.round(alive.reduce((s, v) => s + (v.sociability || 50), 0) / alive.length) : 50;
-
-    const blend = (base, avg) => Math.max(0, Math.min(100, Math.round(base * 0.7 + avg * 0.3) + Math.floor(Math.random() * 11) - 5));
-
-    let temperament = blend(basePers.temperament, avgTemp);
-    let creativity = blend(basePers.creativity, avgCre);
-    let sociability = blend(basePers.sociability, avgSoc);
-
-    // Spawning Pools: newborns get a bonus to a random stat
-    if (hasPools) {
-      const stats = ['temperament', 'creativity', 'sociability'];
-      const boosted = stats[Math.floor(Math.random() * stats.length)];
-      if (boosted === 'temperament') temperament = Math.min(100, temperament + POOLS_STAT_BONUS);
-      else if (boosted === 'creativity') creativity = Math.min(100, creativity + POOLS_STAT_BONUS);
-      else sociability = Math.min(100, sociability + POOLS_STAT_BONUS);
-    }
-
-    // Cultural imprinting — newborn absorbs a phrase from town culture
-    let culturalPhrase = null;
-    if (culture.custom_phrases && culture.custom_phrases.length > 0) {
-      culturalPhrase = culture.custom_phrases[Math.floor(Math.random() * culture.custom_phrases.length)];
-    }
-
-    const worldForBirth = db.prepare('SELECT seed FROM worlds WHERE id = ?').get(worldId);
-    const birthCenter = getCenter(worldForBirth.seed);
-
-    db.prepare(`
-      INSERT INTO villagers (id, world_id, name, role, x, y, hp, max_hp, morale, hunger, experience, status, trait, ascii_sprite, cultural_phrase, temperament, creativity, sociability)
-      VALUES (?, ?, ?, 'idle', ?, ?, 100, 100, 70, 0, 0, 'alive', ?, 'idle', ?, ?, ?, ?)
-    `).run(uuid(), worldId, name, birthCenter.x, birthCenter.y + 1, trait, culturalPhrase, temperament, creativity, sociability);
-
-    events.push({
-      type: 'birth',
-      title: `${name} has joined!`,
-      description: `A new villager named ${name} (${trait}) has appeared in town.`,
-      severity: 'celebration',
-    });
   }
 
   return events;

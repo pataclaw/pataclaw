@@ -423,6 +423,77 @@ router.post('/teach', (req, res) => {
   res.json({ ok: true, phrases: existingPhrases.length, greetings: existingGreetings.length, toneEffect });
 });
 
+// POST /api/command/nomad — kill or evict nomad camps
+router.post('/nomad', (req, res) => {
+  const { action } = req.body;
+  if (!action || !['kill', 'evict'].includes(action)) {
+    return res.status(400).json({ error: 'Action must be "kill" or "evict"' });
+  }
+
+  const nomads = db.prepare(
+    "SELECT id, name FROM villagers WHERE world_id = ? AND status = 'nomad'"
+  ).all(req.worldId);
+
+  if (nomads.length === 0) {
+    return res.status(400).json({ error: 'No nomad camps in your world' });
+  }
+
+  const names = nomads.map(n => n.name);
+
+  if (action === 'kill') {
+    // Kill nomads and take their resources
+    const loot = {
+      food: 0,
+      wood: 0,
+      stone: 0,
+    };
+    for (const n of nomads) {
+      loot.food += 5 + Math.floor(Math.random() * 11);  // 5-15 per nomad
+      loot.wood += 3 + Math.floor(Math.random() * 6);   // 3-8 per nomad
+      loot.stone += 2 + Math.floor(Math.random() * 4);  // 2-5 per nomad
+    }
+
+    db.transaction(() => {
+      for (const n of nomads) {
+        db.prepare("DELETE FROM villagers WHERE id = ?").run(n.id);
+      }
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'food'").run(loot.food, req.worldId);
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'wood'").run(loot.wood, req.worldId);
+      db.prepare("UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = 'stone'").run(loot.stone, req.worldId);
+    })();
+
+    // Log event
+    const world = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(req.worldId);
+    db.prepare(
+      "INSERT INTO events (id, world_id, tick, type, title, description, severity) VALUES (?, ?, ?, 'raid', ?, ?, 'warning')"
+    ).run(uuid(), req.worldId, world.current_tick,
+      `Nomads slain: ${names.join(', ')}`,
+      `Your warriors killed ${nomads.length} nomad${nomads.length > 1 ? 's' : ''} and seized their supplies. +${loot.food} food, +${loot.wood} wood, +${loot.stone} stone.`
+    );
+
+    logCultureAction(req.worldId, 'nomad_kill', '_default');
+    return res.json({ ok: true, action: 'kill', killed: names, loot });
+  } else {
+    // Evict nomads peacefully
+    db.transaction(() => {
+      for (const n of nomads) {
+        db.prepare("DELETE FROM villagers WHERE id = ?").run(n.id);
+      }
+    })();
+
+    const world = db.prepare('SELECT current_tick FROM worlds WHERE id = ?').get(req.worldId);
+    db.prepare(
+      "INSERT INTO events (id, world_id, tick, type, title, description, severity) VALUES (?, ?, ?, 'social', ?, ?, 'info')"
+    ).run(uuid(), req.worldId, world.current_tick,
+      `Nomads evicted: ${names.join(', ')}`,
+      `${nomads.length} nomad${nomads.length > 1 ? 's' : ''} ${nomads.length > 1 ? 'were' : 'was'} peacefully sent away from your lands.`
+    );
+
+    logCultureAction(req.worldId, 'nomad_evict', '_default');
+    return res.json({ ok: true, action: 'evict', evicted: names });
+  }
+});
+
 // POST /api/command/set-culture
 router.post('/set-culture', (req, res) => {
   const { values, laws, preferred_trait, banner_symbol } = req.body;

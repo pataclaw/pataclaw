@@ -532,6 +532,9 @@ body.dusk #world .c-nomad-fire   { color: #ff5522; text-shadow: 0 0 4px rgba(255
 #world .c-rock { color: #889999; }
 #world .c-fish-spot { color: #4488aa; }
 #world .c-depleted { color: #555555; opacity: 0.5; }
+#world .c-hp-high { color: #44dd44; }
+#world .c-hp-mid { color: #ddaa22; }
+#world .c-hp-low { color: #dd3333; }
 
 /* ─── Hill depth layers ─── */
 #world .c-hill-far  { color: #334422; }
