@@ -640,6 +640,21 @@ function renderScene(data) {
     }
   }
 
+  // ─── HILL HEIGHT MAP ───
+  // For each x column, find the highest y occupied by a hill or ground
+  // Weather particles, fog, and snow use this as effective ground level
+  var hillTopY = new Array(W);
+  for (var htx = 0; htx < W; htx++) {
+    hillTopY[htx] = groundY; // default: flat ground
+    for (var hty = 0; hty < groundY; hty++) {
+      var htc = getCell(grid, htx, hty).c;
+      if (htc === 'c-hill-far' || htc === 'c-hill-mid' || htc === 'c-hill-near') {
+        hillTopY[htx] = hty;
+        break;
+      }
+    }
+  }
+
   // ─── CANOPY TREES (biome-specific) + small bonsai background detail ───
   var biomeKey = (data.biome && data.biome.dominant) || 'plains';
   var growthStage = data.growth_stage || 0;
@@ -762,22 +777,28 @@ function renderScene(data) {
       });
     }
 
-    // Update and render
+    // Update and render — particles stop at hill tops, not just groundY
     for (var wi = weatherParticles.length - 1; wi >= 0; wi--) {
       var p = weatherParticles[wi];
       p.y += p.speed;
       p.x += p.drift;
       var px = Math.round(p.x), py = Math.round(p.y);
-      if (py >= groundY - 1 || py < 0 || px < 0 || px >= W) {
-        // Respawn at top
+      if (px < 0 || px >= W || py < 0) {
+        p.x = Math.random() * W;
+        p.y = -1;
+        p.speed = fallSpeed * (0.7 + Math.random() * 0.6);
+        continue;
+      }
+      // Stop at effective ground (hill top or ground line)
+      var effectiveGround = hillTopY[px];
+      if (py >= effectiveGround - 1) {
         p.x = Math.random() * W;
         p.y = -1;
         p.speed = fallSpeed * (0.7 + Math.random() * 0.6);
         continue;
       }
       if (getCell(grid, px, py).ch === ' ') {
-        // Fog: denser chars and color in lower half
-        if (world.weather === 'fog' && py > groundY / 2) {
+        if (world.weather === 'fog' && py > effectiveGround / 2) {
           setCell(grid, px, py, '\u2592', 'c-w-fog-dense');
         } else {
           setCell(grid, px, py, wChar, wColor);
@@ -793,21 +814,28 @@ function renderScene(data) {
       for (var li = 0; li < boltLen; li++) {
         var boltY = ly + li;
         var boltX = lx + (li % 2 === 0 ? 0 : (Math.random() < 0.5 ? 1 : -1));
-        if (boltX >= 0 && boltX < W && boltY >= 0 && boltY < groundY) {
+        if (boltX >= 0 && boltX < W && boltY >= 0 && boltY < hillTopY[boltX]) {
           var boltCh = li % 2 === 0 ? '/' : '\\';
           setCell(grid, boltX, boltY, boltCh, 'c-w-lightning');
+        } else if (boltX >= 0 && boltX < W && boltY >= hillTopY[boltX]) {
+          break; // bolt hits hill, stop
         }
       }
     }
 
     // Fog: smooth ground mist + drifting fog banks (deterministic, no Math.random)
+    // Fog respects hill terrain — pools in valleys, thins on slopes/peaks
     if (world.weather === 'fog') {
       // Smooth ground fog using layered sine waves — "breathes" in and out
       for (var fogRow = 1; fogRow <= 8; fogRow++) {
-        var fogY = groundY - fogRow;
-        if (fogY < 0) continue;
-        var baseDensity = 1.0 - (fogRow - 1) / 8;
         for (var fogX = 0; fogX < W; fogX++) {
+          // Fog rises from effective ground, not flat groundY
+          var fogBase = hillTopY[fogX];
+          var fogY = fogBase - fogRow;
+          if (fogY < 0) continue;
+          // Valley bonus: fog is denser where ground is lower (deeper valleys trap fog)
+          var valleyDepth = (groundY - fogBase) / groundY; // 0 = at ground, positive = hill
+          var baseDensity = 1.0 - (fogRow - 1) / 8 - valleyDepth * 1.5;
           var n1 = Math.sin(fogX * 0.08 + waveCounter * 0.015 + fogRow * 0.5);
           var n2 = Math.sin(fogX * 0.17 - waveCounter * 0.022 + fogRow * 1.3);
           var n3 = Math.sin(fogX * 0.04 + waveCounter * 0.008);
@@ -825,18 +853,20 @@ function renderScene(data) {
         }
       }
 
-      // Drifting fog banks — 5 bands, wider, soft-edged, with wispy tendrils
+      // Drifting fog banks — 5 bands, follow hill contour, soft-edged with tendrils
       var fogSeed = (world.seed || 0);
       for (var fbi = 0; fbi < 5; fbi++) {
         var fbHash = ((fogSeed * 2654435761 + fbi * 7919) >>> 0) % 100000;
         var fbWidth = 20 + (fbHash % 15);
-        var fbY = groundY - 2 - fbi * 2 - (fbHash % 4);
+        var fbOffset = 2 + fbi * 2 + (fbHash % 4); // rows above effective ground
         var fbBaseX = (fbHash % W);
         var fbX = Math.round(fbBaseX + Math.sin(waveCounter * (0.012 + fbi * 0.004) + fbi * 1.5) * 12);
         for (var fbc = 0; fbc < fbWidth; fbc++) {
           var fbpx = ((fbX + fbc) % W + W) % W;
           var edgeFade = Math.min(fbc, fbWidth - 1 - fbc) / 4;
           if (edgeFade < 1 && Math.sin(waveCounter * 0.03 + fbc) < edgeFade) continue;
+          // Follow hill contour per column
+          var fbY = hillTopY[fbpx] - fbOffset;
           if (fbY >= 0 && fbY < groundY && getCell(grid, fbpx, fbY).ch === ' ') {
             setCell(grid, fbpx, fbY, '\u2592', 'c-w-fog-dense');
           }
@@ -852,11 +882,12 @@ function renderScene(data) {
       }
     }
 
-    // Snow: accumulation dots along ground line
+    // Snow: accumulation follows hill contour — collects on peaks and ground
     if (world.weather === 'snow') {
       for (var sx = 0; sx < W; sx++) {
-        if (Math.random() < 0.3 && getCell(grid, sx, groundY - 1).ch === ' ') {
-          setCell(grid, sx, groundY - 1, '.', 'c-w-snow');
+        var snowLine = hillTopY[sx] - 1;
+        if (snowLine >= 0 && snowLine < H && Math.random() < 0.3 && getCell(grid, sx, snowLine).ch === ' ') {
+          setCell(grid, sx, snowLine, '.', 'c-w-snow');
         }
       }
     }
@@ -963,8 +994,8 @@ function renderScene(data) {
     for (var afx = 0; afx < W; afx++) {
       var afSeed = ((afx * 13 + wSeed * 7) % 100);
       if (afSeed < 10) {
-        var afy = groundY - 1;
-        if (getCell(grid, afx, afy).ch === ' ') {
+        var afy = hillTopY[afx] - 1;
+        if (afy >= 0 && getCell(grid, afx, afy).ch === ' ') {
           setCell(grid, afx, afy, autumnChars[afSeed % autumnChars.length], 'c-season-autumn');
         }
       }
@@ -984,8 +1015,8 @@ function renderScene(data) {
     for (var wfx = 0; wfx < W; wfx++) {
       var wfSeed = ((wfx * 11 + wSeed * 5) % 100);
       if (wfSeed < 15) {
-        var wfy = groundY - 1;
-        if (getCell(grid, wfx, wfy).ch === ' ') {
+        var wfy = hillTopY[wfx] - 1;
+        if (wfy >= 0 && getCell(grid, wfx, wfy).ch === ' ') {
           setCell(grid, wfx, wfy, snowChars[wfSeed % snowChars.length], 'c-season-winter');
         }
       }
