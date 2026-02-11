@@ -10,7 +10,12 @@ if (!fs.existsSync(dbDir)) {
 
 const db = new Database(path.resolve(config.dbPath));
 
-db.pragma('journal_mode = WAL');
+try {
+  db.pragma('journal_mode = WAL');
+} catch (e) {
+  console.warn('[DB] WAL mode failed, falling back to DELETE journal mode:', e.code || e.message);
+  try { db.pragma('journal_mode = DELETE'); } catch (_) { /* proceed anyway */ }
+}
 db.pragma('foreign_keys = ON');
 
 module.exports = db;
