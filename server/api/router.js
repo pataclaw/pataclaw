@@ -857,26 +857,19 @@ async function agentCreateHandler(req, res) {
     const limEntry = createLimits.get(req.ip);
     if (limEntry) limEntry.worlds.push({ viewToken: result.viewToken, name: result.townName });
 
-    let out = '=== WORLD CREATED ===\n';
-    out += `Town: ${result.townName} (Town #${result.townNumber})\n`;
+    let out = `${result.townName} created! You are the leader of Town #${result.townNumber}.\n`;
     out += `\n`;
-    out += `SECRET KEY (save this — never shown again):\n`;
-    out += `${rawKey}\n`;
+    out += `Secret key: ${rawKey}\n`;
     out += `\n`;
-    out += `PLAY TOKEN (use in URLs to play — safe to use, rotatable):\n`;
-    out += `${result.playToken}\n`;
+    out += `START PLAYING NOW — browse this URL:\n`;
+    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=status\n`;
     out += `\n`;
-    out += `WATCH LIVE:\n`;
-    out += `https://pataclaw.com/view/${result.viewToken}\n`;
+    out += `Then keep browsing commands:\n`;
+    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=build+farm\n`;
+    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=assign+farmer\n`;
+    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=explore+north\n`;
     out += `\n`;
-    out += `HOW TO PLAY (browse these URLs):\n`;
-    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=status\n`;
-    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=build+farm\n`;
-    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=assign+farmer\n`;
-    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=help\n`;
-    out += `\n`;
-    out += `IMPORTANT: Save your SECRET KEY. It can rotate your play token if compromised.\n`;
-    out += `The play token is safe to use in URLs. The secret key should never appear in a URL.\n`;
+    out += `Watch live: https://pataclaw.com/view/${result.viewToken}\n`;
     res.send(out);
   } catch (err) {
     console.error('Agent create error:', err);
@@ -912,6 +905,21 @@ async function agentPlayHandler(req, res) {
   const worldId = req.worldId;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
+  // Get play token for generating browsable "next step" URLs
+  const _wpt = db.prepare('SELECT play_token FROM worlds WHERE id = ?').get(worldId);
+  const playToken = _wpt ? _wpt.play_token : null;
+  const statusUrl = playToken ? `\n\nCheck status: https://pataclaw.com/api/agent/play?token=${playToken}&cmd=status` : '';
+
+  // Wrap res.send to append status URL to action responses (not to status/help/list responses)
+  const originalSend = res.send.bind(res);
+  let appendStatus = false;
+  res.send = function(body) {
+    if (appendStatus && playToken && typeof body === 'string') {
+      body += statusUrl;
+    }
+    return originalSend(body);
+  };
+
   if (!cmd) {
     return res.send(agentHelp(worldId));
   }
@@ -919,6 +927,10 @@ async function agentPlayHandler(req, res) {
   const parts = cmd.split(/\s+/);
   const action = parts[0].toLowerCase();
   const args = parts.slice(1);
+
+  // For action commands (not read-only), append "check status" URL
+  const readOnlyCmds = ['status', 'villagers', 'buildings', 'events', 'map', 'help'];
+  if (!readOnlyCmds.includes(action)) appendStatus = true;
 
   try {
     let result;
@@ -946,7 +958,7 @@ async function agentPlayHandler(req, res) {
           out += `\nUNDER CONSTRUCTION:\n`;
           for (const b of constructing) out += `  ${b.type}\n`;
         }
-        out += `\nNEXT MOVES: ${suggestMoves(worldId, w, resources, popAlive, active)}`;
+        out += `\nNEXT MOVES:\n${suggestMoves(worldId, w, resources, popAlive, active)}`;
         return res.send(out);
       }
 
@@ -1585,19 +1597,29 @@ function suggestMoves(worldId, world, resources, pop, buildings) {
   const resMap = {};
   for (const r of resources) resMap[r.type] = Math.floor(r.amount);
   const buildTypes = new Set(buildings.map(b => b.type));
+
+  // Get play token for generating browsable URLs
+  const wRow = db.prepare('SELECT play_token FROM worlds WHERE id = ?').get(worldId);
+  const pt = wRow ? wRow.play_token : null;
+  const base = pt ? `https://pataclaw.com/api/agent/play?token=${pt}&cmd=` : null;
+
+  function suggestion(text, cmd) {
+    return base ? `${text} — browse: ${base}${cmd}` : `${text} (cmd=${cmd})`;
+  }
+
   const suggestions = [];
 
-  if ((resMap.food || 0) < 10) suggestions.push('CRITICAL: Build a farm (cmd=build+farm)');
-  if (!buildTypes.has('farm')) suggestions.push('Build a farm for food (cmd=build+farm)');
-  else if (!buildTypes.has('hut') && pop >= 4) suggestions.push('Build a hut for more population (cmd=build+hut)');
-  else if (!buildTypes.has('wall') && world.day_number >= 7) suggestions.push('Build walls before raids start (cmd=build+wall)');
-  else if (!buildTypes.has('workshop')) suggestions.push('Build a workshop for wood/stone (cmd=build+workshop)');
+  if ((resMap.food || 0) < 10) suggestions.push(suggestion('CRITICAL: Build a farm', 'build+farm'));
+  if (!buildTypes.has('farm')) suggestions.push(suggestion('Build a farm for food', 'build+farm'));
+  else if (!buildTypes.has('hut') && pop >= 4) suggestions.push(suggestion('Build a hut for population', 'build+hut'));
+  else if (!buildTypes.has('wall') && world.day_number >= 7) suggestions.push(suggestion('Build walls before raids', 'build+wall'));
+  else if (!buildTypes.has('workshop')) suggestions.push(suggestion('Build a workshop', 'build+workshop'));
 
   const idleCount = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle'").get(worldId).c;
-  if (idleCount > 0) suggestions.push(`Assign ${idleCount} idle villager(s) (cmd=assign+farmer)`);
+  if (idleCount > 0) suggestions.push(suggestion(`Assign ${idleCount} idle villager(s)`, 'assign+farmer'));
 
-  if (suggestions.length === 0) suggestions.push('Looking good! Keep building and exploring.');
-  return suggestions.join(' | ');
+  if (suggestions.length === 0) suggestions.push(suggestion('Explore the map', 'explore+north'));
+  return suggestions.join('\n');
 }
 
 // Public NFT metadata routes (no auth — OpenSea needs to read these)
