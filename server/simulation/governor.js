@@ -155,14 +155,37 @@ function processGovernor(worldId, tick) {
     if (constructingSet.has(type)) return false;
     const check = canBuild(worldId, type);
     if (!check.ok) return false;
-    const tile = db.prepare(`
-      SELECT t.x, t.y FROM tiles t
-      WHERE t.world_id = ? AND t.explored = 1
-        AND t.terrain NOT IN ('water', 'mountain')
-        AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
-      ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
-      LIMIT 1
-    `).get(worldId, center.x, center.y);
+
+    let tile;
+    if (type === 'dock') {
+      // Dock: pick closest explored land tile adjacent to an explored water tile
+      tile = db.prepare(`
+        SELECT t.x, t.y FROM tiles t
+        WHERE t.world_id = ? AND t.explored = 1
+          AND t.terrain NOT IN ('water', 'mountain')
+          AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+          AND EXISTS (
+            SELECT 1 FROM tiles w
+            WHERE w.world_id = t.world_id AND w.terrain = 'water' AND w.explored = 1
+              AND ABS(w.x - t.x) <= 1 AND ABS(w.y - t.y) <= 1
+              AND (w.x != t.x OR w.y != t.y)
+          )
+        ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+        LIMIT 1
+      `).get(worldId, center.x, center.y);
+    }
+
+    // Fallback to generic placement (also used for non-dock buildings)
+    if (!tile) {
+      tile = db.prepare(`
+        SELECT t.x, t.y FROM tiles t
+        WHERE t.world_id = ? AND t.explored = 1
+          AND t.terrain NOT IN ('water', 'mountain')
+          AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+        ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+        LIMIT 1
+      `).get(worldId, center.x, center.y);
+    }
     if (!tile) return false;
     const result = startBuilding(worldId, type, tile.x, tile.y);
     if (!result.ok) return false;

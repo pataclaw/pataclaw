@@ -95,16 +95,23 @@ function processExploration(worldId) {
   let revealed = 0;
   const maxReveal = scouts.length * 2;
 
+  // Count explored water BEFORE this batch (for coastline discovery event)
+  const waterBefore = db.prepare(
+    "SELECT COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 AND terrain = 'water'"
+  ).get(worldId).c;
+
   // Shuffle border tiles
   for (let i = unexploredBorder.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [unexploredBorder[i], unexploredBorder[j]] = [unexploredBorder[j], unexploredBorder[i]];
   }
 
+  let revealedWater = 0;
   for (const tile of unexploredBorder) {
     if (revealed >= maxReveal) break;
     reveal.run(worldId, tile.x, tile.y);
     revealed++;
+    if (tile.terrain === 'water') revealedWater++;
 
     // Discover feature
     if (tile.feature) {
@@ -115,6 +122,16 @@ function processExploration(worldId) {
         severity: 'info',
       });
     }
+  }
+
+  // Coastline discovery: first water tile(s) ever explored
+  if (revealedWater > 0 && waterBefore === 0) {
+    events.push({
+      type: 'discovery',
+      title: 'Coastline discovered!',
+      description: 'Your scouts have reached the water\'s edge. A dock can now be built to harvest the sea.',
+      severity: 'celebration',
+    });
   }
 
   // Only announce exploration at 10% milestones, not every tick

@@ -297,6 +297,25 @@ if (unnumbered.length > 0) {
   console.log(`[INIT] Backfilled town_number for ${unnumbered.length} worlds (${maxNum + 1}-${next - 1})`);
 }
 
+// Phase out landlocked docks: decay active docks with no water tile within 2 tiles
+{
+  const landlocked = db.prepare(`
+    SELECT b.id, b.world_id, b.x, b.y FROM buildings b
+    WHERE b.type = 'dock' AND b.status = 'active'
+      AND NOT EXISTS (
+        SELECT 1 FROM tiles t
+        WHERE t.world_id = b.world_id AND t.terrain = 'water'
+          AND ABS(t.x - b.x) <= 2 AND ABS(t.y - b.y) <= 2
+      )
+  `).all();
+  if (landlocked.length > 0) {
+    const currentTick = db.prepare("SELECT COALESCE(MAX(current_tick), 0) as t FROM worlds").get().t;
+    const decayStmt = db.prepare("UPDATE buildings SET status = 'decaying', decay_tick = ? WHERE id = ?");
+    for (const d of landlocked) decayStmt.run(currentTick, d.id);
+    console.log(`[INIT] Decaying ${landlocked.length} landlocked dock(s) with no nearby water`);
+  }
+}
+
 // One-shot data fix: rename duplicate GrokMoltEmpire worlds (keep Town #54 as the real one)
 // Safe to re-run — only renames worlds that are still named GrokMoltEmpire AND are not #54
 {

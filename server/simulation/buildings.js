@@ -1,5 +1,6 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
+const { deriveBiomeWeights } = require('../world/map');
 
 // ─── GROWTH STAGES ───
 const GROWTH_STAGES = [
@@ -277,6 +278,28 @@ function canBuild(worldId, type) {
     const existingBarracks = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'barracks' AND status NOT IN ('destroyed')").get(worldId).c;
     if (existingBarracks >= 3) {
       return { ok: false, reason: 'Maximum 3 barracks per town.' };
+    }
+  }
+
+  // Dock: require explored water tiles + non-landlocked biome
+  if (type === 'dock') {
+    const world = db.prepare('SELECT seed FROM worlds WHERE id = ?').get(worldId);
+    if (world) {
+      const weights = deriveBiomeWeights(world.seed);
+      // Find dominant biome (highest weight)
+      let dominant = 'plains', maxW = 0;
+      for (const [biome, w] of Object.entries(weights)) {
+        if (w > maxW) { maxW = w; dominant = biome; }
+      }
+      if (dominant === 'desert' || dominant === 'mountain') {
+        return { ok: false, reason: 'This land is too far from the sea. Docks cannot be built in desert or mountain-dominant regions.' };
+      }
+    }
+    const exploredWater = db.prepare(
+      "SELECT COUNT(*) as c FROM tiles WHERE world_id = ? AND explored = 1 AND terrain = 'water'"
+    ).get(worldId).c;
+    if (exploredWater === 0) {
+      return { ok: false, reason: 'No coastline discovered. Scouts must explore water tiles before a dock can be built.' };
     }
   }
 

@@ -2480,7 +2480,8 @@ function renderScene(data) {
 
   // ─── FOG OF WAR DIMMING PASS ───
   var townCenterW = townStartX + Math.floor(totalBuildingWidth / 2);
-  var exploredHalf = worldWidth * exploredPct / 200;
+  // Freebie: fog never covers the town — minimum clear zone is the building footprint + padding
+  var exploredHalf = Math.max(worldWidth * exploredPct / 200, totalBuildingWidth / 2 + 30);
   var FOG_FADE = 10; // transition zone chars
   var FOG_CLASSES = ['c-fog-1', 'c-fog-2', 'c-fog-3'];
   for (var fy = 0; fy < H; fy++) {
