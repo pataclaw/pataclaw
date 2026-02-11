@@ -171,6 +171,27 @@ router.get('/admin/ls-data', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// TEMPORARY: Bulk-seed worlds to repopulate after DB loss
+router.post('/admin/seed-worlds', async (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const count = Math.min(parseInt(req.query.count) || 200, 500);
+  const created = [];
+  for (let i = 0; i < count; i++) {
+    try {
+      const rawKey = generateKey();
+      const hash = await hashKey(rawKey);
+      const prefix = keyPrefix(rawKey);
+      const worldId = uuid();
+      const result = createWorld(worldId, hash, prefix, {});
+      created.push({ town_number: result.townNumber, name: result.townName, worldId });
+    } catch (e) {
+      created.push({ error: e.message, index: i });
+      break;
+    }
+  }
+  res.json({ ok: true, created: created.length, worlds: created });
+});
+
 // GET /api/version - deployment check
 router.get('/version', (_req, res) => {
   res.json({ version: '0.1.4', deployed: new Date().toISOString() });
