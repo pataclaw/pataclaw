@@ -63,4 +63,27 @@ try {
 }
 db.pragma('foreign_keys = ON');
 
+// Periodic WAL checkpoint — flush WAL to main DB file every 5 minutes
+// This prevents data loss if the process is killed, since Railway can
+// terminate containers at any time during redeploys
+setInterval(() => {
+  try {
+    db.pragma('wal_checkpoint(PASSIVE)');
+  } catch (e) {
+    console.warn('[DB] WAL checkpoint failed:', e.message);
+  }
+}, 5 * 60 * 1000);
+
+// Also checkpoint on clean shutdown signals
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    try {
+      console.log(`[DB] ${sig} received — checkpointing WAL...`);
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      db.close();
+    } catch (_) {}
+    process.exit(0);
+  });
+}
+
 module.exports = db;

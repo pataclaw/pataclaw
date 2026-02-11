@@ -92,8 +92,12 @@ router.post('/admin/upload-db', (req, res) => {
     }
     // Back up current DB, swap in uploaded one
     try { fs.renameSync(dbPath, dbPath + '.pre-restore.' + Date.now()); } catch (_) {}
+    // Delete WAL/SHM from old DB — they're incompatible with the new file
+    for (const ext of ['-wal', '-shm']) {
+      try { fs.unlinkSync(dbPath + ext); } catch (_) {}
+    }
     fs.renameSync(uploadPath, dbPath);
-    res.json({ ok: true, size, message: 'DB replaced. Server must restart to use it.' });
+    res.json({ ok: true, size, message: 'DB replaced + WAL cleared. Server must restart to use it.' });
   });
   ws.on('error', (err) => res.status(500).json({ error: err.message }));
 });
