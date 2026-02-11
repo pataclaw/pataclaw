@@ -359,6 +359,15 @@ app.get('/view/:token', (req, res) => {
 
 app.use(errorHandler);
 
+// Catch uncaught exceptions for Railway debugging
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err.message);
+  console.error(err.stack);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[FATAL] Unhandled rejection:', err);
+});
+
 // Start simulation engine
 const engine = require('./simulation/engine');
 engine.start();
