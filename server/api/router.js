@@ -122,7 +122,7 @@ router.get('/admin/download-backup', (req, res) => {
   fs.createReadStream(backupPath).pipe(res);
 });
 
-// TEMPORARY: Clean up old backups to free disk space
+// TEMPORARY: Clean up old backups + stale uploads to free disk space
 router.delete('/admin/cleanup', (req, res) => {
   if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
@@ -130,18 +130,30 @@ router.delete('/admin/cleanup', (req, res) => {
   const dbPath = path.resolve(config.dbPath);
   const dbDir = path.dirname(dbPath);
   const dbName = path.basename(dbPath);
-  const files = fs.readdirSync(dbDir).filter(f => f.startsWith(dbName + '.corrupt.') || f.startsWith(dbName + '.pre-restore.'));
+  const files = fs.readdirSync(dbDir).filter(f =>
+    f.startsWith(dbName + '.corrupt.') || f.startsWith(dbName + '.pre-restore.') || f.startsWith(dbName + '.upload')
+  );
   let freed = 0;
   const deleted = [];
   for (const f of files) {
     const fp = path.join(dbDir, f);
     try { const s = fs.statSync(fp); freed += s.size; fs.unlinkSync(fp); deleted.push(f); } catch (e) { /* skip */ }
   }
-  // Also clean WAL/SHM from corrupt backups
-  for (const f of fs.readdirSync(dbDir).filter(f => f.includes('.corrupt.') && (f.endsWith('-wal') || f.endsWith('-shm')))) {
-    try { const fp = path.join(dbDir, f); const s = fs.statSync(fp); freed += s.size; fs.unlinkSync(fp); deleted.push(f); } catch (_) {}
-  }
   res.json({ deleted, freed_bytes: freed, freed_mb: Math.round(freed / 1024 / 1024) });
+});
+
+// TEMPORARY: Delete WAL/SHM files from the MAIN database (force clean re-read on restart)
+router.delete('/admin/clear-wal', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  const deleted = [];
+  for (const ext of ['-wal', '-shm']) {
+    const f = dbPath + ext;
+    try { if (fs.existsSync(f)) { const s = fs.statSync(f); fs.unlinkSync(f); deleted.push({ file: ext, size: s.size }); } } catch (e) { deleted.push({ file: ext, error: e.message }); }
+  }
+  res.json({ ok: true, deleted, message: 'WAL/SHM cleared. Restart server to re-read main DB file.' });
 });
 
 // TEMPORARY: List files in data directory for diagnostics
