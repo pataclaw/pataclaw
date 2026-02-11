@@ -223,7 +223,8 @@ router.post('/upgrade', (req, res) => {
 
   const building = db.prepare("SELECT * FROM buildings WHERE id = ? AND world_id = ? AND status = 'active'").get(building_id, req.worldId);
   if (!building) return res.status(404).json({ error: 'Active building not found' });
-  if (building.level >= 3) return res.status(400).json({ error: 'Max level reached (3)' });
+  const maxLevel = building.type === 'hut' ? 4 : 3;
+  if (building.level >= maxLevel) return res.status(400).json({ error: `Max level reached (${maxLevel})` });
 
   const upgradeCost = { wood: 10 * building.level, stone: 8 * building.level, crypto: 3 * building.level };
   const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(req.worldId);
@@ -391,7 +392,7 @@ router.post('/pray', (req, res) => {
   // Check building capacity
   const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(req.worldId).c;
   const buildingCap = db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' AND level = 1 THEN 3 WHEN type = 'hut' AND level = 2 THEN 6 WHEN type = 'hut' AND level = 3 THEN 10 WHEN type = 'hut' AND level = 4 THEN 16 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(req.worldId).cap;
 
   if (popAlive >= buildingCap) {

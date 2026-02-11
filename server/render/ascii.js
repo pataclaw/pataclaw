@@ -1,5 +1,5 @@
 const db = require('../db/connection');
-const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, BIOME_WALLS, BIOME_WATCHTOWERS, BIOME_BARRACKS, MODEL_SHRINES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE } = require('./sprites');
+const { villagerAppearance, SPEECH, SLEEP_BUBBLES, BUILDING_SPRITES, BIOME_TOWN_CENTERS, BIOME_WALLS, BIOME_WATCHTOWERS, BIOME_BARRACKS, MODEL_SHRINES, PROJECT_SPRITES, TERRAIN_CHARS, FEATURE_CHARS, RUBBLE_SPRITE, OVERGROWN_SPRITE, MEGASTRUCTURE_SPEECH, NOMAD_CAMP_SPRITE, BUILDING_TIER_SPRITES } = require('./sprites');
 const { hasMegastructure } = require('../simulation/megastructures');
 const { MAP_SIZE, deriveBiomeWeights } = require('../world/map');
 const { getCulture, buildSpeechPool } = require('../simulation/culture');
@@ -40,7 +40,7 @@ function buildTownFrame(worldId) {
 
   const popAlive = villagers.filter((v) => v.status === 'alive').length;
   const buildingCap = db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' AND level = 1 THEN 3 WHEN type = 'hut' AND level = 2 THEN 6 WHEN type = 'hut' AND level = 3 THEN 10 WHEN type = 'hut' AND level = 4 THEN 16 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId).cap;
 
   // Ghost echoes: recently dead villagers (within last 36 ticks)
@@ -152,11 +152,16 @@ function buildTownFrame(worldId) {
     if (row.c > maxCount) { maxCount = row.c; dominantBiome = row.terrain; }
   }
 
-  // Enrich buildings with sprite data (status-appropriate, biome-variant for defenses)
+  // Enrich buildings with sprite data (status-appropriate, biome-variant for defenses, tier upgrades)
   const enrichedBuildings = buildings.map((b) => {
     let sprite;
     if (b.status === 'rubble') sprite = RUBBLE_SPRITE;
     else if (b.status === 'overgrown') sprite = OVERGROWN_SPRITE;
+    // Tier sprites for L2+ (override biome variants — upgraded buildings look universal)
+    else if (b.level >= 2 && BUILDING_TIER_SPRITES[b.type] && BUILDING_TIER_SPRITES[b.type][b.level]) {
+      sprite = BUILDING_TIER_SPRITES[b.type][b.level];
+    }
+    // L1 biome variants
     else if (b.type === 'town_center' && BIOME_TOWN_CENTERS[dominantBiome]) sprite = BIOME_TOWN_CENTERS[dominantBiome];
     else if (b.type === 'wall' && BIOME_WALLS[dominantBiome]) sprite = BIOME_WALLS[dominantBiome];
     else if (b.type === 'watchtower' && BIOME_WATCHTOWERS[dominantBiome]) sprite = BIOME_WATCHTOWERS[dominantBiome];

@@ -71,7 +71,7 @@ function processGovernor(worldId, tick) {
   for (const b of activeBuildings) buildingCounts[b.type] = (buildingCounts[b.type] || 0) + 1;
 
   const capRow = db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' AND level = 1 THEN 3 WHEN type = 'hut' AND level = 2 THEN 6 WHEN type = 'hut' AND level = 3 THEN 10 WHEN type = 'hut' AND level = 4 THEN 16 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId);
   const popCap = capRow.cap;
 
@@ -85,6 +85,9 @@ function processGovernor(worldId, tick) {
   const foodCap = resCap.food || 200;
   const woodCap = resCap.wood || 200;
   const stoneCap = resCap.stone || 200;
+  const foodPct = food / Math.max(1, foodCap);
+  const woodPct = wood / Math.max(1, woodCap);
+  const stonePct = stone / Math.max(1, stoneCap);
 
   // ─── HELPERS ───
 
@@ -255,14 +258,82 @@ function processGovernor(worldId, tick) {
   }
 
   // ════════════════════════════════════════════
+  // PHASE 1.5: AUTO-UPGRADE (always runs — resource optimization)
+  // ════════════════════════════════════════════
+  const HOUSING_CAP = { 1: 3, 2: 6, 3: 10, 4: 16 };
+
+  // Upgrade priority order with conditions
+  const upgradeTargets = [];
+
+  // 1. Huts near pop cap (if hut count = 3 and pop >= cap - 2)
+  const hutCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'hut' AND status NOT IN ('destroyed')").get(worldId).c;
+  if (hutCount >= 3 && pop >= popCap - 2) {
+    upgradeTargets.push({ type: 'hut', maxLevel: 4 });
+  }
+
+  // 2. Workshop (if wood or stone < 20% cap)
+  if (buildingSet.has('workshop') && (woodPct < 0.20 || stonePct < 0.20)) {
+    upgradeTargets.push({ type: 'workshop', maxLevel: 3 });
+  }
+
+  // 3. Barracks (if warriors > 3 per barracks)
+  if (buildingSet.has('barracks')) {
+    const warriors = roleCounts.warrior || 0;
+    const barracksCount = buildingCounts.barracks || 0;
+    if (barracksCount > 0 && warriors > barracksCount * 3) {
+      upgradeTargets.push({ type: 'barracks', maxLevel: 3 });
+    }
+  }
+
+  // 4. Walls (if violence culture > 50)
+  if (buildingSet.has('wall')) {
+    const culture = db.prepare('SELECT violence_level FROM culture WHERE world_id = ?').get(worldId);
+    if (culture && culture.violence_level > 50) {
+      upgradeTargets.push({ type: 'wall', maxLevel: 3 });
+    }
+  }
+
+  // 5. Farms (if food < 40% cap)
+  if (buildingSet.has('farm') && foodPct < 0.40) {
+    upgradeTargets.push({ type: 'farm', maxLevel: 3 });
+  }
+
+  // Try ONE upgrade per governor tick
+  for (const target of upgradeTargets) {
+    // Find lowest-level active building of this type that can still be upgraded
+    const candidate = db.prepare(
+      "SELECT id, level, type FROM buildings WHERE world_id = ? AND type = ? AND status = 'active' AND level < ? ORDER BY level ASC LIMIT 1"
+    ).get(worldId, target.type, target.maxLevel);
+    if (!candidate) continue;
+
+    // Check upgrade cost: wood: 10*level, stone: 8*level, crypto: 3*level
+    const upgCost = { wood: 10 * candidate.level, stone: 8 * candidate.level, crypto: 3 * candidate.level };
+    if (wood >= upgCost.wood && stone >= upgCost.stone && (resMap.crypto || 0) >= upgCost.crypto) {
+      db.transaction(() => {
+        db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'wood'").run(upgCost.wood, worldId);
+        db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'stone'").run(upgCost.stone, worldId);
+        db.prepare("UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = 'crypto'").run(upgCost.crypto, worldId);
+        db.prepare('UPDATE buildings SET level = level + 1, max_hp = max_hp + 50, hp = hp + 50 WHERE id = ?').run(candidate.id);
+      })();
+      const HOUSING_NAMES = { 1: 'Hut', 2: 'House', 3: 'Lodge', 4: 'Tower Block' };
+      const newLevel = candidate.level + 1;
+      const name = candidate.type === 'hut' ? (HOUSING_NAMES[newLevel] || candidate.type) : candidate.type.replace(/_/g, ' ');
+      events.push({
+        type: 'governor',
+        title: `${candidate.type === 'hut' ? 'Hut' : candidate.type} upgraded to L${newLevel}`,
+        description: `The village upgraded a ${candidate.type.replace(/_/g, ' ')} to level ${newLevel}${candidate.type === 'hut' ? ` (${name})` : ''}.`,
+        severity: 'info',
+      });
+      break; // Only one upgrade per tick
+    }
+  }
+
+  // ════════════════════════════════════════════
   // PHASE 2: RESOURCE REBALANCING (always runs)
   // ════════════════════════════════════════════
 
   // If food is abundant but wood/stone are critically low,
   // demote excess farmers to idle so they can be reassigned to builders
-  const foodPct = food / Math.max(1, foodCap);
-  const woodPct = wood / Math.max(1, woodCap);
-  const stonePct = stone / Math.max(1, stoneCap);
   const farmers = roleCounts.farmer || 0;
   const builders = roleCounts.builder || 0;
 

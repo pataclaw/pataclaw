@@ -260,6 +260,14 @@ function canBuild(worldId, type) {
   if ((resMap.stone || 0) < def.stone) return { ok: false, reason: `Need ${def.stone} stone (have ${Math.floor(resMap.stone || 0)})` };
   if ((resMap.crypto || 0) < def.crypto) return { ok: false, reason: `Need ${def.crypto} crypto (have ${Math.floor(resMap.crypto || 0)})` };
 
+  // Hut cap: max 3 per town — upgrade existing huts for more capacity
+  if (type === 'hut') {
+    const hutCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'hut' AND status NOT IN ('destroyed')").get(worldId).c;
+    if (hutCount >= 3) {
+      return { ok: false, reason: 'Maximum 3 huts. Upgrade existing huts for more capacity.' };
+    }
+  }
+
   // Barracks: require at least 1 active wall, max 3 per world
   if (type === 'barracks') {
     const walls = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'wall' AND status = 'active'").get(worldId).c;
@@ -376,10 +384,16 @@ function autoBuilding(worldId, currentTick) {
 
   // 2. GROWTH: auto-build hut when at population cap
   const cap = db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' THEN level * 3 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
+    "SELECT COALESCE(SUM(CASE WHEN type = 'hut' AND level = 1 THEN 3 WHEN type = 'hut' AND level = 2 THEN 6 WHEN type = 'hut' AND level = 3 THEN 10 WHEN type = 'hut' AND level = 4 THEN 16 WHEN type = 'town_center' THEN 5 WHEN type = 'spawning_pools' THEN 5 ELSE 0 END), 5) as cap FROM buildings WHERE world_id = ? AND status = 'active'"
   ).get(worldId).cap;
 
   if (pop >= cap) {
+    // Check hut cap (max 3) — if at cap, skip auto-build (governor handles upgrades)
+    const hutCount = db.prepare(
+      "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'hut' AND status NOT IN ('destroyed')"
+    ).get(worldId).c;
+    if (hutCount >= 3) return events;
+
     const hutConstructing = db.prepare(
       "SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND type = 'hut' AND status = 'constructing'"
     ).get(worldId).c;

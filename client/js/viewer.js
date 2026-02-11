@@ -1251,7 +1251,7 @@ function renderScene(data) {
     if (!sprite) continue;
     if (b.type === 'dock') dockRenderX = bx;
     if (b.type === 'farm') farmPositions.push({ x: bx, w: sprite[0].length, id: b.id });
-    buildingPositions[b.id] = { x: bx, w: sprite[0].length, type: b.type };
+    buildingPositions[b.id] = { x: bx, w: sprite[0].length, h: sprite.length, type: b.type };
     var sh = sprite.length;
     var sw = sprite[0].length;
     var bsy = groundY - sh;
@@ -1483,8 +1483,9 @@ function renderScene(data) {
     }
 
     // Building label with status indicators
-    var label = b.type.replace('_', ' ').toUpperCase();
-    if (b.level > 1) label += ' L' + b.level;
+    var HOUSING_NAMES = { 1: 'HUT', 2: 'HOUSE', 3: 'LODGE', 4: 'TOWER' };
+    var label = b.type === 'hut' ? (HOUSING_NAMES[b.level] || 'HUT') : b.type.replace('_', ' ').toUpperCase();
+    if (b.type !== 'hut' && b.level > 1) label += ' L' + b.level;
     var lblClass = 'c-b-' + b.type;
     if (b.status === 'decaying') {
       label += ' [!]';
@@ -1523,6 +1524,45 @@ function renderScene(data) {
           var rsfx = roof.x + rsx;
           if (rsfx >= 0 && rsfx < W && snowY < H) {
             setCell(grid, rsfx, snowY, roofSnow[rseed % roofSnow.length], 'c-season-winter');
+          }
+        }
+      }
+    }
+  }
+
+  // ─── WARRIOR ROOF GUARDS (on barracks) ───
+  var roofGuardIds = {}; // track warriors shown as guards so they're skipped in normal rendering
+  if (data.villagers && data.villagers.length > 0) {
+    // Find barracks buildings and their positions
+    for (var bgi = 0; bgi < data.buildings.length; bgi++) {
+      var bgB = data.buildings[bgi];
+      if (bgB.type !== 'barracks' || bgB.status !== 'active') continue;
+      var bgPos = buildingPositions[bgB.id];
+      if (!bgPos) continue;
+      // Find warriors assigned to this barracks
+      var barracksGuards = [];
+      for (var vgi = 0; vgi < data.villagers.length; vgi++) {
+        var vg = data.villagers[vgi];
+        if (vg.role === 'warrior' && vg.assigned_building_id === bgB.id) {
+          barracksGuards.push(vg);
+          if (barracksGuards.length >= 3) break;
+        }
+      }
+      if (barracksGuards.length === 0) continue;
+      // Guard sprite (3 wide x 3 tall)
+      var guardSprite = [']=[ ', '/o\\ ', '|+| '];
+      var roofY = groundY - bgPos.h; // top of building
+      var guardSpacing = Math.max(3, Math.floor(bgPos.w / (barracksGuards.length + 1)));
+      for (var ggi = 0; ggi < barracksGuards.length; ggi++) {
+        roofGuardIds[barracksGuards[ggi].id] = true;
+        var gx = bgPos.x + guardSpacing * (ggi + 1) - 1;
+        for (var gr = 0; gr < 3; gr++) {
+          var gy = roofY - 3 + gr;
+          for (var gc = 0; gc < 3; gc++) {
+            var gfx = gx + gc, gfy = gy;
+            if (gfx >= 0 && gfx < W && gfy >= 0 && gfy < H && guardSprite[gr][gc] !== ' ') {
+              setCell(grid, gfx, gfy, guardSprite[gr][gc], 'c-warrior-guard');
+            }
           }
         }
       }
@@ -2017,6 +2057,8 @@ function renderScene(data) {
   for (var ai = 0; ai < aliveAgents.length; ai++) {
     var a = aliveAgents[ai];
     var v = a.data || {};
+    // Skip warriors rendered as roof guards on barracks
+    if (v.id && roofGuardIds[v.id]) continue;
     var ap = v.appearance || { eyes: 'o o', mouth: '___', head: '.---.', body: '|===|' };
     var role = v.role || 'idle';
     var hat = (role === 'warrior' && v.warrior_type && WARRIOR_TYPE_HATS[v.warrior_type])
