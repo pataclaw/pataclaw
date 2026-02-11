@@ -73,6 +73,16 @@ function buildTownFrame(worldId) {
     'SELECT villager_name FROM shell_relics WHERE world_id = ? ORDER BY created_tick DESC LIMIT 5'
   ).all(worldId).map(r => r.villager_name);
 
+  // Activities that happen indoors (villager not shown in the town view)
+  const INDOOR_ACTIVITIES = new Set([
+    'working', 'sleeping', 'meditating', 'praying', 'teaching',
+  ]);
+  // Roles that are typically indoors when not doing an outdoor activity
+  const INDOOR_ROLES = new Set(['scholar', 'priest']);
+
+  // Max visible villagers in the town view (prevents overcrowding)
+  const MAX_OUTDOOR = 20;
+
   // Enrich villagers with unique appearance + activity-aware speech
   const enrichedVillagers = villagers.map((v) => {
     const appearance = villagerAppearance(v.name, v.trait, v.role);
@@ -94,15 +104,39 @@ function buildTownFrame(worldId) {
       }
     }
 
+    // Determine if this villager is indoors
+    const indoor = INDOOR_ACTIVITIES.has(activity.activity) ||
+      (INDOOR_ROLES.has(v.role) && activity.activity === 'idle');
+
     return {
       ...v,
       appearance,
       activity,
+      indoor,
       speechPool,
       greetingPool: culture.custom_greetings.length > 0 ? culture.custom_greetings : null,
       sleepBubbles: SLEEP_BUBBLES,
     };
   });
+
+  // Split into outdoor and indoor villagers
+  const outdoorVillagers = enrichedVillagers.filter(v => !v.indoor);
+  const indoorVillagers = enrichedVillagers.filter(v => v.indoor);
+
+  // If too many outdoor, move excess to indoor (lowest-priority roles first)
+  let visibleVillagers = outdoorVillagers;
+  if (outdoorVillagers.length > MAX_OUTDOOR) {
+    // Prioritize: warriors > scouts > builders > hunters > fishermen > farmers > idle
+    const ROLE_PRIORITY = { warrior: 7, scout: 6, builder: 5, hunter: 4, fisherman: 3, farmer: 2, idle: 0 };
+    // Also prioritize villagers doing interesting activities
+    const ACTIVITY_PRIORITY = { fighting: 10, building_project: 8, celebrating: 6, making_art: 5, playing_music: 5, molting: 9, feasting: 4, arguing: 3, sparring: 7, socializing: 2, wandering: 1, chopping: 3, mining: 3, fishing: 3, hunting: 4 };
+    outdoorVillagers.sort((a, b) => {
+      const aP = (ACTIVITY_PRIORITY[a.activity.activity] || 0) + (ROLE_PRIORITY[a.role] || 1);
+      const bP = (ACTIVITY_PRIORITY[b.activity.activity] || 0) + (ROLE_PRIORITY[b.role] || 1);
+      return bP - aP;
+    });
+    visibleVillagers = outdoorVillagers.slice(0, MAX_OUTDOOR);
+  }
 
   // Biome distribution (explored tiles only) — computed early for biome-variant sprites
   const biomeRows = db.prepare(
@@ -187,7 +221,8 @@ function buildTownFrame(worldId) {
       total_fights: culture.total_fights,
     },
     buildings: enrichedBuildings,
-    villagers: enrichedVillagers,
+    villagers: visibleVillagers,
+    indoors: enrichedVillagers.length - visibleVillagers.length,
     projects: enrichedProjects,
     crops,
     resourceNodes: getNodesForFrame(worldId),

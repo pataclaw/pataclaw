@@ -164,35 +164,45 @@ function tickAllWorlds() {
     if (mode === 'dormant') continue;
     if (mode === 'slow' && tickCount % 10 !== 0) continue;
 
-    const result = processTick(world.id, globalTime);
+    let result;
+    try {
+      result = processTick(world.id, globalTime);
+    } catch (worldErr) {
+      console.error(`[ENGINE] Tick error for ${world.id}: ${worldErr.message}`);
+      continue;
+    }
     if (!result) continue;
 
     // Push frame to any connected viewers
     const conns = viewers.get(world.id);
     if (conns && conns.size > 0) {
-      const frame = buildFrame(world.id, 'town');
-      const data = `event: frame\ndata: ${JSON.stringify(frame)}\n\n`;
+      try {
+        const frame = buildFrame(world.id, 'town');
+        const data = `event: frame\ndata: ${JSON.stringify(frame)}\n\n`;
 
-      for (const res of conns) {
-        try {
-          res.write(data);
-          if (typeof res.flush === 'function') res.flush();
-        } catch {
-          conns.delete(res);
-        }
-      }
-
-      // Also push events
-      for (const evt of result.events) {
-        const evtData = `event: event\ndata: ${JSON.stringify(evt)}\n\n`;
         for (const res of conns) {
           try {
-            res.write(evtData);
+            res.write(data);
             if (typeof res.flush === 'function') res.flush();
           } catch {
             conns.delete(res);
           }
         }
+
+        // Also push events
+        for (const evt of result.events) {
+          const evtData = `event: event\ndata: ${JSON.stringify(evt)}\n\n`;
+          for (const res of conns) {
+            try {
+              res.write(evtData);
+              if (typeof res.flush === 'function') res.flush();
+            } catch {
+              conns.delete(res);
+            }
+          }
+        }
+      } catch (frameErr) {
+        console.error(`[ENGINE] Frame error for ${world.id}: ${frameErr.message}`);
       }
     }
   }

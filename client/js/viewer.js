@@ -2476,7 +2476,9 @@ function updateSidebar(data) {
     uFill.className = 'res-fill unique';
   }
 
-  document.getElementById('pop-count').textContent = data.population.alive + '/' + data.population.capacity;
+  var popText = data.population.alive + '/' + data.population.capacity;
+  if (data.indoors > 0) popText += ' (' + data.indoors + ' indoors)';
+  document.getElementById('pop-count').textContent = popText;
 
   var citizenList = document.getElementById('citizen-list');
   citizenList.innerHTML = '';
