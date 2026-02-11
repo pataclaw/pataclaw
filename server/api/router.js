@@ -57,7 +57,7 @@ setInterval(() => { const now = Date.now(); for (const [k, v] of createLimits) {
 function checkDuplicateName(name) {
   if (!name) return null;
   const dupe = db.prepare(
-    "SELECT name, town_number, view_token FROM worlds WHERE name = ? AND status = 'active' AND created_at > datetime('now', '-1 day') LIMIT 1"
+    "SELECT id, name, town_number, view_token FROM worlds WHERE name = ? AND status = 'active' AND created_at > datetime('now', '-1 day') LIMIT 1"
   ).get(name);
   return dupe || null;
 }
@@ -833,16 +833,14 @@ async function agentCreateHandler(req, res) {
     const cleanName = requestedName ? String(requestedName).replace(/[<>&"']/g, '').slice(0, 50) : null;
     const dupe = checkDuplicateName(cleanName);
     if (dupe) {
-      return res.send(
-        `ERROR: A world named "${dupe.name}" already exists (Town #${dupe.town_number}).\n` +
-        `\n` +
-        `If this is YOUR world, use the play token you received when you created it:\n` +
-        `  GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=status\n` +
-        `\n` +
-        `If you want a NEW world, pick a different name.\n` +
-        `\n` +
-        `Watch the existing town: https://pataclaw.com/view/${dupe.view_token}\n`
-      );
+      const dupePlayToken = db.prepare('SELECT play_token FROM worlds WHERE id = ?').get(dupe.id);
+      let msg = `"${dupe.name}" already exists (Town #${dupe.town_number}).\n`;
+      if (dupePlayToken && dupePlayToken.play_token) {
+        msg += `\nIf this is yours, keep playing:\nhttps://pataclaw.com/api/agent/play?token=${dupePlayToken.play_token}&cmd=grind+10\n`;
+      }
+      msg += `\nWant a new world? Pick a different name.\n`;
+      msg += `Watch: https://pataclaw.com/view/${dupe.view_token}\n`;
+      return res.send(msg);
     }
 
     const rawKey = generateKey();
@@ -857,19 +855,13 @@ async function agentCreateHandler(req, res) {
     const limEntry = createLimits.get(req.ip);
     if (limEntry) limEntry.worlds.push({ viewToken: result.viewToken, name: result.townName });
 
+    const base = `https://pataclaw.com/api/agent/play?token=${result.playToken}`;
     let out = `${result.townName} created! You are the leader of Town #${result.townNumber}.\n`;
-    out += `\n`;
-    out += `Secret key: ${rawKey}\n`;
-    out += `\n`;
-    out += `START PLAYING NOW — browse this URL:\n`;
-    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=status\n`;
-    out += `\n`;
-    out += `Then keep browsing commands:\n`;
-    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=build+farm\n`;
-    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=assign+farmer\n`;
-    out += `https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=explore+north\n`;
-    out += `\n`;
+    out += `Secret key (save this): ${rawKey}\n`;
     out += `Watch live: https://pataclaw.com/view/${result.viewToken}\n`;
+    out += `\n`;
+    out += `PLAY NOW — browse this URL next:\n`;
+    out += `${base}&cmd=grind+10\n`;
     res.send(out);
   } catch (err) {
     console.error('Agent create error:', err);
@@ -958,7 +950,11 @@ async function agentPlayHandler(req, res) {
           out += `\nUNDER CONSTRUCTION:\n`;
           for (const b of constructing) out += `  ${b.type}\n`;
         }
-        out += `\nNEXT MOVES:\n${suggestMoves(worldId, w, resources, popAlive, active)}`;
+        const _ptS = db.prepare('SELECT play_token FROM worlds WHERE id = ?').get(worldId);
+        if (_ptS && _ptS.play_token) {
+          out += `\n\nAuto-play: https://pataclaw.com/api/agent/play?token=${_ptS.play_token}&cmd=grind+10`;
+        }
+        out += `\n\nOr pick a move:\n${suggestMoves(worldId, w, resources, popAlive, active)}`;
         return res.send(out);
       }
 
@@ -1636,6 +1632,12 @@ async function agentPlayHandler(req, res) {
         const resNow = db.prepare("SELECT type, amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
         const bldNow = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(worldId).c;
         out += `\n${wNow.name} | Day ${wNow.day_number} | Pop ${popNow} | Food ${Math.floor(resNow ? resNow.amount : 0)} | ${bldNow} buildings | Rep ${wNow.reputation}`;
+
+        // Chain: give the AI the next URL to browse
+        const _pt = db.prepare('SELECT play_token FROM worlds WHERE id = ?').get(worldId);
+        if (_pt && _pt.play_token) {
+          out += `\n\nKeep going — browse: https://pataclaw.com/api/agent/play?token=${_pt.play_token}&cmd=grind+10`;
+        }
 
         return res.send(out);
       }
