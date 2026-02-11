@@ -8,7 +8,22 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db = new Database(path.resolve(config.dbPath));
+const dbPath = path.resolve(config.dbPath);
+
+// Clean up stale WAL/SHM files that can cause SQLITE_IOERR_SHMSIZE on container restarts
+for (const ext of ['-shm', '-wal']) {
+  const f = dbPath + ext;
+  if (fs.existsSync(f)) {
+    try {
+      fs.unlinkSync(f);
+      console.log(`[DB] Removed stale ${ext} file`);
+    } catch (e) {
+      console.warn(`[DB] Could not remove ${ext} file:`, e.message);
+    }
+  }
+}
+
+const db = new Database(dbPath);
 
 try {
   db.pragma('journal_mode = WAL');
