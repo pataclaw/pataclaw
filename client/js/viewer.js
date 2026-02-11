@@ -1457,8 +1457,19 @@ function renderScene(data) {
       for (var r = 0; r < 2; r++) {
         for (var c = 0; c < rw; c++) {
           var rc = rubbleChars[(r * 3 + c * 7 + hashBuildingId(b.id || '')) % rubbleChars.length];
+          // Occasional char settle — swap a rubble char briefly
+          if (((waveCounter + c * 5 + r * 3) % 36) < 2) {
+            rc = rubbleChars[(r + c + waveCounter) % rubbleChars.length];
+          }
           setCellW(grid, bx + c, groundY - 2 + r, rc, 'c-rubble');
         }
+      }
+      // Dust motes floating above rubble
+      var dustY = groundY - 3 + Math.round(Math.sin(waveCounter * 0.1 + hashBuildingId(b.id || '')) * 0.8);
+      var dustX = bx + ((waveCounter + hashBuildingId(b.id || '')) % Math.max(1, rw));
+      var dustCh = (waveCounter % 2) === 0 ? '\u00b7' : '.';
+      if (dustY >= 0 && dustY < H) {
+        setCellW(grid, dustX, dustY, dustCh, 'c-rubble');
       }
 
     } else if (b.status === 'overgrown') {
@@ -1579,18 +1590,22 @@ function renderScene(data) {
         }
       }
       if (barracksGuards.length === 0) continue;
-      // Guard sprite (3 wide x 3 tall)
-      var guardSprite = [']=[ ', '/o\\ ', '|+| '];
+      // Guard sprite — cycle 2 poses per guard, offset by index
+      var guardPoses = [
+        [']=[ ', '/o\\ ', '|+| '],  // forward
+        [']=[ ', '/o\\>', '|+| '],  // looking right
+      ];
       var roofY = groundY - bgPos.h; // top of building
       var guardSpacing = Math.max(3, Math.floor(bgPos.w / (barracksGuards.length + 1)));
       for (var ggi = 0; ggi < barracksGuards.length; ggi++) {
         roofGuardIds[barracksGuards[ggi].id] = true;
         var gx = bgPos.x + guardSpacing * (ggi + 1) - 1;
+        var guardPose = guardPoses[Math.floor(((waveCounter + ggi * 8) % 24) / 12)];
         for (var gr = 0; gr < 3; gr++) {
           var gy = roofY - 3 + gr;
-          for (var gc = 0; gc < 3; gc++) {
-            if (guardSprite[gr][gc] !== ' ') {
-              setCellW(grid, gx + gc, gy, guardSprite[gr][gc], 'c-warrior-guard');
+          for (var gc = 0; gc < guardPose[gr].length; gc++) {
+            if (guardPose[gr][gc] !== ' ') {
+              setCellW(grid, gx + gc, gy, guardPose[gr][gc], 'c-warrior-guard');
             }
           }
         }
@@ -1688,13 +1703,22 @@ function renderScene(data) {
       var cropColor = stage >= 3 ? 'c-croph' : 'c-crop';
       // Place crop to the right of the farm building (world-space)
       var cropX = fp.x + fp.w + 1 + (ci % 3) * 4;
+      // Sway for stages 1+: shift left/right based on wave
+      var cropSway = (stage >= 1) ? ((waveCounter + ci * 5) % 16 < 8 ? 0 : 1) : 0;
       var cropY = groundY - 1;
       for (var csi = 0; csi < cropStr.length; csi++) {
         if (cropStr[csi] !== ' ') {
-          var cropSx = Math.round(worldToScreen(cropX + csi));
+          var cropSx = Math.round(worldToScreen(cropX + csi + cropSway));
           if (cropSx >= 0 && cropSx < W && getCell(grid, cropSx, cropY).ch === ' ') {
             setCell(grid, cropSx, cropY, cropStr[csi], cropColor);
           }
+        }
+      }
+      // Mature crops (stage 3): periodic sparkle above
+      if (stage >= 3 && (waveCounter + ci * 7) % 24 < 3) {
+        var sparkSx = Math.round(worldToScreen(cropX + 1));
+        if (sparkSx >= 0 && sparkSx < W && cropY - 1 >= 0 && getCell(grid, sparkSx, cropY - 1).ch === ' ') {
+          setCell(grid, sparkSx, cropY - 1, '*', 'c-croph');
         }
       }
     }
@@ -1723,7 +1747,24 @@ function renderScene(data) {
       var nSprite = NODE_SPRITES[node.type];
       if (!nSprite) continue;
       var isDepleted = node.depleted_tick !== null;
-      var spriteLines = isDepleted ? nSprite.depleted : nSprite.active;
+      var spriteLines;
+      if (isDepleted) {
+        spriteLines = nSprite.depleted;
+      } else if (node.type === 'tree') {
+        // Sway canopy between two poses
+        var treeSway = ((waveCounter + ni * 7) % 18) < 9;
+        spriteLines = treeSway ? ['\\|/', ' |  '] : ['/|\\', ' |  '];
+      } else if (node.type === 'rock') {
+        // Brief glint every ~30 frames
+        var rockGlint = ((waveCounter + ni * 11) % 30) < 2;
+        spriteLines = rockGlint ? ['[*#]'] : nSprite.active;
+      } else if (node.type === 'fish_spot') {
+        // Ripple between two poses
+        var fishRipple = ((waveCounter + ni * 5) % 8) < 4;
+        spriteLines = fishRipple ? ['~><~'] : ['~<>~'];
+      } else {
+        spriteLines = nSprite.active;
+      }
       var nodeColor = isDepleted ? 'c-depleted' : (node.type === 'tree' ? 'c-tree' : node.type === 'rock' ? 'c-rock' : 'c-fish-spot');
       // Position: to the right of building, offset by node index (world-space)
       var nodeX = bp.x + bp.w + 1 + node.offset_idx * 5;
@@ -1754,11 +1795,20 @@ function renderScene(data) {
       var psw = pSprite[0].length;
       var psy = groundY - psh;
       var pColor = proj.status === 'complete' ? 'c-projd' : 'c-proj';
+      // Complete: shimmer color every 12 frames
+      if (proj.status === 'complete' && (waveCounter % 24) < 12) {
+        pColor = 'c-cele';
+      }
 
       for (var pr = 0; pr < psh; pr++) {
         for (var pc = 0; pc < psw; pc++) {
           if (pSprite[pr][pc] !== ' ') {
-            setCellW(grid, px + pc, psy + pr, pSprite[pr][pc], pColor);
+            // Active projects: occasional construction sparkle on random chars
+            var pCh = pSprite[pr][pc];
+            if (proj.status !== 'complete' && ((waveCounter * 3 + pr * 7 + pc * 13 + pi * 11) % 20) < 2) {
+              pCh = '*';
+            }
+            setCellW(grid, px + pc, psy + pr, pCh, pColor);
           }
         }
       }
@@ -1798,8 +1848,27 @@ function renderScene(data) {
       if (sy2 < 2) break;
       var art = seg.art || '|  |';
       var segColor = seg.hp < 50 ? 'c-monolith-decay' : 'c-monolith';
+      var CRUMBLE_CHARS = ['.', ',', ':', ';'];
       for (var ci2 = 0; ci2 < art.length && spireX + ci2 + 2 < W; ci2++) {
-        if (art[ci2] !== ' ') setCell(grid, spireX + ci2 + 2, sy2, art[ci2], segColor);
+        if (art[ci2] !== ' ') {
+          var sCh = art[ci2];
+          // Crumbling: replace chars based on hp for decaying segments
+          if (seg.hp < 50) {
+            var crumbleChance = (100 - seg.hp) / 200; // 0.25 at hp=50, 0.5 at hp=0
+            if (((si2 * 7 + ci2 * 13 + waveCounter) % 20) / 20 < crumbleChance) {
+              sCh = CRUMBLE_CHARS[(si2 + ci2 + waveCounter) % CRUMBLE_CHARS.length];
+            }
+          }
+          setCell(grid, spireX + ci2 + 2, sy2, sCh, segColor);
+        }
+      }
+      // Falling debris particle below decaying segments
+      if (seg.hp < 30 && sy2 + 1 < H) {
+        var debrisX = spireX + 2 + ((waveCounter + si2 * 3) % Math.max(1, art.length));
+        var debrisCh = ((waveCounter + si2) % 2) === 0 ? '.' : ',';
+        if (debrisX < W && getCell(grid, debrisX, sy2 + 1).ch === ' ') {
+          setCell(grid, debrisX, sy2 + 1, debrisCh, 'c-monolith-decay');
+        }
       }
     }
     // Scaffolding animation if building
@@ -2175,13 +2244,15 @@ function renderScene(data) {
         ' d   b ',
       ];
     } else if (a.state === 'meditating') {
+      var medAura = ['~','*','\u00b7','\u00b0'][Math.floor(waveCounter / 5) % 4];
+      var medBob = (waveCounter % 20) < 10 ? ' _/  \\_ ' : ' _/ \\_ ';
       charLines = [
-        '   ~   ',
+        '   ' + medAura + '   ',
         ap.head,
         '|' + ap.eyes.replace(/[oO@*0><=]/g, '-') + '|',
         '|' + ap.mouth + '|',
         "'" + ap.body.slice(1, -1) + "'",
-        ' _/  \\_ ',
+        medBob,
       ];
     } else if (a.state === 'celebrating') {
       var celFrame = a.bobFrame % 6;
@@ -2324,13 +2395,17 @@ function renderScene(data) {
         vColor = 'c-shell';
       }
     } else {
+      // Idle: weight-shift fidget + blink
+      var idlePhase = a.bobFrame % 12;
+      var idleLegs = idlePhase < 4 ? ' d   b' : idlePhase < 8 ? ' d  b ' : '  d  b';
+      var idleEyes = (a.bobFrame % 48 < 2) ? ap.eyes.replace(/[oO@*0><=^]/g, '-') : ap.eyes;
       charLines = [
         hat,
         ap.head,
-        '|' + ap.eyes + '|',
+        '|' + idleEyes + '|',
         '|' + ap.mouth + '|',
         "'" + ap.body.slice(1, -1) + "'",
-        bob ? ' d   b' : ' d   b',
+        idleLegs,
       ];
     }
 
@@ -2416,12 +2491,17 @@ function renderScene(data) {
       for (var ghi = 0; ghi < ghost.name.length; ghi++) ghostHash = ((ghostHash << 5) - ghostHash + ghost.name.charCodeAt(ghi)) | 0;
       ghostHash = Math.abs(ghostHash);
       var gx2 = 5 + (ghostHash % (W - 15));
-      var gy2 = groundY - 5 - (ghostHash % 3);
+      // Vertical float using sine wave offset by ghost identity
+      var ghostFloat = Math.sin(waveCounter * 0.06 + ghostHash) * 1.5;
+      var gy2 = groundY - 5 - (ghostHash % 3) + Math.round(ghostFloat);
       // Fade based on time since death (0-36 ticks)
       var fade = ghost.ticksSinceDeath / 36;
       if (Math.random() < fade) continue; // more likely to be invisible as time passes
-      // Draw dim ghost sprite
-      var ghostLines = [' .  . ', ' .-. ', '| ~ |', "'---'"];
+      // Flicker sprite chars every ~8 frames
+      var ghostFlicker = ((waveCounter + ghostHash) % 8) < 1;
+      var ghostLines = ghostFlicker
+        ? [' .  . ', ' .·. ', ': ~ :', "'.·.'"]
+        : [' .  . ', ' .-. ', '| ~ |', "'---'"];
       for (var gr = 0; gr < ghostLines.length; gr++) {
         for (var gc = 0; gc < ghostLines[gr].length; gc++) {
           var gfx = gx2 + gc, gfy = gy2 + gr;
