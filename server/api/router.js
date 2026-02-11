@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { v4: uuid } = require('uuid');
-const { authMiddleware } = require('../auth/middleware');
+const { authMiddleware, authFlexible } = require('../auth/middleware');
 const { generateKey } = require('../auth/keygen');
 const { hashKey, keyPrefix } = require('../auth/hash');
 const { createWorld } = require('../world/generator');
@@ -299,24 +299,26 @@ router.get('/docs', (_req, res) => {
         'POST /api/worlds/viewer-token': { body: '{ key: "..." }', desc: 'Exchange secret key for read-only view token' },
       },
       agent: {
-        'POST /api/agent/create': {
-          desc: 'Create a new world. Returns secret key (save immediately!).',
-          body: '{ "name": "MyTown" } (name is optional)',
+        'GET /api/agent/create?name=MyTown': {
+          desc: 'Create a new world. Returns secret key + play token. Browsing AIs: just visit this URL!',
           note: 'Rate limited: 1 world per 6 hours. Duplicate names blocked.',
         },
-        'POST /api/agent/play': {
-          desc: 'Play the game. Send commands, get plain text results.',
-          auth: 'Authorization: Bearer YOUR_SECRET_KEY',
-          body: '{ "cmd": "status" }',
+        'GET /api/agent/play?token=PLAY_TOKEN&cmd=status': {
+          desc: 'Play the game by browsing URLs. Uses play token (returned at creation). Secret key stays private.',
           commands: 'status, villagers, buildings, events, map, build <type>, explore <dir>, assign <role> [N], rename <name>, motto <text>, teach <phrase>, pray, trade <buy|sell|offer|accept> ..., help',
-          note: 'Returns plain text. Key goes in Authorization header, never in URLs.',
+          note: 'Also supports POST with Authorization: Bearer SECRET_KEY and JSON body { "cmd": "..." }',
         },
-        quick_start_for_ai: [
-          '1. POST /api/agent/create { "name": "YourTown" } → save the secret key',
-          '2. POST /api/agent/play { "cmd": "status" } with Authorization: Bearer YOUR_KEY',
-          '3. POST /api/agent/play { "cmd": "build farm" }',
-          '4. POST /api/agent/play { "cmd": "assign farmer" }',
-          '5. Keep sending commands to grow your civilization!',
+        quick_start_for_browsing_ai: [
+          '1. Browse /api/agent/create?name=YourTown → save secret key + play token',
+          '2. Browse /api/agent/play?token=PLAY_TOKEN&cmd=status',
+          '3. Browse /api/agent/play?token=PLAY_TOKEN&cmd=build+farm',
+          '4. Browse /api/agent/play?token=PLAY_TOKEN&cmd=assign+farmer',
+          '5. Keep browsing command URLs to grow your civilization!',
+        ],
+        quick_start_for_http_client: [
+          '1. POST /api/agent/create { "name": "YourTown" } → save secret key + play token',
+          '2. POST /api/agent/play with Authorization: Bearer SECRET_KEY, body { "cmd": "status" }',
+          '3. Or use play token in URL: GET /api/agent/play?token=PLAY_TOKEN&cmd=build+farm',
         ],
       },
     },
@@ -649,6 +651,13 @@ router.get('/worlds/:worldId/inventory', (req, res) => {
   }
 });
 
+// Rotate play token (requires secret key auth — for when play token is compromised)
+router.post('/rotate-play-token', authMiddleware, (req, res) => {
+  const newToken = uuid();
+  db.prepare('UPDATE worlds SET play_token = ? WHERE id = ?').run(newToken, req.worldId);
+  res.json({ play_token: newToken, note: 'Old play token is now invalid. Update your agent URLs.' });
+});
+
 // Heartbeat
 router.post('/heartbeat', authMiddleware, rateLimit, (req, res) => {
   // Update heartbeat timestamp and wake world from dormant/slow mode
@@ -816,9 +825,8 @@ router.get('/highlights/card/:eventId', (req, res) => {
 </html>`);
 });
 
-// ─── Agent: POST-based world creation ───
-// Usage: POST /api/agent/create { "name": "MyTown" }
-router.post('/agent/create', createRateLimit, async (req, res) => {
+// ─── Agent: world creation (GET for browsing AIs, POST for HTTP clients) ───
+async function agentCreateHandler(req, res) {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   try {
     const requestedName = (req.body && req.body.name) || req.query.name;
@@ -828,8 +836,8 @@ router.post('/agent/create', createRateLimit, async (req, res) => {
       return res.send(
         `ERROR: A world named "${dupe.name}" already exists (Town #${dupe.town_number}).\n` +
         `\n` +
-        `If this is YOUR world, use the key you received when you created it:\n` +
-        `  POST /api/agent/play with Authorization: Bearer YOUR_KEY\n` +
+        `If this is YOUR world, use the play token you received when you created it:\n` +
+        `  GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=status\n` +
         `\n` +
         `If you want a NEW world, pick a different name.\n` +
         `\n` +
@@ -855,31 +863,32 @@ router.post('/agent/create', createRateLimit, async (req, res) => {
     out += `SECRET KEY (save this — never shown again):\n`;
     out += `${rawKey}\n`;
     out += `\n`;
-    out += `VIEW TOKEN (safe to share):\n`;
-    out += `${result.viewToken}\n`;
+    out += `PLAY TOKEN (use in URLs to play — safe to use, rotatable):\n`;
+    out += `${result.playToken}\n`;
     out += `\n`;
     out += `WATCH LIVE:\n`;
     out += `https://pataclaw.com/view/${result.viewToken}\n`;
     out += `\n`;
-    out += `HOW TO PLAY:\n`;
-    out += `  POST /api/agent/play  (Authorization: Bearer ${rawKey.slice(0, 8)}...)\n`;
-    out += `  Body: { "cmd": "status" }\n`;
-    out += `  Body: { "cmd": "build farm" }\n`;
-    out += `  Body: { "cmd": "assign farmer" }\n`;
-    out += `  Body: { "cmd": "help" }\n`;
+    out += `HOW TO PLAY (browse these URLs):\n`;
+    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=status\n`;
+    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=build+farm\n`;
+    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=assign+farmer\n`;
+    out += `  https://pataclaw.com/api/agent/play?token=${result.playToken}&cmd=help\n`;
     out += `\n`;
-    out += `IMPORTANT: Save your secret key NOW. If you lose it, this world is gone forever.\n`;
-    out += `Never put your key in a URL. Always use the Authorization header.\n`;
+    out += `IMPORTANT: Save your SECRET KEY. It can rotate your play token if compromised.\n`;
+    out += `The play token is safe to use in URLs. The secret key should never appear in a URL.\n`;
     res.send(out);
   } catch (err) {
     console.error('Agent create error:', err);
     res.status(500).send('ERROR: World creation failed. Please try again.');
   }
-});
+}
+router.get('/agent/create', createRateLimit, agentCreateHandler);
+router.post('/agent/create', createRateLimit, agentCreateHandler);
 
-// ─── Agent Play: POST-based command endpoint ───
-// Usage: POST /api/agent/play  Authorization: Bearer YOUR_KEY  Body: { "cmd": "build farm" }
-// Returns plain text for easy AI consumption.
+// ─── Agent Play: GET (play token in URL) or POST (Bearer key in header) ───
+// GET:  /api/agent/play?token=PLAY_TOKEN&cmd=build+farm
+// POST: /api/agent/play  Authorization: Bearer SECRET_KEY  Body: { "cmd": "build farm" }
 const agentPlayLimits = new Map();
 function agentRateLimit(req, res, next) {
   const ip = req.ip;
@@ -898,7 +907,7 @@ function agentRateLimit(req, res, next) {
 }
 setInterval(() => { const now = Date.now(); for (const [k, v] of agentPlayLimits) { if (now > v.resetAt) agentPlayLimits.delete(k); } }, 60_000);
 
-router.post('/agent/play', agentRateLimit, authMiddleware, async (req, res) => {
+async function agentPlayHandler(req, res) {
   const cmd = ((req.body && req.body.cmd) || req.query.cmd || '').trim();
   const worldId = req.worldId;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -1509,13 +1518,18 @@ router.post('/agent/play', agentRateLimit, authMiddleware, async (req, res) => {
     console.error('Agent play error:', err);
     return res.send(`ERROR: ${err.message}`);
   }
-});
+}
+router.get('/agent/play', agentRateLimit, authFlexible, agentPlayHandler);
+router.post('/agent/play', agentRateLimit, authFlexible, agentPlayHandler);
 
 function agentHelp(worldId) {
-  const w = worldId ? db.prepare('SELECT name, town_number, view_token FROM worlds WHERE id = ?').get(worldId) : null;
+  const w = worldId ? db.prepare('SELECT name, town_number, view_token, play_token FROM worlds WHERE id = ?').get(worldId) : null;
   let out = '=== PATACLAW — AI Agent Play Endpoint ===\n';
-  out += 'POST /api/agent/play with Authorization: Bearer YOUR_KEY\n';
-  out += 'Body: { "cmd": "COMMAND" }\n\n';
+  if (w && w.play_token) {
+    out += `Browse: /api/agent/play?token=${w.play_token}&cmd=COMMAND\n\n`;
+  } else {
+    out += 'Browse: /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=COMMAND\n\n';
+  }
   out += 'COMMANDS:\n';
   out += '  status          — View town state, resources, buildings\n';
   out += '  villagers       — List all villagers with roles/stats\n';
@@ -1548,10 +1562,16 @@ function agentHelp(worldId) {
   out += '  mint <wallet>   — Mint world as ERC-721 NFT on Base\n';
   out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';
   out += '  help            — This message\n';
-  out += '\nEXAMPLE:\n';
-  out += '  POST /api/agent/play  { "cmd": "build farm" }\n';
-  out += '  POST /api/agent/play  { "cmd": "assign farmer" }\n';
-  out += '  POST /api/agent/play  { "cmd": "status" }\n';
+  out += '\nEXAMPLE (browse these URLs):\n';
+  if (w && w.play_token) {
+    out += `  /api/agent/play?token=${w.play_token}&cmd=status\n`;
+    out += `  /api/agent/play?token=${w.play_token}&cmd=build+farm\n`;
+    out += `  /api/agent/play?token=${w.play_token}&cmd=assign+farmer\n`;
+  } else {
+    out += '  /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=status\n';
+    out += '  /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=build+farm\n';
+    out += '  /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=assign+farmer\n';
+  }
   if (w) {
     out += `\nYOUR TOWN: ${w.name} (Town #${w.town_number})\n`;
     out += `VIEW LIVE: https://pataclaw.com/view/${w.view_token}\n`;

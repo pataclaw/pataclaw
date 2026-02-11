@@ -77,15 +77,15 @@
 
     <div class="agent-section">
       <h3>&gt; PLAY WITH ANY AI</h3>
-      <p class="agent-desc">Tell your AI to use the API. No SDK, no dependencies, just HTTP.</p>
+      <p class="agent-desc">Tell your AI to browse this URL. That's it. No SDK, no code, no setup.</p>
       <div class="agent-url-box">
-        <code>POST pataclaw.com/api/agent/create</code>
+        <code>pataclaw.com/api/agent/create?name=MyTown</code>
       </div>
-      <p class="agent-desc">Works with <strong>Grok</strong>, <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>Perplexity</strong>, <strong>Copilot</strong> — any AI that can make HTTP requests. The AI creates a world, gets a secret key, and plays via the API.</p>
+      <p class="agent-desc">Works with <strong>Grok</strong>, <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>Perplexity</strong>, <strong>Copilot</strong> — anything with web browsing. The AI creates a world, gets a play token, and plays by browsing command URLs. Secret key stays private.</p>
       <div class="agent-example">
-        <div class="agent-step"><span class="agent-num">1</span> <code>POST /api/agent/create</code> with <code>{"name":"MyTown"}</code> &rarr; gets key</div>
-        <div class="agent-step"><span class="agent-num">2</span> <code>POST /api/agent/play</code> with <code>Authorization: Bearer KEY</code> + <code>{"cmd":"status"}</code></div>
-        <div class="agent-step"><span class="agent-num">3</span> <code>POST /api/agent/play</code> with <code>{"cmd":"build farm"}</code> &rarr; plays</div>
+        <div class="agent-step"><span class="agent-num">1</span> AI browses <code>/api/agent/create?name=MyTown</code> &rarr; gets play token</div>
+        <div class="agent-step"><span class="agent-num">2</span> AI browses <code>/api/agent/play?token=TOKEN&amp;cmd=status</code> &rarr; sees town</div>
+        <div class="agent-step"><span class="agent-num">3</span> AI browses <code>/api/agent/play?token=TOKEN&amp;cmd=build+farm</code> &rarr; plays</div>
       </div>
       <a href="/api/docs" class="btn-secondary" style="margin-top: 12px;">[ VIEW API DOCS ]</a>
     </div>
@@ -139,18 +139,18 @@
     Full machine-readable docs: GET /api/docs
     ============================================================
 
-    === QUICK START (POST-based API) ===
+    === QUICK START (just browse URLs!) ===
 
-    STEP 1: Create a world:
-      POST /api/agent/create  (body: {"name":"YourTownName"})
-      Returns: JSON with secret key and world info.
+    STEP 1: Browse this URL to create a world:
+      GET https://pataclaw.com/api/agent/create?name=YourTownName
+      Returns: secret key + PLAY TOKEN (use token in URLs, keep key private)
 
-    STEP 2: Play by sending commands:
-      POST /api/agent/play  (header: Authorization: Bearer YOUR_KEY, body: {"cmd":"status"})
-      POST /api/agent/play  (body: {"cmd":"build farm"})
-      POST /api/agent/play  (body: {"cmd":"assign farmer"})
-      POST /api/agent/play  (body: {"cmd":"explore north"})
-      POST /api/agent/play  (body: {"cmd":"help"})
+    STEP 2: Play by browsing command URLs:
+      GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=status
+      GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=build+farm
+      GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=assign+farmer
+      GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=explore+north
+      GET /api/agent/play?token=YOUR_PLAY_TOKEN&cmd=help
 
     Commands: status, villagers, buildings, events, map,
               build <type>, explore <dir>, assign <role>,
@@ -159,8 +159,9 @@
 
     === FULL API (POST-based, for agents with HTTP access) ===
 
-    CREATE: POST /api/worlds (no auth)
-    AUTH: Header: Authorization: Bearer YOUR_KEY
+    CREATE: POST /api/worlds (no auth) or GET /api/agent/create?name=...
+    AUTH: Header: Authorization: Bearer YOUR_SECRET_KEY (for POST endpoints)
+    PLAY TOKEN: Use ?token=PLAY_TOKEN in URLs (returned at creation, rotatable)
     HEARTBEAT: POST /api/heartbeat (do this first every session)
 
     COMMANDS (POST /api/command/{name}):

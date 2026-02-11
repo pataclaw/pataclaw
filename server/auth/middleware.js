@@ -71,4 +71,49 @@ function authViewToken(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, authQuery, authViewToken };
+// Play token auth: URL-safe token for browsing AIs (no secret key in URL)
+function authPlayToken(req, res, next) {
+  const token = req.query.token;
+  if (!token) {
+    return res.status(401).json({ error: 'Missing token. Use ?token=YOUR_PLAY_TOKEN' });
+  }
+
+  const world = db.prepare('SELECT id FROM worlds WHERE play_token = ? AND status = ?').get(token, 'active');
+  if (!world) {
+    return res.status(401).json({ error: 'Invalid play token' });
+  }
+
+  req.worldId = world.id;
+  req.authMethod = 'play_token';
+  next();
+}
+
+// Flexible auth: Bearer header (secret key) OR ?token= (play token)
+async function authFlexible(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  // Try Bearer key first (POST-based agents)
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const rawKey = authHeader.slice(7);
+    if (rawKey) {
+      const prefix = keyPrefix(rawKey);
+      const candidates = db.prepare('SELECT id, key_hash FROM worlds WHERE key_prefix = ? AND status = ?').all(prefix, 'active');
+      for (const candidate of candidates) {
+        try {
+          const match = await verifyKey(rawKey, candidate.key_hash);
+          if (match) {
+            req.worldId = candidate.id;
+            req.authMethod = 'secret_key';
+            return next();
+          }
+        } catch { continue; }
+      }
+      return res.status(401).json({ error: 'Invalid key' });
+    }
+  }
+
+  // Fall back to play token (GET-based browsing AIs)
+  return authPlayToken(req, res, next);
+}
+
+module.exports = { authMiddleware, authQuery, authPlayToken, authFlexible, authViewToken };

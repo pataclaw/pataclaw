@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS worlds (
     last_agent_heartbeat TEXT,
     moltbook_post_id TEXT,
     view_token TEXT UNIQUE,
+    play_token TEXT UNIQUE,
     town_number INTEGER,
     map_size INTEGER NOT NULL DEFAULT 40,
     banner_symbol TEXT DEFAULT NULL,
@@ -39,6 +40,7 @@ CREATE TABLE IF NOT EXISTS worlds (
 
 CREATE INDEX IF NOT EXISTS idx_worlds_prefix ON worlds(key_prefix);
 CREATE INDEX IF NOT EXISTS idx_worlds_view_token ON worlds(view_token);
+CREATE INDEX IF NOT EXISTS idx_worlds_play_token ON worlds(play_token);
 
 -- ============================================================
 -- RESOURCES: Per-world resource pools

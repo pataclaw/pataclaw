@@ -56,6 +56,8 @@ const migrations = [
   "ALTER TABLE villagers ADD COLUMN warrior_type TEXT DEFAULT NULL",
   // NFT resilience: snapshot world state at mint time
   "ALTER TABLE nft_mints ADD COLUMN world_snapshot TEXT DEFAULT NULL",
+  // Play token: URL-safe token for browsing AIs (secret key stays private)
+  "ALTER TABLE worlds ADD COLUMN play_token TEXT",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
@@ -286,6 +288,15 @@ const { v4: uuidV4 } = require('uuid');
 const worldsWithoutToken = db.prepare("SELECT id FROM worlds WHERE view_token IS NULL").all();
 for (const w of worldsWithoutToken) {
   db.prepare("UPDATE worlds SET view_token = ? WHERE id = ?").run(uuidV4(), w.id);
+}
+
+// Backfill play_tokens for existing worlds that don't have one
+const worldsWithoutPlayToken = db.prepare("SELECT id FROM worlds WHERE play_token IS NULL").all();
+for (const w of worldsWithoutPlayToken) {
+  db.prepare("UPDATE worlds SET play_token = ? WHERE id = ?").run(uuidV4(), w.id);
+}
+if (worldsWithoutPlayToken.length > 0) {
+  console.log(`[INIT] Backfilled play_token for ${worldsWithoutPlayToken.length} worlds`);
 }
 
 // Backfill town_numbers for existing worlds that don't have one
