@@ -33,7 +33,29 @@ function metadataHandler(req, res) {
   if (!mint) return res.status(404).json({ error: 'Token not found' });
 
   const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(mint.world_id);
-  if (!world) return res.status(404).json({ error: 'World not found' });
+  const baseUrl = config.nft.baseUrl || `http://localhost:${config.port}/api/nft`;
+
+  // Graceful fallback: if world is gone, serve snapshot
+  if (!world) {
+    const snap = mint.world_snapshot ? JSON.parse(mint.world_snapshot) : null;
+    if (!snap) return res.status(404).json({ error: 'World not found and no snapshot available' });
+
+    const score = (snap.day_number * 2) + (snap.population * 10) + ((snap.reputation || 0) * 5) + (snap.buildings * 3);
+    return res.json({
+      name: snap.name,
+      description: `[Archived] Day ${snap.day_number} | ${snap.population} villagers | ${(snap.culture || 'calm').toUpperCase()} — This civilization has fallen.`,
+      image: `${baseUrl}/${tokenId}/image.svg`,
+      attributes: [
+        { trait_type: 'Day', value: snap.day_number, display_type: 'number' },
+        { trait_type: 'Population', value: snap.population, display_type: 'number' },
+        { trait_type: 'Score', value: score, display_type: 'number' },
+        { trait_type: 'Season', value: snap.season || 'unknown' },
+        { trait_type: 'Culture', value: (snap.culture || 'calm').toUpperCase() },
+        { trait_type: 'Buildings', value: snap.buildings, display_type: 'number' },
+        { trait_type: 'Status', value: 'FALLEN' },
+      ],
+    });
+  }
 
   const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(mint.world_id).c;
   const buildingCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(mint.world_id).c;
@@ -46,8 +68,6 @@ function metadataHandler(req, res) {
   const totalAchievements = 20;
 
   const score = (world.day_number * 2) + (popAlive * 10) + (world.reputation * 5) + (buildingCount * 3);
-
-  const baseUrl = config.nft.baseUrl || `http://localhost:${config.port}/api/nft`;
 
   const animationUrl = world.view_token ? `${baseUrl}/${tokenId}/live.html` : undefined;
 
@@ -131,6 +151,58 @@ router.get('/:tokenId/live.html', (req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('Cache-Control', 'public, max-age=30');
   res.send(html);
+});
+
+// POST /api/nft/admin/rebind — rebind an NFT to a different world (owner-only)
+router.post('/admin/rebind', (req, res) => {
+  if (!config.adminKey) return res.status(503).json({ error: 'Admin key not configured' });
+
+  const authHeader = req.headers.authorization || '';
+  const key = authHeader.replace('Bearer ', '');
+  if (key !== config.adminKey) return res.status(403).json({ error: 'Invalid admin key' });
+
+  const { token_id, new_world_id } = req.body;
+  if (!token_id || !new_world_id) {
+    return res.status(400).json({ error: 'Missing token_id or new_world_id' });
+  }
+
+  const mint = db.prepare('SELECT * FROM nft_mints WHERE token_id = ?').get(token_id);
+  if (!mint) return res.status(404).json({ error: 'Token not found in nft_mints' });
+
+  const newWorld = db.prepare('SELECT * FROM worlds WHERE id = ?').get(new_world_id);
+  if (!newWorld) return res.status(404).json({ error: 'Target world not found' });
+
+  // Check target world isn't already minted
+  const conflict = db.prepare('SELECT token_id FROM nft_mints WHERE world_id = ? AND token_id != ?').get(new_world_id, token_id);
+  if (conflict) return res.status(409).json({ error: 'Target world already has an NFT', conflicting_token: conflict.token_id });
+
+  // Snapshot the new world state
+  const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(new_world_id).c;
+  const buildingCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(new_world_id).c;
+  const culture = db.prepare('SELECT village_mood FROM culture WHERE world_id = ?').get(new_world_id);
+  const snapshot = JSON.stringify({
+    name: newWorld.name,
+    day_number: newWorld.day_number,
+    season: newWorld.season,
+    population: popAlive,
+    buildings: buildingCount,
+    culture: culture ? culture.village_mood : 'calm',
+    reputation: newWorld.reputation,
+    minted_at: new Date().toISOString(),
+    rebound_from: mint.world_id,
+  });
+
+  db.prepare('UPDATE nft_mints SET world_id = ?, world_snapshot = ? WHERE token_id = ?')
+    .run(new_world_id, snapshot, token_id);
+
+  console.log(`[NFT] Rebound token #${token_id}: ${mint.world_id} → ${new_world_id} (${newWorld.name})`);
+  res.json({
+    ok: true,
+    token_id,
+    old_world_id: mint.world_id,
+    new_world_id,
+    new_world_name: newWorld.name,
+  });
 });
 
 // GET /api/nft/:tokenId — tokenURI endpoint (what OpenSea actually calls from the contract)

@@ -354,9 +354,25 @@ router.post('/claim-nft', async (req, res) => {
   try {
     const result = await mintWorld(wallet, tokenId);
 
+    // Snapshot world state at mint time for NFT resilience
+    const world = db.prepare('SELECT * FROM worlds WHERE id = ?').get(req.worldId);
+    const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(req.worldId).c;
+    const buildingCount = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(req.worldId).c;
+    const culture = db.prepare('SELECT village_mood FROM culture WHERE world_id = ?').get(req.worldId);
+    const snapshot = JSON.stringify({
+      name: world.name,
+      day_number: world.day_number,
+      season: world.season,
+      population: popAlive,
+      buildings: buildingCount,
+      culture: culture ? culture.village_mood : 'calm',
+      reputation: world.reputation,
+      minted_at: new Date().toISOString(),
+    });
+
     db.prepare(
-      'INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash) VALUES (?, ?, ?, ?, ?)'
-    ).run(uuidGen(), req.worldId, tokenId, wallet, result.txHash);
+      'INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash, world_snapshot) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(uuidGen(), req.worldId, tokenId, wallet, result.txHash, snapshot);
 
     const baseUrl = config.nft.baseUrl || `http://localhost:${config.port}/api/nft`;
     res.json({

@@ -11,6 +11,7 @@ module.exports = {
     apiKey: process.env.MOLTBOOK_API_KEY || '',
     submoltId: process.env.MOLTBOOK_SUBMOLT_ID || '',
   },
+  adminKey: process.env.ADMIN_KEY || '',
   nft: {
     enabled: !!process.env.NFT_CONTRACT_ADDRESS,
     baseRpc: process.env.BASE_RPC_URL || 'https://mainnet.base.org',

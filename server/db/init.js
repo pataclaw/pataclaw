@@ -52,6 +52,8 @@ const migrations = [
   "ALTER TABLE wars ADD COLUMN challenger_skills TEXT",
   "ALTER TABLE wars ADD COLUMN defender_skills TEXT",
   "ALTER TABLE war_rounds ADD COLUMN skill_used TEXT",
+  // NFT resilience: snapshot world state at mint time
+  "ALTER TABLE nft_mints ADD COLUMN world_snapshot TEXT DEFAULT NULL",
 ];
 
 for (const sql of migrations) {

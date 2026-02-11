@@ -54,6 +54,8 @@ const migrations = [
   "ALTER TABLE war_rounds ADD COLUMN skill_used TEXT",
   // Warrior classes (pincer, carapace, spitter, tidecaller)
   "ALTER TABLE villagers ADD COLUMN warrior_type TEXT DEFAULT NULL",
+  // NFT resilience: snapshot world state at mint time
+  "ALTER TABLE nft_mints ADD COLUMN world_snapshot TEXT DEFAULT NULL",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) {
