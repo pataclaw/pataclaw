@@ -109,6 +109,7 @@ function drawFog(g, x, y, w, h, f) {
 window.EPISODE = {
   title: 'Feb 11 Update',
   date: '2026-02-11',
+  audio: 'feb11.wav',
   scenes: [
 
   // ───────────────────────────────
@@ -415,73 +416,96 @@ window.EPISODE = {
   {
     duration: 72,
     render: function(g, f) {
-      // Pure black for drama
+      // Screen shake when armies clash
+      var shakeX = 0, shakeY = 0;
+      if (f > 45 && f < 65) {
+        var intensity = Math.min(1, (f - 45) / 10);
+        shakeX = Math.round(Math.sin(f * 5.7) * intensity * 2);
+        shakeY = Math.round(Math.cos(f * 4.3) * intensity);
+      }
+
       S.drawStars(g, f);
 
-      // Slow fade in from black — warriors emerge from darkness
-      var fadeIn = Math.min(1, f / 24);
+      var armyY = GY - 8;
 
-      if (fadeIn > 0.1) {
-        // Left army (red)
-        var leftX = 10;
-        var armyY = GY - 8;
+      // "WAR IS COMING" — big dramatic reveal
+      if (f < 20) {
+        // Full screen red flash at start
+        if (f < 3) {
+          for (var ry = 0; ry < S.H; ry++)
+            for (var rx = 0; rx < S.W; rx++)
+              S.set(g, rx, ry, '\u2588', 'c-red');
+        }
+        S.center(g, 14, 'W A R', f < 3 ? 'c-flash' : 'c-red');
+      } else if (f < 30) {
+        S.center(g, 5, 'W A R   I S   C O M I N G', f % 4 < 2 ? 'c-red' : 'c-flash');
+      } else {
+        S.center(g, 5, 'W A R   I S   C O M I N G', 'c-red');
+      }
 
-        // Warriors marching in from left
-        var marchL = Math.min(0, -15 + Math.floor(f * 0.6));
-        for (var i = 0; i < 5; i++) {
-          var wx = leftX + marchL + i * 6;
-          if (wx < 0 || wx > 50) continue;
+      // Left army (red) — 7 warriors marching in
+      if (f > 8) {
+        var marchL = Math.min(15, Math.floor((f - 8) * 0.8));
+        for (var i = 0; i < 7; i++) {
+          var wx = -10 + marchL + i * 5 + shakeX;
+          if (wx < -3 || wx > 52) continue;
           var legF = (f + i * 3) % 4;
-          S.text(g, wx, armyY,     ' [W] ', 'c-red');
-          S.text(g, wx, armyY + 1, '.---.', 'c-red');
-          S.text(g, wx, armyY + 2, '|> <|', 'c-red');
-          S.text(g, wx, armyY + 3, '|/=\\|', 'c-red');
-          S.text(g, wx, armyY + 4, "'==='" , 'c-red');
-          S.text(g, wx, armyY + 5, legF < 2 ? ' d  b' : '  db ', 'c-red');
+          var row = i % 2;
+          var wy = armyY + row * 2;
+          S.text(g, wx, wy,     ' [W] ', 'c-red');
+          S.text(g, wx, wy + 1, '.---.', 'c-red');
+          S.text(g, wx, wy + 2, '|> <|', 'c-red');
+          S.text(g, wx, wy + 3, '|/=\\|', 'c-red');
+          S.text(g, wx, wy + 4, "'===' ", 'c-red');
+          S.text(g, wx, wy + 5, legF < 2 ? ' d  b' : '  db ', 'c-red');
         }
+      }
 
-        // Right army (fire/orange) — mirrored
-        for (var j = 0; j < 5; j++) {
-          var rx = 105 - marchL - j * 6;
-          if (rx > 119 || rx < 60) continue;
+      // Right army (fire/orange) — 7 warriors
+      if (f > 8) {
+        var marchR = Math.min(15, Math.floor((f - 8) * 0.8));
+        for (var j = 0; j < 7; j++) {
+          var rx = 125 - marchR - j * 5 + shakeX;
+          if (rx > 122 || rx < 58) continue;
           var legR = (f + j * 3 + 2) % 4;
-          S.text(g, rx, armyY,     ' [W] ', 'c-fire');
-          S.text(g, rx, armyY + 1, '.---.', 'c-fire');
-          S.text(g, rx, armyY + 2, '|< >|', 'c-fire');
-          S.text(g, rx, armyY + 3, '|\\=/|', 'c-fire');
-          S.text(g, rx, armyY + 4, "'===' ", 'c-fire');
-          S.text(g, rx, armyY + 5, legR < 2 ? 'd  b ' : ' db  ', 'c-fire');
+          var rrow = j % 2;
+          var rwy = armyY + rrow * 2;
+          S.text(g, rx, rwy,     ' [W] ', 'c-fire');
+          S.text(g, rx, rwy + 1, '.---.', 'c-fire');
+          S.text(g, rx, rwy + 2, '|< >|', 'c-fire');
+          S.text(g, rx, rwy + 3, '|\\=/|', 'c-fire');
+          S.text(g, rx, rwy + 4, "'===' ", 'c-fire');
+          S.text(g, rx, rwy + 5, legR < 2 ? 'd  b ' : ' db  ', 'c-fire');
         }
       }
 
-      // VS in the center — dramatic pulse
-      if (f > 24) {
-        var pulse = Math.sin(f * 0.3) * 0.5 + 0.5;
-        var vsC = pulse > 0.5 ? 'c-flash' : 'c-red';
-        S.center(g, 10, 'V S', vsC);
-      }
-
-      // Clash sparks when armies close
-      if (f > 40) {
-        var sparkChars = ['*', '+', 'X', '#', '!'];
-        for (var si = 0; si < 4; si++) {
-          var spX = 57 + ((f * 7 + si * 13) % 7) - 3;
-          var spY = armyY + ((f * 3 + si * 11) % 5);
-          if (f % 3 !== si % 3) continue;
-          S.set(g, spX, spY, sparkChars[(f + si) % sparkChars.length], 'c-flash');
+      // VS pulsing in center
+      if (f > 15) {
+        var pulse = Math.sin(f * 0.4) * 0.5 + 0.5;
+        var vsSize = f > 40 ? 0 : 1; // VS disappears when clash starts
+        if (vsSize) {
+          S.center(g, 11 + shakeY, 'V   S', pulse > 0.5 ? 'c-flash' : 'c-red');
         }
       }
 
-      // "WAR IS COMING" text — typewriter
-      if (f > 30) {
-        var warText = 'W A R   I S   C O M I N G';
-        var chars = Math.max(0, Math.floor((f - 30) * 1.5));
-        var shown = warText.slice(0, chars);
-        S.center(g, 5, shown, 'c-red');
+      // CLASH — big explosion of sparks when armies meet
+      if (f > 42) {
+        var sparkChars = ['*', '+', 'X', '#', '!', '/', '\\', '|'];
+        var sparkColors = ['c-flash', 'c-red', 'c-fire', 'c-cele', 'c-flash'];
+        var numSparks = Math.min(20, (f - 42) * 2);
+        for (var si = 0; si < numSparks; si++) {
+          var hash = (si * 7919 + f * 31) % 10000;
+          var spX = 55 + (hash % 11) - 5 + shakeX;
+          var spY = armyY - 2 + ((hash >> 4) % 10) + shakeY;
+          if (spY >= 0 && spY < S.H && spX >= 0 && spX < S.W) {
+            S.set(g, spX, spY, sparkChars[hash % sparkChars.length], sparkColors[(hash >> 3) % sparkColors.length]);
+          }
+        }
       }
 
+      // Subtitle
       if (f > 50) {
-        S.center(g, 7, 'towns will fight \u2022 warriors will fall', 'c-dim');
+        S.center(g, 7 + shakeY, 'towns will fight \u2022 warriors will fall', 'c-dim');
       }
 
       S.drawGround(g);

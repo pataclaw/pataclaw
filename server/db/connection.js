@@ -38,7 +38,16 @@ try {
   } catch (e2) {
     console.error('[DB] Database corrupt or unreadable:', e2.code || e2.message);
     try { db.close(); } catch (_) {}
-    // Back up the corrupt file and start fresh
+    // Clean up old corrupt backups first to avoid filling disk
+    const dbDir = path.dirname(dbPath);
+    const dbName = path.basename(dbPath);
+    try {
+      const oldBackups = fs.readdirSync(dbDir).filter(f => f.startsWith(dbName + '.corrupt.'));
+      for (const ob of oldBackups) {
+        try { fs.unlinkSync(path.join(dbDir, ob)); console.log(`[DB] Removed old backup: ${ob}`); } catch (_) {}
+      }
+    } catch (_) {}
+    // Back up the corrupt file (keep only this one)
     const backupPath = dbPath + '.corrupt.' + Date.now();
     try {
       fs.renameSync(dbPath, backupPath);

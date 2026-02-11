@@ -107,13 +107,28 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   console.log(`Captured ${frame} frames (${Math.round(frame / FPS)}s)`);
   await browser.close();
 
-  // Stitch with ffmpeg
+  // Check if episode has audio
+  const audioMatch = episodeJS.match(/audio:\s*['"]([^'"]+)['"]/);
+  const audioFile = audioMatch ? path.join(__dirname, 'audio', audioMatch[1]) : null;
+
+  // Stitch with ffmpeg (+ audio if available)
   console.log('Encoding video...');
-  execSync(
-    `ffmpeg -y -framerate ${FPS} -i "${FRAME_DIR}/f_%05d.png" ` +
-    `-c:v libx264 -pix_fmt yuv420p -preset fast -crf 18 "${OUTPUT}"`,
-    { stdio: 'inherit' }
-  );
+  if (audioFile && fs.existsSync(audioFile)) {
+    console.log(`Muxing audio: ${audioMatch[1]}`);
+    execSync(
+      `ffmpeg -y -framerate ${FPS} -i "${FRAME_DIR}/f_%05d.png" ` +
+      `-i "${audioFile}" ` +
+      `-c:v libx264 -pix_fmt yuv420p -preset fast -crf 18 ` +
+      `-c:a aac -b:a 128k -shortest "${OUTPUT}"`,
+      { stdio: 'inherit' }
+    );
+  } else {
+    execSync(
+      `ffmpeg -y -framerate ${FPS} -i "${FRAME_DIR}/f_%05d.png" ` +
+      `-c:v libx264 -pix_fmt yuv420p -preset fast -crf 18 "${OUTPUT}"`,
+      { stdio: 'inherit' }
+    );
+  }
 
   const duration = execSync(
     `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${OUTPUT}"`
