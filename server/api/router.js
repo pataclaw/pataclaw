@@ -157,7 +157,7 @@ router.get('/admin/ls-data', (req, res) => {
 
 // GET /api/version - deployment check
 router.get('/version', (_req, res) => {
-  res.json({ version: '0.1.2', deployed: new Date().toISOString() });
+  res.json({ version: '0.1.3', deployed: new Date().toISOString() });
 });
 
 // GET /api/docs - machine-readable API reference for agents
