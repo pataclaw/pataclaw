@@ -8,11 +8,36 @@ const { getBookEntries, getChronicler } = require('../simulation/chronicler');
 
 const router = Router();
 
-// Rate limiting for whispers: worldId -> last whisper timestamp
+// SSE connection limits: ip -> count
+const sseConnections = new Map();
+const MAX_SSE_PER_IP = 10;
+const MAX_SSE_TOTAL = 500;
+let totalSseConnections = 0;
+
+function trackSseConnection(req, res) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const current = sseConnections.get(ip) || 0;
+  if (current >= MAX_SSE_PER_IP) return false;
+  if (totalSseConnections >= MAX_SSE_TOTAL) return false;
+  sseConnections.set(ip, current + 1);
+  totalSseConnections++;
+  req.on('close', () => {
+    const now = sseConnections.get(ip) || 1;
+    if (now <= 1) sseConnections.delete(ip); else sseConnections.set(ip, now - 1);
+    totalSseConnections = Math.max(0, totalSseConnections - 1);
+  });
+  return true;
+}
+
+// Rate limiting for whispers: worldId -> last whisper timestamp, ip -> last whisper timestamp
 const whisperCooldowns = new Map();
+const whisperIpCooldowns = new Map();
 
 // GET /api/stream?token=... - SSE stream for browser viewer (read-only via view token)
 router.get('/stream', authViewToken, (req, res) => {
+  if (!trackSseConnection(req, res)) {
+    return res.status(429).json({ error: 'Too many connections' });
+  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -79,12 +104,20 @@ router.post('/whisper', authViewToken, (req, res) => {
   const clean = message.replace(/[^\x20-\x7E]/g, '').slice(0, 80);
   if (!clean) return res.status(400).json({ error: 'Message empty after sanitization' });
 
-  // Rate limit: check last whisper time for this world (simple in-memory)
+  // Rate limit: per world (1/min) AND per IP (3/min)
   const now = Date.now();
   const lastWhisper = whisperCooldowns.get(req.worldId) || 0;
   if (now - lastWhisper < 60000) {
-    return res.status(429).json({ error: 'Whisper cooldown: 1 per minute' });
+    return res.status(429).json({ error: 'Whisper cooldown: 1 per minute per world' });
   }
+  const ip = req.ip || req.connection.remoteAddress;
+  const ipLast = whisperIpCooldowns.get(ip) || { count: 0, resetAt: 0 };
+  if (now > ipLast.resetAt) { ipLast.count = 0; ipLast.resetAt = now + 60000; }
+  ipLast.count++;
+  if (ipLast.count > 3) {
+    return res.status(429).json({ error: 'Whisper rate limit: max 3 per minute' });
+  }
+  whisperIpCooldowns.set(ip, ipLast);
   whisperCooldowns.set(req.worldId, now);
 
   // Store as event
@@ -123,6 +156,9 @@ router.get('/wars/:warId/frame', (req, res) => {
 
 // GET /api/stream/war?war_id=... - SSE stream for war spectators (public, no auth)
 router.get('/stream/war', (req, res) => {
+  if (!trackSseConnection(req, res)) {
+    return res.status(429).json({ error: 'Too many connections' });
+  }
   const warId = req.query.war_id;
   if (!warId) return res.status(400).json({ error: 'Missing war_id' });
 

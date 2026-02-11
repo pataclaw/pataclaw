@@ -360,7 +360,16 @@ if (unnumbered.length > 0) {
 }
 
 const app = express();
-app.set('trust proxy', true); // Railway reverse proxy — get real client IP from X-Forwarded-For
+app.set('trust proxy', 1); // Trust only first proxy hop (Railway)
+
+// Security headers
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // Cache-bust token: changes every deploy (server start time)
 const CACHE_BUST = Date.now().toString(36);

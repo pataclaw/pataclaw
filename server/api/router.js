@@ -63,9 +63,22 @@ function checkDuplicateName(name) {
   return dupe || null;
 }
 
+// Admin rate limiter: 5 attempts per 15 min per IP
+const adminRouterAttempts = new Map();
+function adminRouterRateLimit(req, res) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  let entry = adminRouterAttempts.get(ip);
+  if (!entry || now > entry.resetAt) { entry = { count: 0, resetAt: now + 15 * 60_000 }; adminRouterAttempts.set(ip, entry); }
+  entry.count++;
+  if (entry.count > 5) { res.status(429).json({ error: 'Too many attempts' }); return false; }
+  return true;
+}
+
 // TEMPORARY: Download current DB for backup
 router.get('/admin/download-db', (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
@@ -77,12 +90,18 @@ router.get('/admin/download-db', (req, res) => {
 
 // TEMPORARY: Upload recovered DB to replace the current one
 router.post('/admin/upload-db', (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+  const MAX_UPLOAD = 500 * 1024 * 1024; // 500MB
+  if (contentLength > MAX_UPLOAD) return res.status(413).json({ error: 'File too large', max_mb: 500 });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
   const uploadPath = dbPath + '.upload';
   const ws = fs.createWriteStream(uploadPath);
+  let bytesWritten = 0;
+  req.on('data', (chunk) => { bytesWritten += chunk.length; if (bytesWritten > MAX_UPLOAD) { req.destroy(); ws.destroy(); try { fs.unlinkSync(uploadPath); } catch (_) {} } });
   req.pipe(ws);
   ws.on('finish', () => {
     const size = fs.statSync(uploadPath).size;
@@ -104,7 +123,8 @@ router.post('/admin/upload-db', (req, res) => {
 
 // TEMPORARY: Download corrupt backup if one exists
 router.get('/admin/download-backup', (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
@@ -124,7 +144,8 @@ router.get('/admin/download-backup', (req, res) => {
 
 // TEMPORARY: Clean up old backups + stale uploads to free disk space
 router.delete('/admin/cleanup', (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
@@ -144,7 +165,8 @@ router.delete('/admin/cleanup', (req, res) => {
 
 // TEMPORARY: Delete WAL/SHM files from the MAIN database (force clean re-read on restart)
 router.delete('/admin/clear-wal', (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
@@ -158,7 +180,8 @@ router.delete('/admin/clear-wal', (req, res) => {
 
 // TEMPORARY: List files in data directory for diagnostics
 router.get('/admin/ls-data', (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
@@ -173,7 +196,8 @@ router.get('/admin/ls-data', (req, res) => {
 
 // TEMPORARY: Bulk-seed worlds to repopulate after DB loss
 router.post('/admin/seed-worlds', async (req, res) => {
-  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  if (!adminRouterRateLimit(req, res)) return;
+  if (!config.adminKey || req.query.key !== config.adminKey) return res.status(403).json({ error: 'forbidden' });
   const count = Math.min(parseInt(req.query.count) || 200, 500);
   const created = [];
   for (let i = 0; i < count; i++) {
@@ -1102,7 +1126,7 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
       case 'rename': {
         const newName = args.join(' ');
         if (!newName) return res.send('ERROR: Specify a name.\nUsage: rename My Cool Town');
-        const sanitized = newName.slice(0, 50);
+        const sanitized = newName.replace(/[<>&"']/g, '').slice(0, 50);
         db.prepare('UPDATE worlds SET name = ? WHERE id = ?').run(sanitized, worldId);
         const { logCultureAction } = require('../simulation/culture');
         logCultureAction(worldId, 'rename', '_default');
@@ -1112,7 +1136,7 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
       case 'motto': {
         const motto = args.join(' ');
         if (!motto) return res.send('ERROR: Specify a motto.\nUsage: motto From shell we rise');
-        const sanitized = motto.slice(0, 200);
+        const sanitized = motto.replace(/[<>&"']/g, '').slice(0, 200);
         db.prepare('UPDATE worlds SET motto = ? WHERE id = ?').run(sanitized, worldId);
         return res.send(`OK: Motto set to "${sanitized}".`);
       }
@@ -1202,25 +1226,27 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
             return res.send(`ERROR: Not enough ${trade.request_resource}. Have ${Math.floor(acceptorRes ? acceptorRes.amount : 0)}, need ${trade.request_amount}.`);
           }
 
-          // Execute the trade
-          // Deduct from acceptor
-          db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(trade.request_amount, worldId, trade.request_resource);
-          // Give acceptor the offered resource (ensure row exists)
-          const acceptorOffered = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(worldId, trade.offer_resource);
-          if (!acceptorOffered) {
-            db.prepare('INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, 50)').run(worldId, trade.offer_resource);
-          }
-          db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.offer_amount, worldId, trade.offer_resource);
-          // Give offerer the requested resource (ensure row exists)
-          const offererRequested = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(trade.world_id, trade.request_resource);
-          if (!offererRequested) {
-            db.prepare('INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, 50)').run(trade.world_id, trade.request_resource);
-          }
-          db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.request_amount, trade.world_id, trade.request_resource);
+          // Execute trade atomically
+          db.transaction(() => {
+            // Deduct from acceptor
+            db.prepare('UPDATE resources SET amount = amount - ? WHERE world_id = ? AND type = ?').run(trade.request_amount, worldId, trade.request_resource);
+            // Give acceptor the offered resource (ensure row exists)
+            const acceptorOffered = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(worldId, trade.offer_resource);
+            if (!acceptorOffered) {
+              db.prepare('INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, 50)').run(worldId, trade.offer_resource);
+            }
+            db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.offer_amount, worldId, trade.offer_resource);
+            // Give offerer the requested resource (ensure row exists)
+            const offererRequested = db.prepare('SELECT amount FROM resources WHERE world_id = ? AND type = ?').get(trade.world_id, trade.request_resource);
+            if (!offererRequested) {
+              db.prepare('INSERT INTO resources (world_id, type, amount, capacity) VALUES (?, ?, 0, 50)').run(trade.world_id, trade.request_resource);
+            }
+            db.prepare('UPDATE resources SET amount = MIN(capacity, amount + ?) WHERE world_id = ? AND type = ?').run(trade.request_amount, trade.world_id, trade.request_resource);
 
-          // Mark trade complete
-          const acceptorName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(worldId);
-          db.prepare("UPDATE trades SET status = 'completed', partner_world_name = ? WHERE id = ?").run(acceptorName ? acceptorName.name : 'unknown', tradeId);
+            // Mark trade complete
+            const acceptorName = db.prepare('SELECT name FROM worlds WHERE id = ?').get(worldId);
+            db.prepare("UPDATE trades SET status = 'completed', partner_world_name = ? WHERE id = ?").run(acceptorName ? acceptorName.name : 'unknown', tradeId);
+          })();
 
           return res.send(`OK: Trade accepted! Received ${trade.offer_amount} ${trade.offer_resource}, sent ${trade.request_amount} ${trade.request_resource}.`);
         }
@@ -1446,8 +1472,21 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
 
         try {
           const mintResult = await mintWorld(wallet, tokenId);
-          db.prepare('INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash) VALUES (?, ?, ?, ?, ?)')
-            .run(uuid(), worldId, tokenId, wallet, mintResult.txHash);
+
+          // Snapshot world state at mint time
+          const mWorld = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
+          const mPop = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
+          const mBuildings = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(worldId).c;
+          const mCulture = db.prepare('SELECT village_mood FROM culture WHERE world_id = ?').get(worldId);
+          const mSnapshot = JSON.stringify({
+            name: mWorld.name, day_number: mWorld.day_number, season: mWorld.season,
+            population: mPop, buildings: mBuildings,
+            culture: mCulture ? mCulture.village_mood : 'calm',
+            reputation: mWorld.reputation, minted_at: new Date().toISOString(),
+          });
+
+          db.prepare('INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash, world_snapshot) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(uuid(), worldId, tokenId, wallet, mintResult.txHash, mSnapshot);
           return res.send(
             `OK: World minted as NFT!\n` +
             `Token ID: ${tokenId}\n` +
@@ -1458,7 +1497,8 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
             `\nView on OpenSea once indexed.`
           );
         } catch (mintErr) {
-          return res.send(`ERROR: Mint failed — ${mintErr.message}`);
+          console.error('[NFT] Agent mint failed:', mintErr);
+          return res.send('ERROR: Mint failed. Please try again later.');
         }
       }
 

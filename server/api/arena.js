@@ -20,9 +20,18 @@ function sessionMiddleware(req, res, next) {
   next();
 }
 
-// ─── Auto-create spectator ───
+// Rate limit arena registration: 3 per hour per IP
+const registerLimits = new Map();
+setInterval(() => { const now = Date.now(); for (const [k, v] of registerLimits) { if (now > v.resetAt) registerLimits.delete(k); } }, 300_000);
+
 // POST /api/arena/register — create a new spectator account
 router.post('/register', (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  let entry = registerLimits.get(ip);
+  if (!entry || now > entry.resetAt) { entry = { count: 0, resetAt: now + 3600_000 }; registerLimits.set(ip, entry); }
+  entry.count++;
+  if (entry.count > 3) return res.status(429).json({ error: 'Registration rate limit: max 3 per hour' });
   const displayName = req.body.name
     ? String(req.body.name).replace(/[^\x20-\x7E]/g, '').slice(0, 30)
     : `Spectator-${Math.floor(Math.random() * 9999)}`;

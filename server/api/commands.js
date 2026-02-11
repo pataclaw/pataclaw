@@ -7,6 +7,10 @@ const { computeWarriorType } = require('../simulation/warrior-types');
 
 const router = Router();
 
+function stripHtml(str) {
+  return String(str).replace(/[<>&"']/g, '');
+}
+
 // POST /api/command/build
 router.post('/build', (req, res) => {
   const { type, x, y } = req.body;
@@ -172,17 +176,17 @@ router.post('/rename', (req, res) => {
   const changed = [];
 
   if (name) {
-    const sanitized = String(name).slice(0, 50);
+    const sanitized = stripHtml(String(name)).slice(0, 50);
     db.prepare('UPDATE worlds SET name = ? WHERE id = ?').run(sanitized, req.worldId);
     changed.push(`name → "${sanitized}"`);
   }
   if (motto !== undefined) {
-    const sanitized = String(motto).slice(0, 200);
+    const sanitized = stripHtml(String(motto)).slice(0, 200);
     db.prepare('UPDATE worlds SET motto = ? WHERE id = ?').run(sanitized, req.worldId);
     changed.push(`motto → "${sanitized}"`);
   }
   if (hero_title) {
-    const sanitized = String(hero_title).slice(0, 50);
+    const sanitized = stripHtml(String(hero_title)).slice(0, 50);
     db.prepare('UPDATE worlds SET hero_title = ? WHERE id = ?').run(sanitized, req.worldId);
     changed.push(`hero_title → "${sanitized}"`);
   }

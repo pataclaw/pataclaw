@@ -383,8 +383,8 @@ router.post('/claim-nft', async (req, res) => {
       mintsRemaining: supply.remaining - 1,
     });
   } catch (err) {
-    console.error('NFT mint failed:', err.message);
-    res.status(500).json({ error: 'Minting failed: ' + err.message });
+    console.error('NFT mint failed:', err);
+    res.status(500).json({ error: 'Minting failed. Please try again later.' });
   }
 });
 
