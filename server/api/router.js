@@ -929,7 +929,7 @@ async function agentPlayHandler(req, res) {
   const args = parts.slice(1);
 
   // For action commands (not read-only), append "check status" URL
-  const readOnlyCmds = ['status', 'villagers', 'buildings', 'events', 'map', 'help'];
+  const readOnlyCmds = ['status', 'villagers', 'buildings', 'events', 'map', 'help', 'grind'];
   if (!readOnlyCmds.includes(action)) appendStatus = true;
 
   try {
@@ -1523,6 +1523,123 @@ async function agentPlayHandler(req, res) {
         }
       }
 
+      case 'grind': {
+        // Auto-play: analyze state and execute multiple optimal moves in one request
+        const maxMoves = Math.min(parseInt(args[0]) || 5, 10);
+        const w = db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
+        const { startBuilding, BUILDING_DEFS } = require('../simulation/buildings');
+        const { getCenter } = require('../world/map');
+        const center = getCenter(w.seed);
+        const log = [];
+
+        for (let i = 0; i < maxMoves; i++) {
+          const resources = db.prepare('SELECT type, amount FROM resources WHERE world_id = ?').all(worldId);
+          const resMap = {};
+          for (const r of resources) resMap[r.type] = Math.floor(r.amount);
+
+          const popAlive = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
+          const idle = db.prepare("SELECT id, name FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'idle'").all(worldId);
+          const blds = db.prepare("SELECT type, status FROM buildings WHERE world_id = ? AND status != 'destroyed'").all(worldId);
+          const activeTypes = new Set(blds.filter(b => b.status === 'active').map(b => b.type));
+          const constructing = blds.filter(b => b.status === 'constructing').length;
+
+          // Decision priority: assign idle > food crisis > build needed > explore
+          if (idle.length > 0) {
+            // Assign idle villagers to most needed role
+            let role = 'farmer';
+            const farmers = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'farmer'").get(worldId).c;
+            const warriors = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'warrior'").get(worldId).c;
+            const builders = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive' AND role = 'builder'").get(worldId).c;
+
+            if (farmers < 2) role = 'farmer';
+            else if (constructing > 0 && builders < 1) role = 'builder';
+            else if (w.day_number >= 7 && warriors < 2) role = 'warrior';
+            else if (farmers < 3) role = 'farmer';
+            else role = 'builder';
+
+            const v = idle[0];
+            const buildingMatch = db.prepare(
+              "SELECT id FROM buildings WHERE world_id = ? AND type IN (SELECT type FROM buildings WHERE type IN ('farm','workshop','barracks','temple','library','dock','hunting_lodge') AND world_id = ?) AND status = 'active' ORDER BY assigned_villagers ASC LIMIT 1"
+            ).get(worldId, worldId);
+
+            db.prepare("UPDATE villagers SET role = ?, ascii_sprite = ? WHERE id = ?").run(role, role, v.id);
+            if (buildingMatch) {
+              db.prepare("UPDATE villagers SET assigned_building_id = ? WHERE id = ?").run(buildingMatch.id, v.id);
+              db.prepare("UPDATE buildings SET assigned_villagers = assigned_villagers + 1 WHERE id = ?").run(buildingMatch.id);
+            }
+            log.push(`Assigned ${v.name} as ${role}`);
+            continue;
+          }
+
+          if (constructing > 0) {
+            log.push('Waiting for construction...');
+            break; // Nothing useful to do while building
+          }
+
+          // Build priority
+          let toBuild = null;
+          const farmCount = blds.filter(b => b.type === 'farm' && b.status === 'active').length;
+          if ((resMap.food || 0) < 20 && farmCount < 3) toBuild = 'farm';
+          else if (!activeTypes.has('hut') && popAlive >= 3) toBuild = 'hut';
+          else if (!activeTypes.has('workshop')) toBuild = 'workshop';
+          else if (!activeTypes.has('wall') && w.day_number >= 5) toBuild = 'wall';
+          else if (farmCount < 2) toBuild = 'farm';
+          else if (!activeTypes.has('watchtower') && w.day_number >= 7) toBuild = 'watchtower';
+          else if (!activeTypes.has('barracks') && w.day_number >= 8) toBuild = 'barracks';
+          else if (!activeTypes.has('temple')) toBuild = 'temple';
+          else if (!activeTypes.has('market')) toBuild = 'market';
+          else if (!activeTypes.has('library')) toBuild = 'library';
+          else if (!activeTypes.has('storehouse')) toBuild = 'storehouse';
+          else if (popAlive >= 5 && blds.filter(b => b.type === 'hut').length < 3) toBuild = 'hut';
+
+          if (toBuild && BUILDING_DEFS[toBuild]) {
+            const tile = db.prepare(`
+              SELECT t.x, t.y FROM tiles t
+              WHERE t.world_id = ? AND t.explored = 1
+                AND t.terrain NOT IN ('water', 'mountain')
+                AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+              ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC LIMIT 1
+            `).get(worldId, center.x, center.y);
+
+            if (tile) {
+              const result = startBuilding(worldId, toBuild, tile.x, tile.y);
+              if (result.ok) {
+                const { logCultureAction } = require('../simulation/culture');
+                logCultureAction(worldId, 'build', toBuild);
+                log.push(`Started building ${toBuild}`);
+                continue;
+              }
+            }
+          }
+
+          // Teach a phrase if nothing else to do
+          if ((resMap.knowledge || 0) >= 0) {
+            const phrases = ['We grind', 'Victory awaits', 'Shells to dust', 'Never idle'];
+            const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+            try {
+              const { logCultureAction } = require('../simulation/culture');
+              logCultureAction(worldId, 'teach', phrase);
+              log.push(`Taught: "${phrase}"`);
+            } catch { /* skip */ }
+          }
+          break;
+        }
+
+        if (log.length === 0) log.push('Nothing to do right now — town is running smoothly');
+
+        let out = `=== GRIND REPORT (${log.length} actions) ===\n`;
+        for (const l of log) out += `  > ${l}\n`;
+
+        // Append current status summary
+        const wNow = db.prepare('SELECT name, day_number, reputation FROM worlds WHERE id = ?').get(worldId);
+        const popNow = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(worldId).c;
+        const resNow = db.prepare("SELECT type, amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
+        const bldNow = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(worldId).c;
+        out += `\n${wNow.name} | Day ${wNow.day_number} | Pop ${popNow} | Food ${Math.floor(resNow ? resNow.amount : 0)} | ${bldNow} buildings | Rep ${wNow.reputation}`;
+
+        return res.send(out);
+      }
+
       default:
         return res.send(`ERROR: Unknown command "${action}".\n\n` + agentHelp(worldId));
     }
@@ -1571,6 +1688,7 @@ function agentHelp(worldId) {
   out += '  select-skills   — View/select 3 war skills for battle\n';
   out += '  war-ready       — Check if your civilization is war-ready\n';
   out += '  wars            — List active/pending wars\n';
+  out += '  grind [N]       — Auto-play N optimal moves (default 5, max 10)\n';
   out += '  mint <wallet>   — Mint world as ERC-721 NFT on Base\n';
   out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';
   out += '  help            — This message\n';
