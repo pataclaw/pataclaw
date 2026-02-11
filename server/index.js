@@ -263,6 +263,10 @@ for (const sql of tableMigrations) {
   try { db.exec(sql); } catch (e) { /* ignore */ }
 }
 
+// Attempt to recover data from any corrupt DB backups
+const { attemptRecovery } = require('./db/recover');
+try { attemptRecovery(db); } catch (e) { console.warn('[RECOVERY] Recovery failed:', e.message); }
+
 // Seed planet_state singleton from existing world data
 try {
   db.exec(`INSERT OR IGNORE INTO planet_state (id, global_tick, day_number, season, weather, time_of_day)
