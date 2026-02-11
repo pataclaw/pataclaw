@@ -1,6 +1,6 @@
 const { v4: uuid } = require('uuid');
 const db = require('../db/connection');
-const { advanceTime } = require('./time');
+const { advanceTime, TICKS_PER_DAY } = require('./time');
 const { rollWeather } = require('./weather');
 const { processResources } = require('./resources');
 const { processBuildings, processMaintenance, autoBuilding, getGrowthStage } = require('./buildings');
@@ -39,11 +39,12 @@ function processTick(worldId, globalTime) {
   // 1. Advance time — use global time if provided, else compute per-world (for catchup)
   let time;
   if (globalTime) {
-    // Use global planet state but still increment world's own tick counter
+    // Use global planet state for season/time, but day_number is per-world age
+    const newTick = world.current_tick + 1;
     time = {
-      tick: world.current_tick + 1,
+      tick: newTick,
       time_of_day: globalTime.time_of_day,
-      day_number: globalTime.day_number,
+      day_number: Math.floor(newTick / TICKS_PER_DAY) + 1,
       season: globalTime.season,
     };
   } else {

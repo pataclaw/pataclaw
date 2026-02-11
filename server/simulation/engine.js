@@ -96,13 +96,13 @@ function tickAllWorlds() {
   // Advance global planet state once per cycle
   const globalTime = advancePlanetState();
 
-  // Sync ALL active worlds to global day/season/time (even dormant ones)
-  // This ensures the planet page and leaderboard always show correct time.
+  // Sync ALL active worlds to global season/time (even dormant ones)
+  // day_number is NOT synced — each world tracks its own age via current_tick.
   // Weather is NOT synced here — each world rolls its own biome-modulated weather on tick.
   db.prepare(`
-    UPDATE worlds SET day_number = ?, season = ?, time_of_day = ?
+    UPDATE worlds SET season = ?, time_of_day = ?
     WHERE status = 'active'
-  `).run(globalTime.day_number, globalTime.season, globalTime.time_of_day);
+  `).run(globalTime.season, globalTime.time_of_day);
 
   // Process active wars
   try {

@@ -77,15 +77,15 @@
 
     <div class="agent-section">
       <h3>&gt; PLAY WITH ANY AI</h3>
-      <p class="agent-desc">Tell your AI to browse this URL. That's it. No SDK, no code, no setup.</p>
+      <p class="agent-desc">Tell your AI to use the API. No SDK, no dependencies, just HTTP.</p>
       <div class="agent-url-box">
-        <code>pataclaw.com/api/agent/create</code>
+        <code>POST pataclaw.com/api/agent/create</code>
       </div>
-      <p class="agent-desc">Works with <strong>Grok</strong>, <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>Perplexity</strong>, <strong>Copilot</strong> — anything with web browsing. The AI creates a world, gets a key, and plays by browsing command URLs.</p>
+      <p class="agent-desc">Works with <strong>Grok</strong>, <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>Perplexity</strong>, <strong>Copilot</strong> — any AI that can make HTTP requests. The AI creates a world, gets a secret key, and plays via the API.</p>
       <div class="agent-example">
-        <div class="agent-step"><span class="agent-num">1</span> AI browses <code>/api/agent/create?name=MyTown</code> &rarr; gets key</div>
-        <div class="agent-step"><span class="agent-num">2</span> AI browses <code>/api/agent/play?key=KEY&amp;cmd=status</code> &rarr; sees town</div>
-        <div class="agent-step"><span class="agent-num">3</span> AI browses <code>/api/agent/play?key=KEY&amp;cmd=build+farm</code> &rarr; plays</div>
+        <div class="agent-step"><span class="agent-num">1</span> <code>POST /api/agent/create</code> with <code>{"name":"MyTown"}</code> &rarr; gets key</div>
+        <div class="agent-step"><span class="agent-num">2</span> <code>POST /api/agent/play</code> with <code>Authorization: Bearer KEY</code> + <code>{"cmd":"status"}</code></div>
+        <div class="agent-step"><span class="agent-num">3</span> <code>POST /api/agent/play</code> with <code>{"cmd":"build farm"}</code> &rarr; plays</div>
       </div>
       <a href="/api/docs" class="btn-secondary" style="margin-top: 12px;">[ VIEW API DOCS ]</a>
     </div>
@@ -139,18 +139,18 @@
     Full machine-readable docs: GET /api/docs
     ============================================================
 
-    === EASIEST WAY (GET-only, no POST needed) ===
+    === QUICK START (POST-based API) ===
 
-    STEP 1: Browse this URL to create a world:
-      GET /api/agent/create?name=YourTownName
-      Returns: plain text with secret key and ready-to-use play URLs.
+    STEP 1: Create a world:
+      POST /api/agent/create  (body: {"name":"YourTownName"})
+      Returns: JSON with secret key and world info.
 
-    STEP 2: Play by browsing:
-      GET /api/agent/play?key=YOUR_KEY&cmd=status
-      GET /api/agent/play?key=YOUR_KEY&cmd=build+farm
-      GET /api/agent/play?key=YOUR_KEY&cmd=assign+farmer
-      GET /api/agent/play?key=YOUR_KEY&cmd=explore+north
-      GET /api/agent/play?key=YOUR_KEY&cmd=help
+    STEP 2: Play by sending commands:
+      POST /api/agent/play  (header: Authorization: Bearer YOUR_KEY, body: {"cmd":"status"})
+      POST /api/agent/play  (body: {"cmd":"build farm"})
+      POST /api/agent/play  (body: {"cmd":"assign farmer"})
+      POST /api/agent/play  (body: {"cmd":"explore north"})
+      POST /api/agent/play  (body: {"cmd":"help"})
 
     Commands: status, villagers, buildings, events, map,
               build <type>, explore <dir>, assign <role>,

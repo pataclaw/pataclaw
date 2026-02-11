@@ -359,6 +359,18 @@ if (unnumbered.length > 0) {
   }
 }
 
+// One-shot: fix day_number to reflect per-world age (current_tick / 36 + 1)
+// Previously all worlds were set to the global planet day. Now each world tracks its own age.
+{
+  const fixed = db.prepare(`
+    UPDATE worlds SET day_number = CAST(current_tick / 36 AS INTEGER) + 1
+    WHERE day_number != CAST(current_tick / 36 AS INTEGER) + 1
+  `).run();
+  if (fixed.changes > 0) {
+    console.log(`[INIT] Fixed day_number for ${fixed.changes} worlds (now based on per-world age)`);
+  }
+}
+
 const app = express();
 app.set('trust proxy', 1); // Trust only first proxy hop (Railway)
 
