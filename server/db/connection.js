@@ -10,44 +10,49 @@ if (!fs.existsSync(dbDir)) {
 
 const dbPath = path.resolve(config.dbPath);
 
-// Clean up stale WAL/SHM files that can cause SQLITE_IOERR on container restarts
-for (const ext of ['-shm', '-wal']) {
-  const f = dbPath + ext;
-  if (fs.existsSync(f)) {
-    try {
-      fs.unlinkSync(f);
-      console.log(`[DB] Removed stale ${ext} file`);
-    } catch (e) {
-      console.warn(`[DB] Could not remove ${ext} file:`, e.message);
-    }
-  }
-}
-
+// Try opening the DB WITH WAL/SHM intact first — deleting them loses unflushed data
 let db;
 try {
   db = new Database(dbPath);
-  // Quick integrity check — if corrupt, this will throw
   db.pragma('integrity_check');
+  console.log('[DB] Opened database successfully (WAL intact)');
 } catch (e) {
-  console.error('[DB] Database corrupt or unreadable:', e.code || e.message);
-  // Close the bad handle
+  // First attempt failed — try cleaning WAL/SHM and retrying
+  console.warn('[DB] First open failed:', e.code || e.message);
   try { db.close(); } catch (_) {}
-  // Back up the corrupt file and start fresh
-  const backupPath = dbPath + '.corrupt.' + Date.now();
-  try {
-    fs.renameSync(dbPath, backupPath);
-    console.warn(`[DB] Corrupt database backed up to ${backupPath}`);
-  } catch (_) {
-    // If rename fails, just delete it
-    try { fs.unlinkSync(dbPath); } catch (_) {}
-    console.warn('[DB] Corrupt database removed (backup failed)');
-  }
-  // Clean up any leftover WAL/SHM from the corrupt DB
+
   for (const ext of ['-shm', '-wal']) {
-    try { fs.unlinkSync(dbPath + ext); } catch (_) {}
+    const f = dbPath + ext;
+    if (fs.existsSync(f)) {
+      try {
+        fs.unlinkSync(f);
+        console.log(`[DB] Removed stale ${ext} file`);
+      } catch (_) {}
+    }
   }
-  db = new Database(dbPath);
-  console.log('[DB] Created fresh database');
+
+  try {
+    db = new Database(dbPath);
+    db.pragma('integrity_check');
+    console.log('[DB] Opened database after WAL cleanup');
+  } catch (e2) {
+    console.error('[DB] Database corrupt or unreadable:', e2.code || e2.message);
+    try { db.close(); } catch (_) {}
+    // Back up the corrupt file and start fresh
+    const backupPath = dbPath + '.corrupt.' + Date.now();
+    try {
+      fs.renameSync(dbPath, backupPath);
+      console.warn(`[DB] Corrupt database backed up to ${backupPath}`);
+    } catch (_) {
+      try { fs.unlinkSync(dbPath); } catch (_) {}
+      console.warn('[DB] Corrupt database removed (backup failed)');
+    }
+    for (const ext of ['-shm', '-wal']) {
+      try { fs.unlinkSync(dbPath + ext); } catch (_) {}
+    }
+    db = new Database(dbPath);
+    console.log('[DB] Created fresh database');
+  }
 }
 
 try {

@@ -63,9 +63,79 @@ function checkDuplicateName(name) {
   return dupe || null;
 }
 
+// TEMPORARY: Download current DB for backup
+router.get('/admin/download-db', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  if (!fs.existsSync(dbPath)) return res.status(404).json({ error: 'no database found' });
+  res.setHeader('Content-Disposition', 'attachment; filename="pataclaw.db"');
+  res.setHeader('Content-Type', 'application/octet-stream');
+  fs.createReadStream(dbPath).pipe(res);
+});
+
+// TEMPORARY: Upload recovered DB to replace the current one
+router.post('/admin/upload-db', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  const uploadPath = dbPath + '.upload';
+  const ws = fs.createWriteStream(uploadPath);
+  req.pipe(ws);
+  ws.on('finish', () => {
+    const size = fs.statSync(uploadPath).size;
+    if (size < 1000) {
+      fs.unlinkSync(uploadPath);
+      return res.status(400).json({ error: 'file too small', size });
+    }
+    // Back up current DB, swap in uploaded one
+    try { fs.renameSync(dbPath, dbPath + '.pre-restore.' + Date.now()); } catch (_) {}
+    fs.renameSync(uploadPath, dbPath);
+    res.json({ ok: true, size, message: 'DB replaced. Server must restart to use it.' });
+  });
+  ws.on('error', (err) => res.status(500).json({ error: err.message }));
+});
+
+// TEMPORARY: Download corrupt backup if one exists
+router.get('/admin/download-backup', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  const dbDir = path.dirname(dbPath);
+  const dbName = path.basename(dbPath);
+  const files = fs.readdirSync(dbDir).filter(f => f.startsWith(dbName + '.corrupt.') || f.startsWith(dbName + '.pre-restore.'));
+  if (files.length === 0) return res.status(404).json({ error: 'no backup found', dir: dbDir });
+  // Return the largest backup (most likely to have data)
+  files.sort((a, b) => {
+    try { return fs.statSync(path.join(dbDir, b)).size - fs.statSync(path.join(dbDir, a)).size; } catch (_) { return 0; }
+  });
+  const backupPath = path.join(dbDir, files[0]);
+  res.setHeader('Content-Disposition', `attachment; filename="${files[0]}"`);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  fs.createReadStream(backupPath).pipe(res);
+});
+
+// TEMPORARY: List files in data directory for diagnostics
+router.get('/admin/ls-data', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  const dbDir = path.dirname(dbPath);
+  try {
+    const files = fs.readdirSync(dbDir).map(f => {
+      try { const s = fs.statSync(path.join(dbDir, f)); return { name: f, size: s.size, modified: s.mtime }; } catch (_) { return { name: f }; }
+    });
+    res.json({ dir: dbDir, files });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/version - deployment check
 router.get('/version', (_req, res) => {
-  res.json({ version: '0.1.1', deployed: new Date().toISOString() });
+  res.json({ version: '0.1.2', deployed: new Date().toISOString() });
 });
 
 // GET /api/docs - machine-readable API reference for agents
