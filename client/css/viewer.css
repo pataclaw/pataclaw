@@ -1217,6 +1217,24 @@ body.crt-mode #world {
 
 .bottom-btn:hover { opacity: 1; }
 
+/* ─── Fog of War ─── */
+#world .c-fog     { color: #1a1a2e; }
+#world .c-fog-sky { color: #0a0a15; }
+#world .c-fog-1   { color: #444455; }
+#world .c-fog-2   { color: #333344; }
+#world .c-fog-3   { color: #222233; }
+
+/* ─── Tower Lights + Chimney Smoke ─── */
+#world .c-glow  { color: #ffd700; }
+#world .c-smoke { color: #555566; }
+
+/* ─── Warrior guards on barracks ─── */
+#world .c-warrior-guard { color: #ff6644; }
+
+/* ─── Drag cursor ─── */
+#scene-container { cursor: grab; }
+#scene-container:active { cursor: grabbing; }
+
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
   body { overflow: auto; height: auto; }

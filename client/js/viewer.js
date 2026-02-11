@@ -9,6 +9,16 @@ const MAX_RECONNECT = 10;
 const agents = {}; // villager id -> { x, targetX, state, speechTimer, currentSpeech, bobFrame, ... }
 var nomadAgents = {}; // name -> { x, baseX, targetX, state, stateTimer, speechTimer, currentSpeech, bobFrame, facing }
 
+// Camera / viewport state
+var cameraX = 0;         // world-space x of viewport left edge
+var worldWidth = 300;    // total world width (recalculated each frame)
+var isDragging = false;
+var dragStartX = 0;
+var dragStartCam = 0;
+var townStartX = 0;      // world-space building bounds
+var townEndX = 140;
+var cameraInited = false; // snap camera to town center on first frame
+
 var NOMAD_SPEECH = [
   'long road behind...', 'this place feels empty',
   'remember greener days', 'anyone still here?',
@@ -212,6 +222,15 @@ function composeHTML(grid) {
   return lines.join('\n');
 }
 
+// ─── WORLD-SPACE → SCREEN-SPACE ───
+function worldToScreen(wx) {
+  var sx = wx - cameraX;
+  // Wrap for 360 loop
+  if (sx < -worldWidth / 2) sx += worldWidth;
+  if (sx > worldWidth / 2) sx -= worldWidth;
+  return sx;
+}
+
 // ─── SSE CONNECTION ───
 function connect() {
   if (eventSource) eventSource.close();
@@ -293,8 +312,8 @@ function syncAgents(villagers) {
     seen.add(v.id);
     if (!agents[v.id]) {
       agents[v.id] = {
-        x: 5 + Math.random() * 70,
-        targetX: 5 + Math.random() * 70,
+        x: townStartX + 5 + Math.random() * Math.max(10, townEndX - townStartX - 10),
+        targetX: townStartX + 5 + Math.random() * Math.max(10, townEndX - townStartX - 10),
         state: 'idle',
         stateTimer: 0,
         speechTimer: 0,
@@ -387,7 +406,7 @@ function updateAgent(a, world) {
     }
 
     if (a.state === 'walking') {
-      a.targetX = 3 + Math.random() * 80;
+      a.targetX = townStartX + 3 + Math.random() * Math.max(10, townEndX - townStartX - 6);
       a.facing = a.targetX > a.x ? 1 : -1;
     }
 
@@ -540,7 +559,7 @@ function renderScene(data) {
     if (Math.abs(activeW - targetW) < 2) activeW = targetW;
   }
 
-  var W = activeW;
+  var W = activeW;       // viewport width (screen columns)
   var H = 45;
   var grid = [];
   for (var y = 0; y < H; y++) {
@@ -1240,11 +1259,40 @@ function renderScene(data) {
     return (v % 1000) / 1000;
   }
 
-  // Buildings
-  var bx = 2;
-  var dockRenderX = -1; // track dock position for water rendering
-  var farmPositions = []; // track farm positions for crop rendering
-  var buildingPositions = {}; // track all building positions by id for resource nodes
+  // ─── WORLD WIDTH + TOWN POSITIONING ───
+  // Calculate total building width
+  var totalBuildingWidth = 0;
+  for (var twi = 0; twi < data.buildings.length; twi++) {
+    var twb = data.buildings[twi];
+    if (twb.sprite) totalBuildingWidth += twb.sprite[0].length + 2;
+  }
+  if (totalBuildingWidth > 2) totalBuildingWidth -= 2; // remove trailing gap
+
+  var exploredPct = (data.biome && data.biome.explored_pct) || 10;
+  worldWidth = Math.max(totalBuildingWidth + 80, Math.floor(300 + exploredPct * 3));
+  townStartX = Math.floor((worldWidth - totalBuildingWidth) / 2);
+  townEndX = townStartX + totalBuildingWidth;
+
+  // Snap camera to center on town on first frame
+  if (!cameraInited && data.buildings.length > 0) {
+    cameraX = townStartX + Math.floor(totalBuildingWidth / 2) - Math.floor(W / 2);
+    cameraX = ((cameraX % worldWidth) + worldWidth) % worldWidth;
+    cameraInited = true;
+  }
+
+  // Buildings — position in world-space starting at townStartX
+  var bx = townStartX;
+  var dockRenderX = -1; // track dock position for water rendering (world-space)
+  var farmPositions = []; // track farm positions for crop rendering (world-space)
+  var buildingPositions = {}; // track all building positions by id for resource nodes (world-space)
+  // Helper: set cell in world-space (converts to screen via worldToScreen)
+  function setCellW(grid, wx, y, ch, c) {
+    var sx = Math.round(worldToScreen(wx));
+    if (sx >= 0 && sx < W && y >= 0 && y < grid.length) {
+      grid[y][sx] = { ch: ch, c: c || '' };
+    }
+  }
+
   for (var bi = 0; bi < data.buildings.length; bi++) {
     var b = data.buildings[bi];
     var sprite = b.sprite;
@@ -1263,124 +1311,95 @@ function renderScene(data) {
       var effect = getBuildEffect(b);
 
       if (effect === 'bottom_up') {
-        // Rows reveal from bottom to top
         var rowsVisible = Math.ceil(t * sh);
         for (var r = sh - rowsVisible; r < sh; r++) {
           for (var c = 0; c < sw; c++) {
-            var fx = bx + c, fy = bsy + r;
-            if (fx < W && fy >= 0 && fy < H && sprite[r][c] !== ' ') {
-              setCell(grid, fx, fy, sprite[r][c], 'c-proj');
-            }
+            if (sprite[r][c] !== ' ') setCellW(grid, bx + c, bsy + r, sprite[r][c], 'c-proj');
           }
         }
-        // Scaffold line at construction front
         if (rowsVisible > 0 && rowsVisible < sh) {
           var frontRow = sh - rowsVisible - 1;
           for (var sc = 0; sc < sw; sc++) {
-            var sfx = bx + sc, sfy = bsy + frontRow;
-            if (sfx < W && sfy >= 0 && sfy < H) {
-              setCell(grid, sfx, sfy, waveCounter % 6 < 3 ? '-' : '=', 'c-bar');
-            }
+            setCellW(grid, bx + sc, bsy + frontRow, waveCounter % 6 < 3 ? '-' : '=', 'c-bar');
           }
         }
 
       } else if (effect === 'matrix') {
-        // Code rain materializes into the real sprite
         for (var r = 0; r < sh; r++) {
           for (var c = 0; c < sw; c++) {
-            var fx = bx + c, fy = bsy + r;
-            if (fx >= W || fy < 0 || fy >= H || sprite[r][c] === ' ') continue;
+            if (sprite[r][c] === ' ') continue;
             var cellChance = seededRand(b.id, r, c);
             if (cellChance < t) {
-              // Settled — but flicker near the transition edge
               if (cellChance > t - 0.15 && waveCounter % 4 < 2) {
-                setCell(grid, fx, fy, MATRIX_CHARS[(waveCounter + r + c) % MATRIX_CHARS.length], 'c-spr');
+                setCellW(grid, bx + c, bsy + r, MATRIX_CHARS[(waveCounter + r + c) % MATRIX_CHARS.length], 'c-spr');
               } else {
-                setCell(grid, fx, fy, sprite[r][c], bColor);
+                setCellW(grid, bx + c, bsy + r, sprite[r][c], bColor);
               }
             } else if (cellChance < t + 0.12) {
-              // Raining code chars above the threshold
-              setCell(grid, fx, fy, MATRIX_CHARS[(waveCounter * 3 + r * 7 + c) % MATRIX_CHARS.length], 'c-spr');
+              setCellW(grid, bx + c, bsy + r, MATRIX_CHARS[(waveCounter * 3 + r * 7 + c) % MATRIX_CHARS.length], 'c-spr');
             }
           }
         }
 
       } else if (effect === 'scaffold') {
-        // Wireframe outline first, fills in
         for (var r = 0; r < sh; r++) {
           for (var c = 0; c < sw; c++) {
-            var fx = bx + c, fy = bsy + r;
-            if (fx >= W || fy < 0 || fy >= H || sprite[r][c] === ' ') continue;
+            if (sprite[r][c] === ' ') continue;
             var isEdge = r === 0 || r === sh - 1 || c === 0 || c === sw - 1 ||
               (c > 0 && sprite[r][c - 1] === ' ') || (c < sw - 1 && sprite[r][c + 1] === ' ') ||
               (r > 0 && sprite[r - 1][c] === ' ') || (r < sh - 1 && sprite[r + 1][c] === ' ');
             if (isEdge && t > 0.1) {
-              setCell(grid, fx, fy, t > 0.6 ? sprite[r][c] : '#', 'c-proj');
+              setCellW(grid, bx + c, bsy + r, t > 0.6 ? sprite[r][c] : '#', 'c-proj');
             } else if (!isEdge && t > 0.5) {
-              var fillChance = (t - 0.5) * 2; // 0→1 over second half
-              if (seededRand(b.id, r, c) < fillChance) {
-                setCell(grid, fx, fy, sprite[r][c], bColor);
+              if (seededRand(b.id, r, c) < (t - 0.5) * 2) {
+                setCellW(grid, bx + c, bsy + r, sprite[r][c], bColor);
               }
             }
           }
         }
 
       } else if (effect === 'dissolve') {
-        // Random pixels appear one by one
         for (var r = 0; r < sh; r++) {
           for (var c = 0; c < sw; c++) {
-            var fx = bx + c, fy = bsy + r;
-            if (fx >= W || fy < 0 || fy >= H || sprite[r][c] === ' ') continue;
+            if (sprite[r][c] === ' ') continue;
             if (seededRand(b.id, r, c) < t) {
-              setCell(grid, fx, fy, sprite[r][c], t < 0.7 ? 'c-proj' : bColor);
+              setCellW(grid, bx + c, bsy + r, sprite[r][c], t < 0.7 ? 'c-proj' : bColor);
             } else if (t > 0.2 && seededRand(b.id, c, r) < 0.08) {
-              // Sparkle on empty spots
-              setCell(grid, fx, fy, waveCounter % 4 < 2 ? '*' : '+', 'c-cele');
+              setCellW(grid, bx + c, bsy + r, waveCounter % 4 < 2 ? '*' : '+', 'c-cele');
             }
           }
         }
 
       } else if (effect === 'glitch') {
-        // Full sprite visible but glitched, gradually deglitches
-        var glitchRate = 1 - t; // 100% glitch at start, 0% at end
+        var glitchRate = 1 - t;
         for (var r = 0; r < sh; r++) {
           for (var c = 0; c < sw; c++) {
-            var fx = bx + c, fy = bsy + r;
-            if (fx >= W || fy < 0 || fy >= H || sprite[r][c] === ' ') continue;
+            if (sprite[r][c] === ' ') continue;
             if (Math.random() < glitchRate * 0.6) {
-              // Random glitch char with occasional row-shift
               var gch = GLITCH_CHARS[(waveCounter + r * 3 + c * 7) % GLITCH_CHARS.length];
-              setCell(grid, fx, fy, gch, 'c-fight');
+              setCellW(grid, bx + c, bsy + r, gch, 'c-fight');
             } else {
-              setCell(grid, fx, fy, sprite[r][c], glitchRate > 0.3 ? 'c-proj' : bColor);
+              setCellW(grid, bx + c, bsy + r, sprite[r][c], glitchRate > 0.3 ? 'c-proj' : bColor);
             }
           }
-          // Occasional horizontal glitch offset
           if (Math.random() < glitchRate * 0.15 && bsy + r >= 0 && bsy + r < H) {
             var shift = Math.random() < 0.5 ? 1 : -1;
-            var gfx = bx + (shift > 0 ? sw : -1);
-            if (gfx >= 0 && gfx < W) {
-              setCell(grid, gfx, bsy + r, GLITCH_CHARS[waveCounter % GLITCH_CHARS.length], 'c-fight');
-            }
+            setCellW(grid, bx + (shift > 0 ? sw : -1), bsy + r, GLITCH_CHARS[waveCounter % GLITCH_CHARS.length], 'c-fight');
           }
         }
 
       } else if (effect === 'beam') {
-        // Columns materialize left to right with sparkle
         var colsVisible = Math.ceil(t * sw);
         for (var c = 0; c < colsVisible; c++) {
           for (var r = 0; r < sh; r++) {
-            var fx = bx + c, fy = bsy + r;
-            if (fx >= W || fy < 0 || fy >= H || sprite[r][c] === ' ') continue;
-            setCell(grid, fx, fy, sprite[r][c], c > colsVisible - 3 ? 'c-cele' : bColor);
+            if (sprite[r][c] === ' ') continue;
+            setCellW(grid, bx + c, bsy + r, sprite[r][c], c > colsVisible - 3 ? 'c-cele' : bColor);
           }
-          // Beam sparkle at the leading edge
           if (c === colsVisible - 1) {
             for (var sr = 0; sr < sh; sr++) {
-              var sfx = bx + c, sfy = bsy + sr;
-              if (sfx < W && sfy >= 0 && sfy < H && waveCounter % 3 !== 0) {
+              if (waveCounter % 3 !== 0 && sprite[sr][c] !== ' ') {
                 var sparkle = (waveCounter + sr) % 4 === 0 ? '*' : (waveCounter + sr) % 4 === 1 ? '|' : ':';
-                if (sprite[sr][c] !== ' ') setCell(grid, sfx, sfy, sparkle, 'c-cele');
+                setCellW(grid, bx + c, bsy + sr, sparkle, 'c-cele');
               }
             }
           }
@@ -1390,79 +1409,65 @@ function renderScene(data) {
       // Progress bar below
       var filled = Math.floor(pct / 20);
       var bar = '[' + '\u2588'.repeat(filled) + '\u2591'.repeat(5 - filled) + '] ' + pct + '%';
-      for (var bri = 0; bri < bar.length && bx + bri < W; bri++) {
-        setCell(grid, bx + bri, groundY + 2, bar[bri], 'c-bar');
+      for (var bri = 0; bri < bar.length; bri++) {
+        setCellW(grid, bx + bri, groundY + 2, bar[bri], 'c-bar');
       }
 
     } else if (b.status === 'decaying') {
-      // Decaying building — full sprite with procedural damage overlay
       var hpPct = b.max_hp > 0 ? b.hp / b.max_hp : 0;
-      var damageRate = 0.2 + (1 - hpPct) * 0.2; // 20-40% chars replaced
+      var damageRate = 0.2 + (1 - hpPct) * 0.2;
       var DECAY_CHARS = ['.', ',', "'", '`', ':', ';'];
       for (var r = 0; r < sh; r++) {
         for (var c = 0; c < sw; c++) {
-          var fx = bx + c, fy = bsy + r;
-          if (fx < W && fy >= 0 && fy < H && sprite[r][c] !== ' ') {
+          if (sprite[r][c] !== ' ') {
             if (seededRand(b.id, r, c) < damageRate) {
               var dch = DECAY_CHARS[(r * 7 + c * 3 + waveCounter) % DECAY_CHARS.length];
-              setCell(grid, fx, fy, dch, 'c-decay-bld');
+              setCellW(grid, bx + c, bsy + r, dch, 'c-decay-bld');
             } else {
-              setCell(grid, fx, fy, sprite[r][c], bColor);
+              setCellW(grid, bx + c, bsy + r, sprite[r][c], bColor);
             }
           }
         }
       }
-      // HP bar below sprite
       var hpBarW = Math.min(sw, 10);
       var hpFilled = Math.round(hpPct * hpBarW);
       var hpBar = '[' + '\u2588'.repeat(hpFilled) + '\u2591'.repeat(hpBarW - hpFilled) + ']';
       var hpColor = hpPct < 0.3 ? 'c-fight' : hpPct < 0.6 ? 'c-decay' : 'c-bar';
-      for (var hi = 0; hi < hpBar.length && bx + hi < W; hi++) {
-        setCell(grid, bx + hi, groundY + 2, hpBar[hi], hpColor);
+      for (var hi = 0; hi < hpBar.length; hi++) {
+        setCellW(grid, bx + hi, groundY + 2, hpBar[hi], hpColor);
       }
 
     } else if (b.status === 'abandoned') {
-      // Abandoned building — heavily degraded (50% chars replaced with ruin markers)
       var RUIN_CHARS = ['#', '.', ',', '/', '\\', '|', '_'];
       for (var r = 0; r < sh; r++) {
         for (var c = 0; c < sw; c++) {
-          var fx = bx + c, fy = bsy + r;
-          if (fx < W && fy >= 0 && fy < H && sprite[r][c] !== ' ') {
+          if (sprite[r][c] !== ' ') {
             if (seededRand(b.id, r, c) < 0.5) {
-              var rch = RUIN_CHARS[(r * 5 + c * 11) % RUIN_CHARS.length];
-              setCell(grid, fx, fy, rch, 'c-abandoned');
+              setCellW(grid, bx + c, bsy + r, RUIN_CHARS[(r * 5 + c * 11) % RUIN_CHARS.length], 'c-abandoned');
             } else {
-              setCell(grid, fx, fy, sprite[r][c], 'c-abandoned');
+              setCellW(grid, bx + c, bsy + r, sprite[r][c], 'c-abandoned');
             }
           }
         }
       }
 
     } else if (b.status === 'rubble') {
-      // Rubble — small 2-row debris pile
       var rubbleChars = ['#', '.', '=', ',', '/', '\\'];
       var rw = Math.min(sw, 7);
       for (var r = 0; r < 2; r++) {
         for (var c = 0; c < rw; c++) {
-          var fx = bx + c, fy = groundY - 2 + r;
-          if (fx < W && fy >= 0 && fy < H) {
-            var rc = rubbleChars[(r * 3 + c * 7 + hashBuildingId(b.id || '')) % rubbleChars.length];
-            setCell(grid, fx, fy, rc, 'c-rubble');
-          }
+          var rc = rubbleChars[(r * 3 + c * 7 + hashBuildingId(b.id || '')) % rubbleChars.length];
+          setCellW(grid, bx + c, groundY - 2 + r, rc, 'c-rubble');
         }
       }
 
     } else if (b.status === 'overgrown') {
-      // Overgrown — nature reclaims
       var overChars = ['~', '*', ',', '.', '^', '`'];
       var ow = Math.min(sw, 7);
       for (var r = 0; r < 2; r++) {
         for (var c = 0; c < ow; c++) {
-          var fx = bx + c, fy = groundY - 2 + r;
-          if (fx < W && fy >= 0 && fy < H) {
-            var oc = overChars[(r * 5 + c * 3 + hashBuildingId(b.id || '')) % overChars.length];
-            setCell(grid, fx, fy, oc, 'c-overgrown');
-          }
+          var oc = overChars[(r * 5 + c * 3 + hashBuildingId(b.id || '')) % overChars.length];
+          setCellW(grid, bx + c, groundY - 2 + r, oc, 'c-overgrown');
         }
       }
 
@@ -1470,15 +1475,44 @@ function renderScene(data) {
       // Completed building — render with type-specific color
       for (var r = 0; r < sh; r++) {
         for (var c = 0; c < sw; c++) {
-          var fx = bx + c, fy = bsy + r;
-          if (fx < W && fy >= 0 && fy < H && sprite[r][c] !== ' ') {
-            setCell(grid, fx, fy, sprite[r][c], bColor);
+          if (sprite[r][c] !== ' ') {
+            setCellW(grid, bx + c, bsy + r, sprite[r][c], bColor);
           }
         }
       }
-      // Track roof for winter snow
+      // Track roof for winter snow (world-space)
       if (b.status === 'active' || b.status === 'decaying') {
         buildingRoofs.push({ x: bx, w: sw, y: bsy });
+      }
+    }
+
+    // ─── CHIMNEY SMOKE (L3+ huts / workshops) ───
+    if ((b.type === 'hut' && b.level >= 3) || b.type === 'workshop') {
+      if (b.status === 'active') {
+        for (var si2 = 0; si2 < 3; si2++) {
+          var smokeY = bsy - 1 - si2;
+          var smokeX = bx + Math.floor(sw / 2) + Math.round(Math.sin(waveCounter * 0.08 + si2 * 1.5) * (si2 * 0.7));
+          var smokeCh = si2 === 0 ? '.' : si2 === 1 ? ':' : "'";
+          setCellW(grid, smokeX, smokeY, smokeCh, 'c-smoke');
+        }
+      }
+    }
+
+    // ─── TOWER BLOCK WINDOW LIGHTS (L4 huts) ───
+    if (b.type === 'hut' && b.level === 4 && b.status === 'active') {
+      for (var wr = 0; wr < sh; wr++) {
+        for (var wc = 0; wc < sw; wc++) {
+          if (sprite[wr] && sprite[wr][wc] === '=' && wc > 0 && wc < sw - 1) {
+            // Check if it's a window slot [=]
+            if (sprite[wr][wc - 1] === '[' && sprite[wr][wc + 1] === ']') {
+              var winSeed = ((bx + wc) * 7 + wr * 13 + 42) % 100;
+              var winOn = ((waveCounter + winSeed) % 100) < 75;
+              if (winOn) {
+                setCellW(grid, bx + wc, bsy + wr, '=', 'c-glow');
+              }
+            }
+          }
+        }
       }
     }
 
@@ -1503,12 +1537,11 @@ function renderScene(data) {
       else if (b.level >= 2) lblClass += '-t2';
     }
     var lx = bx + Math.floor((sw - Math.min(label.length, sw)) / 2);
-    for (var li = 0; li < label.length && lx + li < W; li++) {
-      setCell(grid, lx + li, groundY + 1, label[li], lblClass);
+    for (var li = 0; li < label.length; li++) {
+      setCellW(grid, lx + li, groundY + 1, label[li], lblClass);
     }
 
     bx += sw + 2;
-    if (bx > W - 14) break;
   }
 
   // Winter: snow on building roofs
@@ -1520,11 +1553,8 @@ function renderScene(data) {
       if (snowY < 0) continue;
       for (var rsx = 0; rsx < roof.w; rsx++) {
         var rseed = ((rsx * 7 + ri2 * 13 + wSeed) % 100);
-        if (rseed < 60) { // 60% coverage
-          var rsfx = roof.x + rsx;
-          if (rsfx >= 0 && rsfx < W && snowY < H) {
-            setCell(grid, rsfx, snowY, roofSnow[rseed % roofSnow.length], 'c-season-winter');
-          }
+        if (rseed < 60) {
+          setCellW(grid, roof.x + rsx, snowY, roofSnow[rseed % roofSnow.length], 'c-season-winter');
         }
       }
     }
@@ -1559,9 +1589,8 @@ function renderScene(data) {
         for (var gr = 0; gr < 3; gr++) {
           var gy = roofY - 3 + gr;
           for (var gc = 0; gc < 3; gc++) {
-            var gfx = gx + gc, gfy = gy;
-            if (gfx >= 0 && gfx < W && gfy >= 0 && gfy < H && guardSprite[gr][gc] !== ' ') {
-              setCell(grid, gfx, gfy, guardSprite[gr][gc], 'c-warrior-guard');
+            if (guardSprite[gr][gc] !== ' ') {
+              setCellW(grid, gx + gc, gy, guardSprite[gr][gc], 'c-warrior-guard');
             }
           }
         }
@@ -1595,37 +1624,40 @@ function renderScene(data) {
     }
   }
 
-  // ─── WATER VISUALS (dock-dependent) ───
+  // ─── WATER VISUALS (dock-dependent, world-space) ───
   if (dockRenderX >= 0) {
     var waterChars = ['\u2248', '~', '\u00b7', '-'];
-    var waterStartX = Math.max(0, dockRenderX - 3);
-    var waterEndX = Math.min(W, dockRenderX + 25);
-    // Shore and surface water (above ground line)
+    var waterStartX = dockRenderX - 3;
+    var waterEndX = dockRenderX + 25;
     for (var wy = groundY - 2; wy < groundY; wy++) {
       for (var wx = waterStartX; wx < waterEndX; wx++) {
-        if (getCell(grid, wx, wy).ch === ' ') {
+        var wsx = Math.round(worldToScreen(wx));
+        if (wsx >= 0 && wsx < W && getCell(grid, wsx, wy).ch === ' ') {
           var ww = Math.sin((wx * 0.25) + (wy * 0.4) - (waveCounter * 0.12));
           var wci = Math.floor((ww + 1) * 2) % waterChars.length;
-          setCell(grid, wx, wy, waterChars[wci], 'c-waterl');
+          setCell(grid, wsx, wy, waterChars[wci], 'c-waterl');
         }
       }
     }
-    // Deep water below ground (replaces ground)
     for (var wy2 = groundY; wy2 < H; wy2++) {
       for (var wx2 = waterStartX; wx2 < waterEndX; wx2++) {
-        var ww2 = Math.sin((wx2 * 0.2) + (wy2 * 0.3) - (waveCounter * 0.15));
-        var wci2 = Math.floor((ww2 + 1) * 2) % waterChars.length;
-        setCell(grid, wx2, wy2, waterChars[wci2], wy2 === groundY ? 'c-waterl' : 'c-water');
+        var wsx2 = Math.round(worldToScreen(wx2));
+        if (wsx2 >= 0 && wsx2 < W) {
+          var ww2 = Math.sin((wx2 * 0.2) + (wy2 * 0.3) - (waveCounter * 0.15));
+          var wci2 = Math.floor((ww2 + 1) * 2) % waterChars.length;
+          setCell(grid, wsx2, wy2, waterChars[wci2], wy2 === groundY ? 'c-waterl' : 'c-water');
+        }
       }
     }
-    // Occasional fish
     if (waveCounter % 90 < 3) {
-      var fishX = waterStartX + 5 + Math.floor(Math.sin(waveCounter * 0.05) * 8 + 8);
-      if (fishX >= waterStartX && fishX + 2 < waterEndX && groundY - 1 >= 0) {
+      var fishX = dockRenderX + 2 + Math.floor(Math.sin(waveCounter * 0.05) * 8 + 8);
+      var fishSx = Math.round(worldToScreen(fishX));
+      if (fishSx >= 0 && fishSx + 2 < W && groundY - 1 >= 0) {
         var fishStr = waveCounter % 180 < 90 ? '><>' : '<><';
         for (var fi = 0; fi < 3; fi++) {
-          if (getCell(grid, fishX + fi, groundY - 1).ch !== ' ') continue;
-          setCell(grid, fishX + fi, groundY - 1, fishStr[fi], 'c-fish');
+          if (fishSx + fi < W && getCell(grid, fishSx + fi, groundY - 1).ch === ' ') {
+            setCell(grid, fishSx + fi, groundY - 1, fishStr[fi], 'c-fish');
+          }
         }
       }
     }
@@ -1654,13 +1686,14 @@ function renderScene(data) {
       var stage = Math.min(3, crop.growth_stage);
       var cropStr = cropSprites[stage];
       var cropColor = stage >= 3 ? 'c-croph' : 'c-crop';
-      // Place crop to the right of the farm building
+      // Place crop to the right of the farm building (world-space)
       var cropX = fp.x + fp.w + 1 + (ci % 3) * 4;
       var cropY = groundY - 1;
-      for (var csi = 0; csi < cropStr.length && cropX + csi < W; csi++) {
-        if (cropStr[csi] !== ' ' && cropX + csi >= 0) {
-          if (getCell(grid, cropX + csi, cropY).ch === ' ') {
-            setCell(grid, cropX + csi, cropY, cropStr[csi], cropColor);
+      for (var csi = 0; csi < cropStr.length; csi++) {
+        if (cropStr[csi] !== ' ') {
+          var cropSx = Math.round(worldToScreen(cropX + csi));
+          if (cropSx >= 0 && cropSx < W && getCell(grid, cropSx, cropY).ch === ' ') {
+            setCell(grid, cropSx, cropY, cropStr[csi], cropColor);
           }
         }
       }
@@ -1692,15 +1725,17 @@ function renderScene(data) {
       var isDepleted = node.depleted_tick !== null;
       var spriteLines = isDepleted ? nSprite.depleted : nSprite.active;
       var nodeColor = isDepleted ? 'c-depleted' : (node.type === 'tree' ? 'c-tree' : node.type === 'rock' ? 'c-rock' : 'c-fish-spot');
-      // Position: to the right of building, offset by node index
+      // Position: to the right of building, offset by node index (world-space)
       var nodeX = bp.x + bp.w + 1 + node.offset_idx * 5;
       for (var nsi = 0; nsi < spriteLines.length; nsi++) {
         var nsy = groundY - spriteLines.length + nsi;
         for (var nci = 0; nci < spriteLines[nsi].length; nci++) {
-          var nx = nodeX + nci;
-          if (nx >= 0 && nx < W && nsy >= 0 && nsy < H && spriteLines[nsi][nci] !== ' ') {
-            if (getCell(grid, nx, nsy).ch === ' ') {
-              setCell(grid, nx, nsy, spriteLines[nsi][nci], nodeColor);
+          if (spriteLines[nsi][nci] !== ' ') {
+            var nodeSx = Math.round(worldToScreen(nodeX + nci));
+            if (nodeSx >= 0 && nodeSx < W && nsy >= 0 && nsy < H) {
+              if (getCell(grid, nodeSx, nsy).ch === ' ') {
+                setCell(grid, nodeSx, nsy, spriteLines[nsi][nci], nodeColor);
+              }
             }
           }
         }
@@ -1708,10 +1743,10 @@ function renderScene(data) {
     }
   }
 
-  // Projects
+  // Projects (world-space, placed after buildings)
   if (data.projects && data.projects.length > 0) {
-    var px = Math.max(bx + 2, 60);
-    for (var pi = 0; pi < data.projects.length && px < W - 8; pi++) {
+    var px = Math.max(bx + 2, townStartX + totalBuildingWidth + 5);
+    for (var pi = 0; pi < data.projects.length; pi++) {
       var proj = data.projects[pi];
       var pSprite = proj.sprite;
       if (!pSprite) continue;
@@ -1722,24 +1757,23 @@ function renderScene(data) {
 
       for (var pr = 0; pr < psh; pr++) {
         for (var pc = 0; pc < psw; pc++) {
-          var pfx = px + pc, pfy = psy + pr;
-          if (pfx < W && pfy >= 0 && pfy < H && pSprite[pr][pc] !== ' ') {
-            setCell(grid, pfx, pfy, pSprite[pr][pc], pColor);
+          if (pSprite[pr][pc] !== ' ') {
+            setCellW(grid, px + pc, psy + pr, pSprite[pr][pc], pColor);
           }
         }
       }
 
       var pLabel = proj.name ? proj.name.slice(0, psw + 4) : proj.type;
-      for (var pli = 0; pli < pLabel.length && px + pli < W; pli++) {
-        setCell(grid, px + pli, groundY + 1, pLabel[pli], 'c-lbl');
+      for (var pli = 0; pli < pLabel.length; pli++) {
+        setCellW(grid, px + pli, groundY + 1, pLabel[pli], 'c-lbl');
       }
 
       if (proj.status !== 'complete') {
         var ppct = proj.progress || 0;
         var pFilled = Math.floor(ppct / 20);
         var pBar = '[' + '\u2588'.repeat(pFilled) + '\u2591'.repeat(5 - pFilled) + ']';
-        for (var pbri = 0; pbri < pBar.length && px + pbri < W; pbri++) {
-          setCell(grid, px + pbri, groundY + 2, pBar[pbri], 'c-bar');
+        for (var pbri = 0; pbri < pBar.length; pbri++) {
+          setCellW(grid, px + pbri, groundY + 2, pBar[pbri], 'c-bar');
         }
       }
 
@@ -1872,25 +1906,21 @@ function renderScene(data) {
         if (!vb.sprite || vb.status === 'rubble' || vb.status === 'overgrown') continue;
         var vbSh = vb.sprite.length;
         var vbSw = vb.sprite[0].length;
-        // Estimate building render x (recalculate like main building loop)
-        var vbx = 2;
-        for (var vbi2 = 0; vbi2 < vbi; vbi2++) {
-          var prevB = data.buildings[vbi2];
-          if (prevB.sprite) vbx += prevB.sprite[0].length + 2;
-        }
+        // Use buildingPositions for world-space coords
+        var vbPos = buildingPositions[vb.id];
+        var vbx = vbPos ? vbPos.x : townStartX;
         var vbsy = groundY - vbSh;
         var vineChance = ogStage === 2 ? 0.12 : 0.25;
         for (var vc = 0; vc < vbSw; vc++) {
-          // Vines drip from top and edges
           var isEdge = vc === 0 || vc === vbSw - 1;
           if (!isEdge && Math.random() > vineChance) continue;
           for (var vr = 0; vr < Math.min(vbSh, ogStage === 2 ? 2 : 4); vr++) {
-            var vfx = vbx + vc, vfy = vbsy + vr;
-            if (vfx >= 0 && vfx < W && vfy >= 0 && vfy < H) {
+            var vfy = vbsy + vr;
+            if (vfy >= 0 && vfy < H) {
               var vineSeed = ((vc * 7 + vr * 13 + (wSeed || 0)) % 100) / 100;
               if (vineSeed < vineChance) {
                 var vineSwayIdx = (waveCounter + vc * 3 + vr) % biome.vines.length;
-                setCell(grid, vfx, vfy, biome.vines[vineSwayIdx], 'c-ovg-vine');
+                setCellW(grid, vbx + vc, vfy, biome.vines[vineSwayIdx], 'c-ovg-vine');
               }
             }
           }
@@ -2064,8 +2094,10 @@ function renderScene(data) {
     var hat = (role === 'warrior' && v.warrior_type && WARRIOR_TYPE_HATS[v.warrior_type])
       ? WARRIOR_TYPE_HATS[v.warrior_type]
       : (ROLE_HATS[role] || ROLE_HATS.idle);
-    var x = Math.round(a.x);
+    var x = Math.round(worldToScreen(a.x));
     var serverAct = (v.activity && v.activity.activity) ? v.activity.activity : 'idle';
+    // Skip if off-screen
+    if (x < -10 || x > W + 10) continue;
 
     // Determine villager color by activity
     var vColor = '';
@@ -2442,6 +2474,47 @@ function renderScene(data) {
       var fcy = Math.floor(((fi2 * 19 + waveCounter * 0.7) % (groundY - 4))) + 2;
       if (fcx >= 0 && fcx < W && fcy >= 0 && fcy < groundY && getCell(grid, fcx, fcy).ch === ' ') {
         setCell(grid, fcx, fcy, festChars[fi2 % festChars.length], festColors[fi2 % festColors.length]);
+      }
+    }
+  }
+
+  // ─── FOG OF WAR DIMMING PASS ───
+  var townCenterW = townStartX + Math.floor(totalBuildingWidth / 2);
+  var exploredHalf = worldWidth * exploredPct / 200;
+  var FOG_FADE = 10; // transition zone chars
+  var FOG_CLASSES = ['c-fog-1', 'c-fog-2', 'c-fog-3'];
+  for (var fy = 0; fy < H; fy++) {
+    for (var fx = 0; fx < W; fx++) {
+      // Convert screen x to world x
+      var worldX = fx + cameraX;
+      // Distance from town center in world space (with wrapping)
+      var distFromCenter = worldX - townCenterW;
+      if (distFromCenter > worldWidth / 2) distFromCenter -= worldWidth;
+      if (distFromCenter < -worldWidth / 2) distFromCenter += worldWidth;
+      var absDist = Math.abs(distFromCenter);
+      if (absDist > exploredHalf) {
+        var fogDepth = absDist - exploredHalf;
+        var isSky = fy < groundY;
+        if (fogDepth > FOG_FADE) {
+          // Full fog
+          var cell = getCell(grid, fx, fy);
+          if (isSky) {
+            if (cell && cell.ch && cell.ch !== ' ') {
+              setCell(grid, fx, fy, cell.ch, 'c-fog-sky');
+            }
+          } else {
+            var fogCh = (cell && cell.ch && cell.ch !== ' ') ? cell.ch : '.';
+            setCell(grid, fx, fy, fogCh, 'c-fog');
+          }
+        } else {
+          // Gradient transition
+          var fogIdx = Math.floor((fogDepth / FOG_FADE) * FOG_CLASSES.length);
+          fogIdx = Math.min(fogIdx, FOG_CLASSES.length - 1);
+          var cell = getCell(grid, fx, fy);
+          if (cell && cell.ch !== ' ') {
+            setCell(grid, fx, fy, cell.ch, FOG_CLASSES[fogIdx]);
+          }
+        }
       }
     }
   }
@@ -2977,6 +3050,82 @@ var ITEM_SPRITES = {
         showNotification('Whisper failed', 'danger');
         input.disabled = false;
       });
+  });
+})();
+
+// ─── DRAG / PAN CONTROLS ───
+(function() {
+  var container = document.getElementById('scene-container');
+  if (!container) return;
+
+  // Measure char width for pixel→char conversion
+  function getCharWidth() {
+    var world = document.getElementById('world');
+    if (!world) return 7;
+    var fs = parseFloat(world.style.fontSize) || 12;
+    return fs * 0.6; // approximate monospace char width
+  }
+
+  container.style.cursor = 'grab';
+
+  // Mouse drag
+  container.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartCam = cameraX;
+    container.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    var dx = e.clientX - dragStartX;
+    var charW = getCharWidth();
+    cameraX = dragStartCam - dx / charW;
+    cameraX = ((cameraX % worldWidth) + worldWidth) % worldWidth;
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      container.style.cursor = 'grab';
+    }
+  });
+
+  // Touch drag
+  var touchId = null;
+  container.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 1) return;
+    var touch = e.touches[0];
+    touchId = touch.identifier;
+    isDragging = true;
+    dragStartX = touch.clientX;
+    dragStartCam = cameraX;
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!isDragging || touchId === null) return;
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchId) {
+        var dx = e.changedTouches[i].clientX - dragStartX;
+        var charW = getCharWidth();
+        cameraX = dragStartCam - dx / charW;
+        cameraX = ((cameraX % worldWidth) + worldWidth) % worldWidth;
+        break;
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchId) {
+        isDragging = false;
+        touchId = null;
+        break;
+      }
+    }
   });
 })();
 
