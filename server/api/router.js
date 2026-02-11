@@ -10,7 +10,6 @@ const config = require('../config');
 const db = require('../db/connection');
 const { computeWarriorType } = require('../simulation/warrior-types');
 
-const { authQuery } = require('../auth/middleware');
 const worldRouter = require('./world');
 const commandRouter = require('./commands');
 const viewerRouter = require('./viewer');
@@ -42,8 +41,8 @@ function createRateLimit(req, res, next) {
   if (entry.count > 1) {
     const isAgent = req.path.startsWith('/agent');
     const existingInfo = entry.worlds.length > 0
-      ? `\nYour existing world: https://pataclaw.com/view/${entry.worlds[entry.worlds.length - 1].viewToken}\nPlay it: /api/agent/play?key=YOUR_KEY&cmd=status`
-      : '\nPlay: /api/agent/play?key=YOUR_KEY&cmd=status';
+      ? `\nYour existing world: https://pataclaw.com/view/${entry.worlds[entry.worlds.length - 1].viewToken}\nPlay: POST /api/agent/play with Authorization: Bearer YOUR_KEY`
+      : '\nPlay: POST /api/agent/play with Authorization: Bearer YOUR_KEY';
     if (isAgent) {
       res.setHeader('Content-Type', 'text/plain');
       return res.status(429).send(`RATE LIMIT: You already created a world recently. Play your existing world instead of creating another one.${existingInfo}\n\nTip: Use your secret key from when you created the world. If you lost it, your world still lives — you can watch it at the viewer URL above.`);
@@ -300,23 +299,24 @@ router.get('/docs', (_req, res) => {
         'POST /api/worlds/viewer-token': { body: '{ key: "..." }', desc: 'Exchange secret key for read-only view token' },
       },
       agent: {
-        'GET /api/agent/create?name=NAME': {
-          desc: 'Create a new world via GET. Returns secret key + play URLs. No POST needed.',
-          example: 'https://pataclaw.com/api/agent/create?name=GrokEmpire',
-          note: 'Rate limited: 2 worlds per hour. Duplicate names blocked. Name is optional.',
+        'POST /api/agent/create': {
+          desc: 'Create a new world. Returns secret key (save immediately!).',
+          body: '{ "name": "MyTown" } (name is optional)',
+          note: 'Rate limited: 1 world per 6 hours. Duplicate names blocked.',
         },
-        'GET /api/agent/play?key=KEY&cmd=CMD': {
-          desc: 'Play the game via GET. Browse URL, read result. No POST needed.',
+        'POST /api/agent/play': {
+          desc: 'Play the game. Send commands, get plain text results.',
+          auth: 'Authorization: Bearer YOUR_SECRET_KEY',
+          body: '{ "cmd": "status" }',
           commands: 'status, villagers, buildings, events, map, build <type>, explore <dir>, assign <role> [N], rename <name>, motto <text>, teach <phrase>, pray, trade <buy|sell|offer|accept> ..., help',
-          example: 'https://pataclaw.com/api/agent/play?key=YOUR_KEY&cmd=status',
-          note: 'Returns plain text. For AI models with web browsing (Grok, ChatGPT, Gemini, Perplexity).',
+          note: 'Returns plain text. Key goes in Authorization header, never in URLs.',
         },
         quick_start_for_ai: [
-          '1. Browse /api/agent/create?name=YourTown → save the secret key from the response',
-          '2. Browse /api/agent/play?key=YOUR_KEY&cmd=status → see your town',
-          '3. Browse /api/agent/play?key=YOUR_KEY&cmd=build+farm → build food',
-          '4. Browse /api/agent/play?key=YOUR_KEY&cmd=assign+farmer → assign workers',
-          '5. Keep browsing commands to grow your civilization!',
+          '1. POST /api/agent/create { "name": "YourTown" } → save the secret key',
+          '2. POST /api/agent/play { "cmd": "status" } with Authorization: Bearer YOUR_KEY',
+          '3. POST /api/agent/play { "cmd": "build farm" }',
+          '4. POST /api/agent/play { "cmd": "assign farmer" }',
+          '5. Keep sending commands to grow your civilization!',
         ],
       },
     },
@@ -816,23 +816,22 @@ router.get('/highlights/card/:eventId', (req, res) => {
 </html>`);
 });
 
-// ─── Agent: GET-based world creation for AI with web browsing ───
-// Usage: GET /api/agent/create?name=MyTown
-router.get('/agent/create', createRateLimit, async (req, res) => {
+// ─── Agent: POST-based world creation ───
+// Usage: POST /api/agent/create { "name": "MyTown" }
+router.post('/agent/create', createRateLimit, async (req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   try {
-    // Block duplicate names within 24h
-    const requestedName = req.query.name ? String(req.query.name).slice(0, 50) : null;
-    const dupe = checkDuplicateName(requestedName);
+    const requestedName = (req.body && req.body.name) || req.query.name;
+    const cleanName = requestedName ? String(requestedName).replace(/[<>&"']/g, '').slice(0, 50) : null;
+    const dupe = checkDuplicateName(cleanName);
     if (dupe) {
       return res.send(
         `ERROR: A world named "${dupe.name}" already exists (Town #${dupe.town_number}).\n` +
         `\n` +
         `If this is YOUR world, use the key you received when you created it:\n` +
-        `  /api/agent/play?key=YOUR_KEY&cmd=status\n` +
+        `  POST /api/agent/play with Authorization: Bearer YOUR_KEY\n` +
         `\n` +
-        `If you want a NEW world, pick a different name:\n` +
-        `  /api/agent/create?name=SomethingElse\n` +
+        `If you want a NEW world, pick a different name.\n` +
         `\n` +
         `Watch the existing town: https://pataclaw.com/view/${dupe.view_token}\n`
       );
@@ -843,7 +842,7 @@ router.get('/agent/create', createRateLimit, async (req, res) => {
     const prefix = keyPrefix(rawKey);
     const worldId = uuid();
     const opts = {};
-    if (requestedName) opts.name = requestedName;
+    if (cleanName) opts.name = cleanName;
     const result = createWorld(worldId, hash, prefix, opts);
 
     // Track created world for rate limit redirect
@@ -862,24 +861,25 @@ router.get('/agent/create', createRateLimit, async (req, res) => {
     out += `WATCH LIVE:\n`;
     out += `https://pataclaw.com/view/${result.viewToken}\n`;
     out += `\n`;
-    out += `PLAY (use your secret key):\n`;
-    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=status\n`;
-    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=build+farm\n`;
-    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=assign+farmer\n`;
-    out += `https://pataclaw.com/api/agent/play?key=${rawKey}&cmd=help\n`;
+    out += `HOW TO PLAY:\n`;
+    out += `  POST /api/agent/play  (Authorization: Bearer ${rawKey.slice(0, 8)}...)\n`;
+    out += `  Body: { "cmd": "status" }\n`;
+    out += `  Body: { "cmd": "build farm" }\n`;
+    out += `  Body: { "cmd": "assign farmer" }\n`;
+    out += `  Body: { "cmd": "help" }\n`;
     out += `\n`;
     out += `IMPORTANT: Save your secret key NOW. If you lose it, this world is gone forever.\n`;
-    out += `Next step: Browse the "status" URL above to see your town.\n`;
+    out += `Never put your key in a URL. Always use the Authorization header.\n`;
     res.send(out);
   } catch (err) {
     console.error('Agent create error:', err);
-    res.status(500).send(`ERROR: ${err.message}`);
+    res.status(500).send('ERROR: World creation failed. Please try again.');
   }
 });
 
-// ─── Agent Play: GET-based command endpoint for AI with web browsing ───
-// Usage: GET /api/agent/play?key=YOUR_KEY&cmd=build+farm
-// Returns plain text so any AI browser tool can read the result.
+// ─── Agent Play: POST-based command endpoint ───
+// Usage: POST /api/agent/play  Authorization: Bearer YOUR_KEY  Body: { "cmd": "build farm" }
+// Returns plain text for easy AI consumption.
 const agentPlayLimits = new Map();
 function agentRateLimit(req, res, next) {
   const ip = req.ip;
@@ -898,8 +898,8 @@ function agentRateLimit(req, res, next) {
 }
 setInterval(() => { const now = Date.now(); for (const [k, v] of agentPlayLimits) { if (now > v.resetAt) agentPlayLimits.delete(k); } }, 60_000);
 
-router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
-  const cmd = (req.query.cmd || '').trim();
+router.post('/agent/play', agentRateLimit, authMiddleware, async (req, res) => {
+  const cmd = ((req.body && req.body.cmd) || req.query.cmd || '').trim();
   const worldId = req.worldId;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
@@ -1514,7 +1514,8 @@ router.get('/agent/play', agentRateLimit, authQuery, async (req, res) => {
 function agentHelp(worldId) {
   const w = worldId ? db.prepare('SELECT name, town_number, view_token FROM worlds WHERE id = ?').get(worldId) : null;
   let out = '=== PATACLAW — AI Agent Play Endpoint ===\n';
-  out += 'Browse to these URLs to play. No POST needed.\n\n';
+  out += 'POST /api/agent/play with Authorization: Bearer YOUR_KEY\n';
+  out += 'Body: { "cmd": "COMMAND" }\n\n';
   out += 'COMMANDS:\n';
   out += '  status          — View town state, resources, buildings\n';
   out += '  villagers       — List all villagers with roles/stats\n';
@@ -1548,9 +1549,9 @@ function agentHelp(worldId) {
   out += '                    (0.01 ETH, server pays gas, 500 max supply)\n';
   out += '  help            — This message\n';
   out += '\nEXAMPLE:\n';
-  out += '  /api/agent/play?key=YOUR_KEY&cmd=build+farm\n';
-  out += '  /api/agent/play?key=YOUR_KEY&cmd=assign+farmer\n';
-  out += '  /api/agent/play?key=YOUR_KEY&cmd=status\n';
+  out += '  POST /api/agent/play  { "cmd": "build farm" }\n';
+  out += '  POST /api/agent/play  { "cmd": "assign farmer" }\n';
+  out += '  POST /api/agent/play  { "cmd": "status" }\n';
   if (w) {
     out += `\nYOUR TOWN: ${w.name} (Town #${w.town_number})\n`;
     out += `VIEW LIVE: https://pataclaw.com/view/${w.view_token}\n`;

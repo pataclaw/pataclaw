@@ -9,12 +9,19 @@ const AGENT_STARTING_CREDITS = 500;
 const PLATFORM_FEE = 0.05; // 5% rake
 
 // ─── Session middleware ───
+const SESSION_MAX_AGE_DAYS = 30;
 function sessionMiddleware(req, res, next) {
   const token = req.headers['x-session'] || req.query.session;
   if (!token) return res.status(401).json({ error: 'Missing X-Session header. Visit /arena to get one.' });
 
   const spectator = db.prepare('SELECT * FROM spectators WHERE session_token = ?').get(token);
   if (!spectator) return res.status(401).json({ error: 'Invalid session. Visit /arena to create an account.' });
+
+  // Expire sessions older than 30 days
+  const created = new Date(spectator.created_at).getTime();
+  if (Date.now() - created > SESSION_MAX_AGE_DAYS * 86400_000) {
+    return res.status(401).json({ error: 'Session expired. Visit /arena to create a new account.' });
+  }
 
   req.spectator = spectator;
   next();
