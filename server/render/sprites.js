@@ -1575,20 +1575,20 @@ const NOMAD_CAMP_SPRITE = [
 const BUILDING_TIER_SPRITES = {
   hut: {
     // L1: default hut (7 rows, 10 wide)
-    2: [ // House: stone walls, glass window, chimney (8 rows, 11 wide)
-      '     _[]_  ',
-      '    / /\\ \\ ',
-      '   /======\\',
+    2: [ // House: stone walls, glass window, chimney (8 rows, 12 wide)
+      '     _[]_   ',
+      '    / /\\ \\  ',
+      '   /======\\ ',
       '  |  ____  |',
       '  | |    | |',
       '  | |[==]| |',
       '  |=|====|=|',
       '  |_|_[]_|_|',
     ],
-    3: [ // Lodge: two-story, balcony rail (9 rows, 12 wide)
-      '    _/==\\_   ',
-      '   / /\\/\\ \\  ',
-      '  /==========\\',
+    3: [ // Lodge: two-story, balcony rail (9 rows, 15 wide)
+      '    _/==\\_     ',
+      '   / /\\/\\ \\    ',
+      '  /==========\\ ',
       ' | [==]  [==] |',
       ' |--|------|--|',
       ' | [==]  [==] |',
@@ -1596,9 +1596,9 @@ const BUILDING_TIER_SPRITES = {
       ' |==|======|==|',
       ' |__|__[]__|__|',
     ],
-    4: [ // Tower Block: three-story, many windows (11 rows, 10 wide)
-      '  ___[]___',
-      ' /========\\',
+    4: [ // Tower Block: three-story, many windows (11 rows, 12 wide)
+      '  ___[]___  ',
+      ' /========\\ ',
       '| [=]  [=] |',
       '|----------|',
       '| [=]  [=] |',
@@ -1636,13 +1636,13 @@ const BUILDING_TIER_SPRITES = {
   },
   workshop: {
     2: [ // Two chimneys, wider workspace (8 rows)
-      ' _===_ ~  ~ ',
-      '|o||o|/~\\/~\\',
-      '|_/\\_||    |',
-      '|[><]||[><]|',
-      '| /\\ || /\\ |',
-      '|/()\\||/()\\|',
-      '|====||====|',
+      ' _===_ ~  ~  ',
+      '|o||o|/~\\/~\\ ',
+      '|_/\\_||    | ',
+      '|[><]||[><]| ',
+      '| /\\ || /\\ | ',
+      '|/()\\||/()\\| ',
+      '|====||====| ',
       '|____|/____| ',
     ],
     3: [ // Full foundry, gear symbol (9 rows)
@@ -1677,7 +1677,7 @@ const BUILDING_TIER_SPRITES = {
       '|  /<>\\     |',
       '|  ><  ><   |',
       '| /\\/\\/\\/\\  |',
-      ']==========[',
+      ']==========[ ',
     ],
   },
   watchtower: {
