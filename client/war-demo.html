@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PATACLAW - War Demo</title>
+  <link rel="stylesheet" href="/css/war.css">
+</head>
+<body>
+  <div id="war-container">
+    <div id="war-header">
+      <div id="challenger-info" class="side-info left">
+        <div class="side-name" id="challenger-name">???</div>
+        <div class="side-hp-bar">
+          <div class="hp-fill challenger-fill" id="challenger-hp-fill"></div>
+        </div>
+        <div class="side-hp-text" id="challenger-hp-text">200/200</div>
+        <div class="side-phase" id="challenger-phase">CLASH</div>
+      </div>
+      <div id="war-center-info">
+        <div id="war-title">WAR</div>
+        <div id="war-round">Round 0/40</div>
+        <div id="war-weather"></div>
+      </div>
+      <div id="defender-info" class="side-info right">
+        <div class="side-name" id="defender-name">???</div>
+        <div class="side-hp-bar">
+          <div class="hp-fill defender-fill" id="defender-hp-fill"></div>
+        </div>
+        <div class="side-hp-text" id="defender-hp-text">200/200</div>
+        <div class="side-phase" id="defender-phase">CLASH</div>
+      </div>
+    </div>
+
+    <div id="battlefield">
+      <div id="sky-layer" class="layer"></div>
+      <div id="spire-layer" class="layer">
+        <div id="challenger-spire" class="spire left-spire"></div>
+        <div id="defender-spire" class="spire right-spire"></div>
+      </div>
+      <div id="building-layer" class="layer">
+        <div id="challenger-buildings" class="buildings left-buildings"></div>
+        <div id="defender-buildings" class="buildings right-buildings"></div>
+      </div>
+      <div id="ground-layer" class="layer"></div>
+      <div id="army-layer" class="layer">
+        <div id="challenger-army" class="army left-army"></div>
+        <div id="defender-army" class="army right-army"></div>
+      </div>
+      <div id="effect-layer" class="layer"></div>
+    </div>
+
+    <div id="war-footer">
+      <div id="skill-bar">
+        <div id="challenger-skills" class="skill-row"></div>
+        <div id="defender-skills" class="skill-row"></div>
+      </div>
+      <div id="battle-log"></div>
+      <div id="war-status-bar">
+        <span id="war-status-text">DEMO</span>
+        <span class="sep">|</span>
+        <span style="color:var(--dim);cursor:pointer" onclick="resetDemo()">RESTART</span>
+        <span class="sep">|</span>
+        <a href="/">HOME</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ─── Mock Data Generator ───
+  const NAMES = {
+    challenger: 'Cursed Nook',
+    defender: 'Shell City',
+  };
+
+  const WARRIOR_NAMES_C = [
+    'Ironshell Krax', 'Tidecrusher Mol', 'Reefbreaker Zan', 'Clawstrike Venn',
+    'Shellsplitter Gor', 'Spinescar Dak', 'Abyssfang Rik', 'Deeptide Kol',
+    'Moltsteel Bren', 'Coralthorn Axe', 'Saltblade Jex', 'Spireguard Onn',
+  ];
+  const WARRIOR_NAMES_D = [
+    'Waveclaw Kel', 'Moonshard Pip', 'Shellward Taz', 'Reefwatch Sol',
+    'Tidemark Bev', 'Depthwalker Rue', 'Coralgrip Fen', 'Saltsteel Gar',
+    'Spireclaw Myn', 'Abysseye Dok', 'Moltfist Ren', 'Shorebreak Val',
+  ];
+
+  const BUILDINGS_C = [
+    { type: 'wall' }, { type: 'wall' }, { type: 'barracks' },
+    { type: 'watchtower' }, { type: 'workshop' }, { type: 'farm' },
+    { type: 'temple' }, { type: 'market' },
+  ];
+  const BUILDINGS_D = [
+    { type: 'wall' }, { type: 'wall' }, { type: 'barracks' },
+    { type: 'watchtower' }, { type: 'farm' }, { type: 'farm' },
+    { type: 'library' }, { type: 'dock' },
+  ];
+
+  const SKILLS_C = [
+    { name: 'Berserker Charge', color: 'red', used: false },
+    { name: 'Shield Wall', color: 'blue', used: false },
+    { name: 'Rain of Fire', color: 'red', used: false },
+  ];
+  const SKILLS_D = [
+    { name: 'Divine Shield', color: 'gold', used: false },
+    { name: "Spire's Wrath", color: 'gold', used: false },
+    { name: 'Rally Cry', color: 'green', used: false },
+  ];
+
+  const TACTICAL_EVENTS = [
+    { desc: '%c warriors flank the enemy lines!', visual: 'flanking_strike' },
+    { desc: "A section of %d walls crumbles!", visual: null },
+    { desc: "A %d warrior makes a legendary stand!", visual: null },
+    { desc: '%c scouts set a devastating ambush!', visual: 'ambush' },
+    { desc: 'Molted %c warriors go berserk!', visual: 'berserker_charge' },
+    { desc: '%d rallies with a thunderous war chant!', visual: 'warcry' },
+    { desc: 'Two warriors face off in a legendary duel!', visual: null },
+  ];
+
+  const WEATHERS = ['clear', 'rain', 'storm', 'clear', 'clear', 'snow', 'fog'];
+  const TIMES = ['dawn', 'day', 'day', 'day', 'dusk', 'night'];
+
+  // ─── State ───
+  let frame = null;
+  let animTick = 0;
+  let animInterval = null;
+  let roundTimer = null;
+  let currentRound = 0;
+  let cHp = 200, dHp = 200;
+  const MAX_HP = 200;
+  const MAX_ROUNDS = 40;
+  let battleLog = [];
+  let cWarriors = [], dWarriors = [];
+  let cBuildings = [], dBuildings = [];
+  let cSkills = [], dSkills = [];
+
+  // ─── Sprites (from war-viewer.js) ───
+  const WARRIOR_SPRITES = {
+    fighting: [' o \n/|\\', ' o \n/|/'],
+    charging: [' o \n/|>', ' o_\n/|>'],
+    defending: [' o \n]|\\', ' o \n]|/'],
+    fallen: ['___\n x '],
+    dead: ['   \n + '],
+  };
+  const WARRIOR_SPRITES_MIRROR = {
+    fighting: [' o \n/|\\', ' o \n\\|\\'],
+    charging: [' o \n<|\\', '_o \n<|\\'],
+    defending: [' o \n/|[', ' o \n\\|['],
+    fallen: ['___\n x '],
+    dead: ['   \n + '],
+  };
+  const BUILDING_SPRITES = {
+    farm: '  _\n |#|\n_|_|_',
+    workshop: ' [W]\n |--|\n |__|',
+    hut: '  /\\\n |  |\n |__|',
+    market: ' $$$\n|---|\n|___|',
+    library: ' [B]\n |==|\n |__|',
+    dock: '  ~\n ===\n/___\\',
+    wall: '||||||\n||||||',
+    watchtower: '  /\\\n |TT|\n |||\n |||',
+    temple: '  +\n /|\\\n|===|\n|___|',
+    barracks: ' [=]\n |><|\n |--|',
+  };
+  const BUILDING_RUBBLE = '  ..\n .::.\n.:::.';
+  const SPIRE_SEGMENT = { intact: '  |##|  ', cracked: '  |/\\|  ', fallen: '  ....  ' };
+  const SPIRE_CAP = '   /\\   \n  /  \\  \n  |**|  ';
+  const SPIRE_BASE = '__|    |__\n|__________|';
+  const WEATHER_CHARS = {
+    rain: ['|', '|', '/', '|', '\\'],
+    storm: ['/', '\\', '|', '⚡', '/'],
+    snow: ['*', '·', '°', '•'],
+    clear: [], fog: ['.', '·', '.'],
+  };
+
+  // ─── Init ───
+  function init() {
+    cWarriors = WARRIOR_NAMES_C.map(n => ({ name: n, state: 'fighting', trait: 'brave' }));
+    dWarriors = WARRIOR_NAMES_D.map(n => ({ name: n, state: 'fighting', trait: 'strong' }));
+    cBuildings = BUILDINGS_C.map(b => ({ ...b, visual_state: 'standing' }));
+    dBuildings = BUILDINGS_D.map(b => ({ ...b, visual_state: 'standing' }));
+    cSkills = SKILLS_C.map(s => ({ ...s }));
+    dSkills = SKILLS_D.map(s => ({ ...s }));
+    cHp = 200; dHp = 200;
+    currentRound = 0;
+    battleLog = ['War begins! ' + NAMES.challenger + ' vs ' + NAMES.defender + '. Molt or die.'];
+
+    buildFrame();
+    applyFrame();
+    startAnimLoop();
+
+    // Auto-play rounds every 2.5 seconds
+    roundTimer = setInterval(() => {
+      if (currentRound >= MAX_ROUNDS || cHp <= 0 || dHp <= 0) {
+        clearInterval(roundTimer);
+        frame.status = 'resolved';
+        applyFrame();
+        return;
+      }
+      playRound();
+    }, 2500);
+  }
+
+  function getPhase(hp) {
+    const pct = hp / MAX_HP;
+    if (pct > 0.60) return 'clash';
+    if (pct > 0.20) return 'burn';
+    return 'spire';
+  }
+
+  function playRound() {
+    currentRound++;
+    const weather = WEATHERS[currentRound % WEATHERS.length];
+    const time = TIMES[currentRound % TIMES.length];
+
+    // Base damage
+    let cDmg = 5 + Math.floor(Math.random() * 12); // challenger deals
+    let dDmg = 4 + Math.floor(Math.random() * 10); // defender deals
+
+    // Phase modifiers
+    const cPhase = getPhase(cHp);
+    const dPhase = getPhase(dHp);
+    if (dPhase === 'burn') cDmg = Math.floor(cDmg * 1.3);
+    if (dPhase === 'spire') cDmg = Math.floor(cDmg * 1.6);
+    if (cPhase === 'burn') dDmg = Math.floor(dDmg * 1.3);
+    if (cPhase === 'spire') dDmg = Math.floor(dDmg * 1.6);
+
+    let narrative = `Round ${currentRound}: ${NAMES.challenger} deals ${cDmg} dmg, ${NAMES.defender} deals ${dDmg} dmg.`;
+    let skillUsed = null;
+
+    // Tactical event (35% chance)
+    if (Math.random() < 0.35) {
+      const evt = TACTICAL_EVENTS[Math.floor(Math.random() * TACTICAL_EVENTS.length)];
+      narrative += ' ' + evt.desc.replace('%c', NAMES.challenger).replace('%d', NAMES.defender);
+      if (Math.random() < 0.5) cDmg += 5; else dDmg += 5;
+    }
+
+    // Skill triggers at specific rounds
+    if (currentRound === 5 && !cSkills[0].used) {
+      cSkills[0].used = true;
+      cDmg += 15;
+      narrative += ' [SKILL: Berserker Charge] ' + NAMES.challenger + ' warriors go berserk!';
+      skillUsed = { skillName: 'Berserker Charge', side: 'challenger', color: 'red', visual: 'berserker_charge' };
+      // Temporarily charge warriors
+      cWarriors.forEach(w => { if (w.state === 'fighting') w.state = 'charging'; });
+      setTimeout(() => cWarriors.forEach(w => { if (w.state === 'charging') w.state = 'fighting'; }), 4000);
+    }
+    if (currentRound === 10 && !dSkills[0].used) {
+      dSkills[0].used = true;
+      dDmg = 0;
+      narrative += ' [SKILL: Divine Shield] ' + NAMES.defender + ' becomes invulnerable!';
+      skillUsed = { skillName: 'Divine Shield', side: 'defender', color: 'gold', visual: 'divine_shield' };
+      dWarriors.forEach(w => { if (w.state === 'fighting') w.state = 'defending'; });
+      setTimeout(() => dWarriors.forEach(w => { if (w.state === 'defending') w.state = 'fighting'; }), 4000);
+    }
+    if (currentRound === 18 && !cSkills[2].used) {
+      cSkills[2].used = true;
+      cDmg += 25;
+      narrative += ' [SKILL: Rain of Fire] Fire rains on ' + NAMES.defender + '!';
+      skillUsed = { skillName: 'Rain of Fire', side: 'challenger', color: 'red', visual: 'rain_of_fire' };
+    }
+    if (currentRound === 15 && !cSkills[1].used) {
+      cSkills[1].used = true;
+      dDmg = Math.floor(dDmg * 0.3);
+      narrative += ' [SKILL: Shield Wall] ' + NAMES.challenger + ' raises shield wall!';
+      skillUsed = { skillName: 'Shield Wall', side: 'challenger', color: 'blue', visual: 'shield_wall' };
+    }
+    if (currentRound === 22 && !dSkills[1].used) {
+      dSkills[1].used = true;
+      dDmg += 20;
+      narrative += " [SKILL: Spire's Wrath] A beam fires from " + NAMES.defender + "'s spire!";
+      skillUsed = { skillName: "Spire's Wrath", side: 'defender', color: 'gold', visual: 'spires_wrath' };
+    }
+    if (currentRound === 28 && !dSkills[2].used) {
+      dSkills[2].used = true;
+      dDmg += 10;
+      narrative += ' [SKILL: Rally Cry] ' + NAMES.defender + ' warriors rally!';
+      skillUsed = { skillName: 'Rally Cry', side: 'defender', color: 'green', visual: 'rally_cry' };
+    }
+
+    // Apply damage
+    dHp = Math.max(0, dHp - cDmg);
+    cHp = Math.max(0, cHp - dDmg);
+
+    // Phase annotations
+    if (getPhase(cHp) === 'burn' && cPhase === 'clash') narrative += ' ' + NAMES.challenger + "'s buildings are burning!";
+    if (getPhase(dHp) === 'burn' && dPhase === 'clash') narrative += ' ' + NAMES.defender + "'s buildings are burning!";
+    if (getPhase(cHp) === 'spire' && cPhase === 'burn') narrative += ' ' + NAMES.challenger + "'s spire is under assault!";
+    if (getPhase(dHp) === 'spire' && dPhase === 'burn') narrative += ' ' + NAMES.defender + "'s spire is under assault!";
+
+    battleLog.push(narrative);
+    if (battleLog.length > 12) battleLog.shift();
+
+    // Damage warriors as HP drops
+    updateWarriorStates(cWarriors, cHp);
+    updateWarriorStates(dWarriors, dHp);
+
+    // Damage buildings in burn/spire phase
+    updateBuildingStates(cBuildings, cHp);
+    updateBuildingStates(dBuildings, dHp);
+
+    frame.weather = weather;
+    frame.time_of_day = time;
+    frame.latest_round = {
+      damage: { challenger: dDmg, defender: cDmg },
+      skill_used: skillUsed,
+    };
+
+    buildFrame();
+    applyFrame();
+
+    // Flash on skill
+    if (skillUsed) flashSkill(skillUsed);
+    // Damage numbers
+    if (cDmg > 0) spawnDamageNumber('defender', cDmg);
+    if (dDmg > 0) spawnDamageNumber('challenger', dDmg);
+  }
+
+  function updateWarriorStates(warriors, hp) {
+    const pct = hp / MAX_HP;
+    const alive = warriors.filter(w => w.state !== 'dead');
+    const shouldDie = Math.floor((1 - pct) * warriors.length * 0.6);
+    let deaths = warriors.filter(w => w.state === 'dead' || w.state === 'fallen').length;
+
+    for (const w of alive) {
+      if (deaths >= shouldDie) break;
+      if (Math.random() < 0.4) {
+        w.state = 'fallen';
+        deaths++;
+        setTimeout(() => { w.state = 'dead'; }, 2000);
+      }
+    }
+  }
+
+  function updateBuildingStates(buildings, hp) {
+    const pct = hp / MAX_HP;
+    if (pct < 0.60) {
+      // Burn phase — burn some buildings
+      const standing = buildings.filter(b => b.visual_state === 'standing');
+      const burnCount = Math.floor((0.60 - pct) / 0.10);
+      for (let i = 0; i < burnCount && i < standing.length; i++) {
+        standing[i].visual_state = 'burning';
+      }
+    }
+    if (pct < 0.20) {
+      // Spire phase — destroy burning buildings
+      const burning = buildings.filter(b => b.visual_state === 'burning');
+      for (const b of burning) b.visual_state = 'destroyed';
+    }
+  }
+
+  function buildFrame() {
+    const cPhase = getPhase(cHp);
+    const dPhase = getPhase(dHp);
+
+    // Spire damage based on phase
+    function spireState(hp) {
+      const pct = hp / MAX_HP;
+      const total = 16;
+      let fallen = 0, cracked = 0;
+      if (pct < 0.20) { fallen = 10; cracked = 4; }
+      else if (pct < 0.40) { fallen = 4; cracked = 6; }
+      else if (pct < 0.60) { cracked = 4; }
+      else if (pct < 0.80) { cracked = 2; }
+      return { segments_total: total, segments_intact: total - fallen - cracked, segments_fallen: fallen, segments_cracked: cracked, collapsed: hp <= 0 };
+    }
+
+    frame = {
+      status: (cHp <= 0 || dHp <= 0 || currentRound >= MAX_ROUNDS) ? 'resolved' : 'active',
+      round: currentRound,
+      max_rounds: MAX_ROUNDS,
+      weather: frame ? frame.weather : 'clear',
+      time_of_day: frame ? frame.time_of_day : 'day',
+      challenger: {
+        name: NAMES.challenger,
+        hp: cHp, max_hp: MAX_HP,
+        phase: cPhase,
+        spire: spireState(cHp),
+        buildings: cBuildings,
+        warriors: cWarriors,
+        skills: cSkills,
+      },
+      defender: {
+        name: NAMES.defender,
+        hp: dHp, max_hp: MAX_HP,
+        phase: dPhase,
+        spire: spireState(dHp),
+        buildings: dBuildings,
+        warriors: dWarriors,
+        skills: dSkills,
+      },
+      battle_log: battleLog,
+      latest_round: frame ? frame.latest_round : null,
+    };
+  }
+
+  // ─── Rendering (adapted from war-viewer.js) ───
+  function applyFrame() {
+    if (!frame) return;
+    updateHeader();
+    updateSkillBar();
+    updateBattleLog();
+    renderBattlefield();
+    if (frame.status === 'resolved') showResolved();
+  }
+
+  function updateHeader() {
+    const c = frame.challenger, d = frame.defender;
+    document.getElementById('challenger-name').textContent = c.name;
+    document.getElementById('defender-name').textContent = d.name;
+    const cPct = Math.max(0, (c.hp / c.max_hp) * 100);
+    const dPct = Math.max(0, (d.hp / d.max_hp) * 100);
+    document.getElementById('challenger-hp-fill').style.width = cPct + '%';
+    document.getElementById('defender-hp-fill').style.width = dPct + '%';
+    document.getElementById('challenger-hp-text').textContent = Math.max(0, c.hp) + '/' + c.max_hp;
+    document.getElementById('defender-hp-text').textContent = Math.max(0, d.hp) + '/' + d.max_hp;
+    setPhaseLabel('challenger-phase', c.phase);
+    setPhaseLabel('defender-phase', d.phase);
+    document.getElementById('war-round').textContent = 'Round ' + frame.round + '/' + frame.max_rounds;
+    var we = document.getElementById('war-weather');
+    we.textContent = (frame.weather !== 'clear' ? frame.weather + ' · ' : '') + (frame.time_of_day || '');
+  }
+
+  function setPhaseLabel(id, phase) {
+    var el = document.getElementById(id);
+    el.textContent = (phase || 'clash').toUpperCase();
+    el.className = 'side-phase';
+    if (phase === 'clash') el.classList.add('phase-clash');
+    else if (phase === 'burn') el.classList.add('phase-burn');
+    else if (phase === 'spire') el.classList.add('phase-spire');
+  }
+
+  function updateSkillBar() {
+    renderSkillRow('challenger-skills', frame.challenger.skills);
+    renderSkillRow('defender-skills', frame.defender.skills);
+  }
+  function renderSkillRow(id, skills) {
+    var el = document.getElementById(id);
+    el.innerHTML = skills.map(function(s) {
+      var used = s.used ? ' used' : '';
+      var icon = s.used ? '✗' : '○';
+      return '<span class="skill-badge ' + s.color + used + '">' + icon + ' ' + esc(s.name) + '</span>';
+    }).join('');
+  }
+
+  function updateBattleLog() {
+    var el = document.getElementById('battle-log');
+    el.innerHTML = (frame.battle_log || []).map(function(line) {
+      var html = esc(line);
+      html = html.replace(/\[SKILL:\s*([^\]]+)\]/g, '<span class="skill-text">[$1]</span>');
+      html = html.replace(/(\d+)\s*dmg/gi, '<span class="damage-text">$1 dmg</span>');
+      html = html.replace(/(BURN|SPIRE|CLASH)/g, '<span class="phase-text">$1</span>');
+      return '<div class="log-entry">' + html + '</div>';
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function renderBattlefield() {
+    renderSky();
+    renderSpires();
+    renderBuildings();
+    renderArmies();
+  }
+
+  function renderSky() {
+    var el = document.getElementById('sky-layer');
+    var tod = frame.time_of_day || 'day';
+    var g = {
+      dawn: 'linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 30%, #4a2040 60%, #0a0a0a 100%)',
+      day: 'linear-gradient(180deg, #0a0a1a 0%, #0a0a0a 40%)',
+      dusk: 'linear-gradient(180deg, #2a1010 0%, #1a0a0a 40%, #0a0a0a 80%)',
+      night: 'linear-gradient(180deg, #050510 0%, #0a0a0a 30%)',
+    };
+    el.style.background = g[tod] || g.day;
+  }
+
+  function renderSpires() {
+    renderSpire('challenger-spire', frame.challenger.spire);
+    renderSpire('defender-spire', frame.defender.spire);
+  }
+  function renderSpire(id, spire) {
+    var el = document.getElementById(id);
+    if (!spire) { el.innerHTML = ''; return; }
+    var segs = [];
+    if (spire.segments_intact > 0 && !spire.collapsed) {
+      segs.push('<div class="spire-segment intact" style="font-size:10px;line-height:1.1;white-space:pre">' + esc(SPIRE_CAP) + '</div>');
+    }
+    for (var i = 0; i < spire.segments_total; i++) {
+      var state, art;
+      if (spire.collapsed) { state = 'fallen'; art = SPIRE_SEGMENT.fallen; }
+      else if (i < spire.segments_fallen) { state = 'fallen'; art = SPIRE_SEGMENT.fallen; }
+      else if (i < spire.segments_fallen + spire.segments_cracked) { state = 'cracked'; art = SPIRE_SEGMENT.cracked; }
+      else { state = 'intact'; art = SPIRE_SEGMENT.intact; }
+      segs.push('<span class="spire-segment ' + state + '">' + esc(art) + '</span>');
+    }
+    segs.push('<div class="spire-segment intact" style="font-size:10px;line-height:1.1;white-space:pre">' + esc(SPIRE_BASE) + '</div>');
+    el.innerHTML = segs.join('\n');
+  }
+
+  function renderBuildings() {
+    renderBuildingSide('challenger-buildings', frame.challenger.buildings);
+    renderBuildingSide('defender-buildings', frame.defender.buildings);
+  }
+  function renderBuildingSide(id, buildings) {
+    var el = document.getElementById(id);
+    el.innerHTML = buildings.slice(0, 8).map(function(b) {
+      var sprite = BUILDING_SPRITES[b.type] || BUILDING_SPRITES.hut || '[?]';
+      var cls = 'standing', art = sprite;
+      if (b.visual_state === 'destroyed') { cls = 'destroyed'; art = BUILDING_RUBBLE; }
+      else if (b.visual_state === 'burning') { cls = 'burning'; }
+      return '<div class="building-sprite ' + cls + '">' + esc(art) + '</div>';
+    }).join('');
+  }
+
+  function renderArmies() {
+    renderArmy('challenger-army', frame.challenger.warriors, false);
+    renderArmy('defender-army', frame.defender.warriors, true);
+  }
+  function renderArmy(id, warriors, mirror) {
+    var el = document.getElementById(id);
+    var spriteSet = mirror ? WARRIOR_SPRITES_MIRROR : WARRIOR_SPRITES;
+    el.innerHTML = warriors.map(function(w) {
+      var sprites = spriteSet[w.state] || spriteSet.fighting;
+      var idx = animTick % sprites.length;
+      var title = w.name + (w.trait ? ' [' + w.trait + ']' : '');
+      return '<div class="warrior-sprite ' + (w.state || 'fighting') + '" title="' + esc(title) + '">' + esc(sprites[idx]) + '</div>';
+    }).join('');
+  }
+
+  // ─── Effects ───
+  function spawnDamageNumber(side, amount) {
+    var el = document.getElementById('effect-layer');
+    var dmg = document.createElement('div');
+    dmg.className = 'damage-number ' + side;
+    dmg.textContent = '-' + amount;
+    dmg.style.top = '40%';
+    el.appendChild(dmg);
+    setTimeout(function() { dmg.remove(); }, 1500);
+  }
+
+  function flashSkill(skillData) {
+    var el = document.getElementById('effect-layer');
+    el.classList.add('active');
+    var flash = document.createElement('div');
+    flash.className = 'skill-flash ' + (skillData.color || 'red');
+    flash.textContent = '⚡ ' + (skillData.skillName || 'SKILL') + ' ⚡';
+    el.appendChild(flash);
+    triggerSkillVisual(skillData.visual || '', skillData.side);
+    setTimeout(function() { flash.remove(); el.classList.remove('active'); }, 2000);
+  }
+
+  function triggerSkillVisual(visual, side) {
+    var bf = document.getElementById('battlefield');
+    function overlay(color, ms) {
+      var o = document.createElement('div');
+      o.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:' + color + ';z-index:12;pointer-events:none;opacity:1;transition:opacity ' + (ms * 0.6) + 'ms ease-out';
+      setTimeout(function() { o.style.opacity = '0'; }, ms * 0.3);
+      setTimeout(function() { o.remove(); }, ms);
+      return o;
+    }
+    switch (visual) {
+      case 'berserker_charge': bf.appendChild(overlay('#ff333366', 800)); break;
+      case 'shield_wall': { var o = overlay('#3388ff44', 1200); o.style.width = '50%'; o.style.left = side === 'challenger' ? '0' : '50%'; bf.appendChild(o); break; }
+      case 'rain_of_fire': spawnFireRain(side === 'challenger' ? 'right' : 'left'); break;
+      case 'divine_shield': { var o = overlay('#ffd70044', 1500); o.style.width = '50%'; o.style.left = side === 'challenger' ? '0' : '50%'; o.style.borderRadius = '50% 50% 0 0'; bf.appendChild(o); break; }
+      case 'spires_wrath': {
+        var beam = document.createElement('div');
+        beam.style.cssText = 'position:absolute;top:20%;height:3px;width:100%;background:linear-gradient(90deg,transparent 10%,var(--gold) 50%,transparent 90%);z-index:15;pointer-events:none;opacity:1;transition:opacity 1s';
+        bf.appendChild(beam);
+        setTimeout(function() { beam.style.opacity = '0'; }, 800);
+        setTimeout(function() { beam.remove(); }, 1800);
+        break;
+      }
+      case 'rally_cry': { var o = overlay('#00ff4133', 1000); o.style.width = '50%'; o.style.left = side === 'challenger' ? '0' : '50%'; bf.appendChild(o); break; }
+      case 'warcry': bf.appendChild(overlay('#ff333344', 600)); break;
+      case 'ambush': { bf.appendChild(overlay('#00ff4122', 500)); setTimeout(function() { bf.appendChild(overlay('#00ff4133', 500)); }, 300); break; }
+      case 'flanking_strike': { var o = overlay('#00ff4144', 700); o.style.width = '50%'; o.style.left = side === 'challenger' ? '50%' : '0'; bf.appendChild(o); break; }
+    }
+  }
+
+  function spawnFireRain(targetSide) {
+    var bf = document.getElementById('battlefield');
+    var leftPct = targetSide === 'left' ? 5 : 55;
+    for (var i = 0; i < 12; i++) {
+      (function(i) {
+        setTimeout(function() {
+          var s = document.createElement('div');
+          var x = leftPct + Math.random() * 40;
+          s.style.cssText = 'position:absolute;left:' + x + '%;top:-5%;width:2px;height:20px;background:linear-gradient(180deg,var(--orange),var(--red));z-index:14;pointer-events:none;opacity:0.9;animation:fire-streak ' + (0.6 + Math.random() * 0.4) + 's linear forwards';
+          bf.appendChild(s);
+          setTimeout(function() { s.remove(); }, 1200);
+        }, i * 80);
+      })(i);
+    }
+  }
+
+  function spawnWeatherParticles() {
+    if (!frame) return;
+    var w = frame.weather || 'clear';
+    var chars = WEATHER_CHARS[w];
+    if (!chars || chars.length === 0) return;
+    var sky = document.getElementById('sky-layer');
+    var count = w === 'storm' ? 3 : w === 'rain' ? 2 : 1;
+    for (var i = 0; i < count; i++) {
+      var p = document.createElement('span');
+      p.className = (w === 'snow') ? 'snow-particle' : 'rain-particle';
+      p.textContent = chars[Math.floor(Math.random() * chars.length)];
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = '-5%';
+      p.style.position = 'absolute';
+      var dur = w === 'snow' ? 3000 + Math.random() * 2000 : 800 + Math.random() * 400;
+      p.style.transition = 'top ' + dur + 'ms linear, opacity ' + dur + 'ms';
+      sky.appendChild(p);
+      (function(p, dur) {
+        requestAnimationFrame(function() { p.style.top = '105%'; p.style.opacity = '0'; });
+        setTimeout(function() { p.remove(); }, dur + 100);
+      })(p, dur);
+    }
+  }
+
+  function showResolved() {
+    var existing = document.getElementById('war-resolved');
+    if (!existing) {
+      existing = document.createElement('div');
+      existing.id = 'war-resolved';
+      document.getElementById('battlefield').appendChild(existing);
+    }
+    existing.classList.add('visible');
+    var c = frame.challenger, d = frame.defender;
+    var cWon = c.hp > d.hp;
+    var winner = cWon ? c.name : d.name;
+    var loser = cWon ? d.name : c.name;
+    var winHp = cWon ? c.hp : d.hp;
+    existing.innerHTML = '<div class="victory">VICTORY</div>' +
+      '<div class="detail">' + esc(winner) + ' conquers ' + esc(loser) + '</div>' +
+      '<div class="detail">Final HP: ' + winHp + '/' + MAX_HP + '</div>' +
+      '<div class="detail">Rounds fought: ' + frame.round + '</div>' +
+      '<div style="margin-top:16px;cursor:pointer;color:var(--green)" onclick="resetDemo()">[ RESTART DEMO ]</div>';
+  }
+
+  // ─── Anim loop (12fps) ───
+  function startAnimLoop() {
+    if (animInterval) clearInterval(animInterval);
+    animInterval = setInterval(function() {
+      animTick++;
+      if (frame) renderArmies();
+      if (animTick % 4 === 0) spawnWeatherParticles();
+    }, 1000 / 12);
+  }
+
+  function esc(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Fire streak animation
+  var ss = document.createElement('style');
+  ss.textContent = '@keyframes fire-streak { 0% { top: -5%; opacity: 0.9; } 80% { opacity: 0.7; } 100% { top: 95%; opacity: 0; } }';
+  document.head.appendChild(ss);
+
+  // Global reset
+  window.resetDemo = function() {
+    if (roundTimer) clearInterval(roundTimer);
+    if (animInterval) clearInterval(animInterval);
+    var resolved = document.getElementById('war-resolved');
+    if (resolved) resolved.classList.remove('visible');
+    init();
+  };
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
