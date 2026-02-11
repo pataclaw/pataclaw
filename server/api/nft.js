@@ -5,17 +5,27 @@ const { generateSvg } = require('../render/nft-image');
 
 const router = Router();
 
-// Seed: token #1 was minted directly on-chain (not via API), so backfill the DB record
-const TOKEN1_WORLD_ID = '0f717bb7-14b8-4c0a-81ee-2c1113fe2386';
+// Seed: token #1 was minted on-chain. Backfill DB record pointing to current world.
+const TOKEN1_WORLD_ID = '858028f4-79bc-46b9-9e50-79fd514c762b'; // Bonekeep #232
 const TOKEN1_WALLET = '0xe923bC825A59410071a12DD67B22731aAab8435B';
 const existing = db.prepare('SELECT * FROM nft_mints WHERE token_id = 1').get();
 if (!existing) {
   const worldExists = db.prepare('SELECT id FROM worlds WHERE id = ?').get(TOKEN1_WORLD_ID);
   if (worldExists) {
     const { v4: uuid } = require('uuid');
-    db.prepare('INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash) VALUES (?, ?, 1, ?, ?)')
-      .run(uuid(), TOKEN1_WORLD_ID, TOKEN1_WALLET, '0x_direct_mint_on_chain');
-    console.log('[NFT] Backfilled token #1 mint record for Clawhold');
+    // Snapshot world state at bind time
+    const w = db.prepare('SELECT * FROM worlds WHERE id = ?').get(TOKEN1_WORLD_ID);
+    const pop = db.prepare("SELECT COUNT(*) as c FROM villagers WHERE world_id = ? AND status = 'alive'").get(TOKEN1_WORLD_ID).c;
+    const bld = db.prepare("SELECT COUNT(*) as c FROM buildings WHERE world_id = ? AND status != 'destroyed'").get(TOKEN1_WORLD_ID).c;
+    const cult = db.prepare('SELECT village_mood FROM culture WHERE world_id = ?').get(TOKEN1_WORLD_ID);
+    const snapshot = JSON.stringify({
+      name: w.name, day_number: w.day_number, season: w.season,
+      population: pop, buildings: bld, culture: cult ? cult.village_mood : 'calm',
+      reputation: w.reputation, minted_at: new Date().toISOString(),
+    });
+    db.prepare('INSERT INTO nft_mints (id, world_id, token_id, wallet_address, tx_hash, world_snapshot) VALUES (?, ?, 1, ?, ?, ?)')
+      .run(uuid(), TOKEN1_WORLD_ID, TOKEN1_WALLET, '0x_direct_mint_on_chain', snapshot);
+    console.log('[NFT] Backfilled token #1 mint record for Bonekeep');
   }
 }
 
