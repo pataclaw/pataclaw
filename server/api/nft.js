@@ -153,13 +153,35 @@ router.get('/:tokenId/live.html', (req, res) => {
   res.send(html);
 });
 
+// Rate limiter for admin endpoints — 5 attempts per 15 min per IP
+const adminAttempts = new Map(); // ip -> { count, resetAt }
+function adminRateLimit(req, res) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const window = 15 * 60 * 1000; // 15 min
+  const maxAttempts = 5;
+
+  let entry = adminAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + window };
+    adminAttempts.set(ip, entry);
+  }
+  entry.count++;
+  if (entry.count > maxAttempts) {
+    res.status(429).json({ error: 'Too many attempts. Try again later.' });
+    return false;
+  }
+  return true;
+}
+
 // POST /api/nft/admin/rebind — rebind an NFT to a different world (owner-only)
 router.post('/admin/rebind', (req, res) => {
+  if (!adminRateLimit(req, res)) return;
   if (!config.adminKey) return res.status(503).json({ error: 'Admin key not configured' });
 
   const authHeader = req.headers.authorization || '';
   const key = authHeader.replace('Bearer ', '');
-  if (key !== config.adminKey) return res.status(403).json({ error: 'Invalid admin key' });
+  if (!key || key !== config.adminKey) return res.status(403).json({ error: 'Invalid admin key' });
 
   const { token_id, new_world_id } = req.body;
   if (!token_id || !new_world_id) {
@@ -188,12 +210,19 @@ router.post('/admin/rebind', (req, res) => {
     buildings: buildingCount,
     culture: culture ? culture.village_mood : 'calm',
     reputation: newWorld.reputation,
-    minted_at: new Date().toISOString(),
+    rebound_at: new Date().toISOString(),
     rebound_from: mint.world_id,
   });
 
   db.prepare('UPDATE nft_mints SET world_id = ?, world_snapshot = ? WHERE token_id = ?')
     .run(new_world_id, snapshot, token_id);
+
+  // Persist audit log in events table
+  try {
+    const { v4: uuid } = require('uuid');
+    db.prepare("INSERT INTO events (id, world_id, tick, type, severity, message) VALUES (?, ?, 0, 'nft_rebind', 'info', ?)")
+      .run(uuid(), new_world_id, `NFT token #${token_id} rebound from world ${mint.world_id} to ${new_world_id} by admin`);
+  } catch (e) { /* non-critical */ }
 
   console.log(`[NFT] Rebound token #${token_id}: ${mint.world_id} → ${new_world_id} (${newWorld.name})`);
   res.json({
