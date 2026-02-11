@@ -63,20 +63,27 @@ function checkDuplicateName(name) {
   return dupe || null;
 }
 
-// TEMPORARY: Download corrupt DB backup for local recovery
-router.get('/admin/download-backup', (req, res) => {
+// TEMPORARY: Upload recovered DB to replace the current one
+router.post('/admin/upload-db', (req, res) => {
   if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
   const fs = require('fs');
   const path = require('path');
   const dbPath = path.resolve(config.dbPath);
-  const dbDir = path.dirname(dbPath);
-  const dbName = path.basename(dbPath);
-  const files = fs.readdirSync(dbDir).filter(f => f.startsWith(dbName + '.corrupt.'));
-  if (files.length === 0) return res.status(404).json({ error: 'no backup found' });
-  const backupPath = path.join(dbDir, files[0]);
-  res.setHeader('Content-Disposition', `attachment; filename="${files[0]}"`);
-  res.setHeader('Content-Type', 'application/octet-stream');
-  fs.createReadStream(backupPath).pipe(res);
+  const uploadPath = dbPath + '.upload';
+  const ws = fs.createWriteStream(uploadPath);
+  req.pipe(ws);
+  ws.on('finish', () => {
+    const size = fs.statSync(uploadPath).size;
+    if (size < 1000) {
+      fs.unlinkSync(uploadPath);
+      return res.status(400).json({ error: 'file too small', size });
+    }
+    // Back up current DB, swap in uploaded one
+    try { fs.renameSync(dbPath, dbPath + '.pre-restore.' + Date.now()); } catch (_) {}
+    fs.renameSync(uploadPath, dbPath);
+    res.json({ ok: true, size, message: 'DB replaced. Server must restart to use it.' });
+  });
+  ws.on('error', (err) => res.status(500).json({ error: err.message }));
 });
 
 // GET /api/version - deployment check
