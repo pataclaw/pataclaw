@@ -63,6 +63,22 @@ function checkDuplicateName(name) {
   return dupe || null;
 }
 
+// TEMPORARY: Download corrupt DB backup for local recovery
+router.get('/admin/download-backup', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  const dbDir = path.dirname(dbPath);
+  const dbName = path.basename(dbPath);
+  const files = fs.readdirSync(dbDir).filter(f => f.startsWith(dbName + '.corrupt.'));
+  if (files.length === 0) return res.status(404).json({ error: 'no backup found' });
+  const backupPath = path.join(dbDir, files[0]);
+  res.setHeader('Content-Disposition', `attachment; filename="${files[0]}"`);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  fs.createReadStream(backupPath).pipe(res);
+});
+
 // GET /api/version - deployment check
 router.get('/version', (_req, res) => {
   res.json({ version: '0.1.1', deployed: new Date().toISOString() });
