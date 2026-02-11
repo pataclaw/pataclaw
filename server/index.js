@@ -309,6 +309,35 @@ if (unnumbered.length > 0) {
   }
 }
 
+// One-shot: consolidate worlds with >3 huts into 3 upgraded huts
+// Safe to re-run — only affects worlds still over the cap
+{
+  const overCap = db.prepare(`
+    SELECT world_id, COUNT(*) as cnt FROM buildings
+    WHERE type = 'hut' AND status = 'active'
+    GROUP BY world_id HAVING cnt > 3
+  `).all();
+  for (const { world_id, cnt } of overCap) {
+    const huts = db.prepare(
+      "SELECT id FROM buildings WHERE world_id = ? AND type = 'hut' AND status = 'active' ORDER BY level DESC"
+    ).all(world_id);
+    // Keep top 3, upgrade them to level 4
+    const keep = huts.slice(0, 3).map(h => h.id);
+    for (const id of keep) {
+      db.prepare("UPDATE buildings SET level = 4 WHERE id = ?").run(id);
+    }
+    // Destroy the rest
+    const destroy = huts.slice(3).map(h => h.id);
+    if (destroy.length > 0) {
+      db.prepare(
+        `UPDATE buildings SET status = 'destroyed' WHERE id IN (${destroy.map(() => '?').join(',')})`
+      ).run(...destroy);
+    }
+    const wname = db.prepare("SELECT name, town_number FROM worlds WHERE id = ?").get(world_id);
+    console.log(`[INIT] Hut consolidation: ${wname.name} #${wname.town_number} — kept 3 (→L4), destroyed ${destroy.length} excess huts`);
+  }
+}
+
 const app = express();
 app.set('trust proxy', true); // Railway reverse proxy — get real client IP from X-Forwarded-For
 
