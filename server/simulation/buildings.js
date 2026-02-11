@@ -335,6 +335,29 @@ function startBuilding(worldId, type, x, y) {
   const check = canBuild(worldId, type);
   if (!check.ok) return check;
 
+  // Terrain validation: prevent building on water (except docks must be on land NEAR water)
+  const tile = db.prepare('SELECT terrain FROM tiles WHERE world_id = ? AND x = ? AND y = ?').get(worldId, x, y);
+  if (tile) {
+    if (tile.terrain === 'water') {
+      return { ok: false, reason: 'Cannot build on water tiles' };
+    }
+    if (tile.terrain === 'mountain') {
+      return { ok: false, reason: 'Cannot build on mountain tiles' };
+    }
+    if (type === 'dock') {
+      // Docks must be placed on land adjacent to water (within 2 tiles)
+      const nearbyWater = db.prepare(`
+        SELECT COUNT(*) as c FROM tiles
+        WHERE world_id = ? AND terrain = 'water'
+          AND ABS(x - ?) <= 2 AND ABS(y - ?) <= 2
+          AND (x != ? OR y != ?)
+      `).get(worldId, x, y, x, y);
+      if (!nearbyWater || nearbyWater.c === 0) {
+        return { ok: false, reason: 'Docks must be placed within 2 tiles of water' };
+      }
+    }
+  }
+
   const def = check.def;
 
   // Deduct resources
@@ -388,19 +411,28 @@ function autoBuilding(worldId, currentTick) {
         severity: 'info',
       });
     } else {
-      const farmX = tc.x + (Math.random() > 0.5 ? 8 : -8);
-      const farmY = tc.y + Math.floor(Math.random() * 3) - 1;
-      const farmId = uuid();
-      db.prepare(`
-        INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining)
-        VALUES (?, ?, 'farm', ?, ?, 80, 80, 'constructing', 5)
-      `).run(farmId, worldId, farmX, farmY);
-      events.push({
-        type: 'construction',
-        title: 'Villagers plant a new farm',
-        description: 'Driven by hunger, the villagers clear land and begin building a farm from scraps.',
-        severity: 'info',
-      });
+      // Find a buildable land tile near the town center (not water, not mountain, not occupied)
+      const farmTile = db.prepare(`
+        SELECT t.x, t.y FROM tiles t
+        WHERE t.world_id = ? AND t.explored = 1
+          AND t.terrain NOT IN ('water', 'mountain')
+          AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+        ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+        LIMIT 1
+      `).get(worldId, tc.x + 8, tc.y);
+      if (farmTile) {
+        const farmId = uuid();
+        db.prepare(`
+          INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining)
+          VALUES (?, ?, 'farm', ?, ?, 80, 80, 'constructing', 5)
+        `).run(farmId, worldId, farmTile.x, farmTile.y);
+        events.push({
+          type: 'construction',
+          title: 'Villagers plant a new farm',
+          description: 'Driven by hunger, the villagers clear land and begin building a farm from scraps.',
+          severity: 'info',
+        });
+      }
     }
     return events; // Don't auto-build hut same tick as survival farm
   }
@@ -427,20 +459,29 @@ function autoBuilding(worldId, currentTick) {
     for (const r of resources) resMap[r.type] = r.amount;
 
     if ((resMap.wood || 0) >= 10) {
-      db.prepare("UPDATE resources SET amount = amount - 10 WHERE world_id = ? AND type = 'wood'").run(worldId);
-      const hutX = tc.x + Math.floor(Math.random() * 16) - 8;
-      const hutY = tc.y + Math.floor(Math.random() * 4) - 1;
-      const hutId = uuid();
-      db.prepare(`
-        INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining, level)
-        VALUES (?, ?, 'hut', ?, ?, 100, 100, 'constructing', 5, 1)
-      `).run(hutId, worldId, hutX, hutY);
-      events.push({
-        type: 'construction',
-        title: 'Villagers begin building a hut',
-        description: `The settlement is at capacity (${pop}/${cap}). Villagers start constructing a new hut.`,
-        severity: 'info',
-      });
+      // Find a buildable land tile near the town center (not water, not mountain, not occupied)
+      const hutTile = db.prepare(`
+        SELECT t.x, t.y FROM tiles t
+        WHERE t.world_id = ? AND t.explored = 1
+          AND t.terrain NOT IN ('water', 'mountain')
+          AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+        ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+        LIMIT 1
+      `).get(worldId, tc.x, tc.y);
+      if (hutTile) {
+        db.prepare("UPDATE resources SET amount = amount - 10 WHERE world_id = ? AND type = 'wood'").run(worldId);
+        const hutId = uuid();
+        db.prepare(`
+          INSERT INTO buildings (id, world_id, type, x, y, hp, max_hp, status, construction_ticks_remaining, level)
+          VALUES (?, ?, 'hut', ?, ?, 100, 100, 'constructing', 5, 1)
+        `).run(hutId, worldId, hutTile.x, hutTile.y);
+        events.push({
+          type: 'construction',
+          title: 'Villagers begin building a hut',
+          description: `The settlement is at capacity (${pop}/${cap}). Villagers start constructing a new hut.`,
+          severity: 'info',
+        });
+      }
     }
   }
 

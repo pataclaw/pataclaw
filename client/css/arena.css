@@ -331,3 +331,40 @@ h2 {
 }
 
 .footer a:hover { color: var(--green); }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .container { padding: 12px; }
+  h1 { font-size: 14px; margin: 16px 0 4px; }
+  h2 { font-size: 12px; }
+  .subtitle { font-size: 10px; }
+  .balance-bar { font-size: 11px; padding: 4px 8px; }
+
+  .war-card { padding: 8px; }
+  .war-vs { font-size: 12px; }
+  .hp-label { width: 80px; font-size: 10px; }
+  .hp-pct { width: 32px; font-size: 10px; }
+
+  .betting-section { gap: 6px; }
+  .btn { font-size: 10px; padding: 3px 8px; }
+
+  .modal-content { padding: 14px; font-size: 11px; }
+  .modal-header { font-size: 12px; }
+  .bet-input { width: 80px; font-size: 11px; }
+
+  .nav { font-size: 11px; margin: 16px 0 8px; }
+  .footer { font-size: 9px; }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 8px; }
+  .war-vs { font-size: 11px; }
+  .hp-label { width: 60px; font-size: 9px; }
+  .hp-bar-outer { height: 10px; }
+  .hp-pct { width: 28px; font-size: 9px; }
+  .hp-row { gap: 4px; }
+  .war-narrative { font-size: 10px; }
+  .watch-live-link { font-size: 10px; padding: 4px 0; }
+  .history-entry { font-size: 10px; }
+  .bettor-entry { font-size: 10px; flex-wrap: wrap; gap: 2px; }
+}

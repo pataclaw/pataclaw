@@ -158,7 +158,7 @@ function processGovernor(worldId, tick) {
 
     let tile;
     if (type === 'dock') {
-      // Dock: pick closest explored land tile adjacent to an explored water tile
+      // Dock: pick closest explored land tile within 2 tiles of an explored water tile
       tile = db.prepare(`
         SELECT t.x, t.y FROM tiles t
         WHERE t.world_id = ? AND t.explored = 1
@@ -167,16 +167,16 @@ function processGovernor(worldId, tick) {
           AND EXISTS (
             SELECT 1 FROM tiles w
             WHERE w.world_id = t.world_id AND w.terrain = 'water' AND w.explored = 1
-              AND ABS(w.x - t.x) <= 1 AND ABS(w.y - t.y) <= 1
+              AND ABS(w.x - t.x) <= 2 AND ABS(w.y - t.y) <= 2
               AND (w.x != t.x OR w.y != t.y)
           )
         ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
         LIMIT 1
       `).get(worldId, center.x, center.y);
-    }
-
-    // Fallback to generic placement (also used for non-dock buildings)
-    if (!tile) {
+      // Docks MUST be near water — no fallback to generic placement
+      if (!tile) return false;
+    } else {
+      // Non-dock buildings: pick closest explored land tile (not water, not mountain)
       tile = db.prepare(`
         SELECT t.x, t.y FROM tiles t
         WHERE t.world_id = ? AND t.explored = 1

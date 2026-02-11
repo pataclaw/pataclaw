@@ -728,8 +728,8 @@ input[type="password"]:focus {
   .how-it-works ol { font-size: 11px; line-height: 1.8; }
 
   .agent-section { padding: 14px; }
-  .agent-url-box { font-size: 13px; padding: 10px 12px; }
-  .agent-url-box code { font-size: 13px; }
+  .agent-url-box { font-size: 13px; padding: 10px 12px; word-break: break-all; }
+  .agent-url-box code { font-size: 13px; word-break: break-all; }
   .agent-desc { font-size: 11px; }
   .agent-step { font-size: 11px; }
   .agent-step code { font-size: 10px; }

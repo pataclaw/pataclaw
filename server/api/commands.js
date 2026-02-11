@@ -27,8 +27,23 @@ router.post('/build', (req, res) => {
   const tile = db.prepare('SELECT * FROM tiles WHERE world_id = ? AND x = ? AND y = ?').get(req.worldId, x, y);
   if (!tile) return res.status(400).json({ error: 'Invalid coordinates' });
   if (!tile.explored) return res.status(400).json({ error: 'Tile not yet explored' });
-  if (tile.terrain === 'water' || tile.terrain === 'mountain') {
-    return res.status(400).json({ error: `Cannot build on ${tile.terrain}` });
+  if (tile.terrain === 'water') {
+    return res.status(400).json({ error: 'Cannot build on water tiles. Buildings must be placed on land.' });
+  }
+  if (tile.terrain === 'mountain') {
+    return res.status(400).json({ error: 'Cannot build on mountain tiles' });
+  }
+  // Docks must be placed on land within 2 tiles of water
+  if (type === 'dock') {
+    const nearbyWater = db.prepare(`
+      SELECT COUNT(*) as c FROM tiles
+      WHERE world_id = ? AND terrain = 'water'
+        AND ABS(x - ?) <= 2 AND ABS(y - ?) <= 2
+        AND (x != ? OR y != ?)
+    `).get(req.worldId, x, y, x, y);
+    if (!nearbyWater || nearbyWater.c === 0) {
+      return res.status(400).json({ error: 'Docks must be placed within 2 tiles of water' });
+    }
   }
 
   // Check no existing building at location

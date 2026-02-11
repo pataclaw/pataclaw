@@ -1009,14 +1009,34 @@ async function agentPlayHandler(req, res) {
         const { getCenter } = require('../world/map');
         const center = getCenter(world.seed);
 
-        const buildableTiles = db.prepare(`
-          SELECT t.x, t.y FROM tiles t
-          WHERE t.world_id = ? AND t.explored = 1
-            AND t.terrain NOT IN ('water', 'mountain')
-            AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
-          ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
-          LIMIT 1
-        `).get(worldId, center.x, center.y);
+        let buildableTiles;
+        if (type === 'dock') {
+          // Dock: pick closest explored land tile adjacent to water (within 2 tiles)
+          buildableTiles = db.prepare(`
+            SELECT t.x, t.y FROM tiles t
+            WHERE t.world_id = ? AND t.explored = 1
+              AND t.terrain NOT IN ('water', 'mountain')
+              AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+              AND EXISTS (
+                SELECT 1 FROM tiles w
+                WHERE w.world_id = t.world_id AND w.terrain = 'water'
+                  AND ABS(w.x - t.x) <= 2 AND ABS(w.y - t.y) <= 2
+                  AND (w.x != t.x OR w.y != t.y)
+              )
+            ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+            LIMIT 1
+          `).get(worldId, center.x, center.y);
+          if (!buildableTiles) return res.send('ERROR: No coastline tiles available. Explore water tiles first — docks must be built on land within 2 tiles of water.');
+        } else {
+          buildableTiles = db.prepare(`
+            SELECT t.x, t.y FROM tiles t
+            WHERE t.world_id = ? AND t.explored = 1
+              AND t.terrain NOT IN ('water', 'mountain')
+              AND NOT EXISTS (SELECT 1 FROM buildings b WHERE b.world_id = t.world_id AND b.x = t.x AND b.y = t.y AND b.status != 'destroyed')
+            ORDER BY ABS(t.x - ?) + ABS(t.y - ?) ASC
+            LIMIT 1
+          `).get(worldId, center.x, center.y);
+        }
 
         if (!buildableTiles) return res.send('ERROR: No buildable tiles available. Explore more territory first.');
 

@@ -1247,7 +1247,8 @@ body.crt-mode #world {
 
   #scene-container {
     width: 100%;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     min-height: 35vh;
     max-height: 55vh;
@@ -1260,8 +1261,8 @@ body.crt-mode #world {
     line-height: 1.05;
     padding: 2px 4px;
     transform-origin: center center;
-    max-width: 100vw;
-    overflow: hidden;
+    max-width: none;
+    overflow: visible;
   }
 
   #sidebar {
@@ -1278,7 +1279,9 @@ body.crt-mode #world {
     z-index: 15;
     font-size: 10px;
     padding: 0 8px;
-    gap: 10px;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   #notifications {

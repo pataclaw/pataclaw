@@ -393,4 +393,30 @@ body {
   .hud-name { font-size: 12px; }
   #vs { font-size: 14px; }
   #narrator { font-size: 24px; letter-spacing: 4px; }
+  #grid { font-size: 9px; }
+  .sk { font-size: 9px; padding: 1px 3px; }
+  #log { font-size: 10px; max-height: 45px; }
+  #nav { font-size: 10px; gap: 6px; }
+}
+
+@media (max-width: 480px) {
+  #hud { padding: 3px 6px; gap: 3px; flex-wrap: wrap; }
+  .hud-name { font-size: 10px; letter-spacing: 1px; }
+  .hud-bar { height: 10px; }
+  .hud-info { font-size: 9px; gap: 4px; }
+  .hud-center { min-width: 60px; }
+  #vs { font-size: 12px; letter-spacing: 1px; }
+  #round { font-size: 9px; }
+  #grid { font-size: 7px; line-height: 1.1; }
+  #narrator { font-size: 18px; letter-spacing: 2px; }
+  .phase { font-size: 8px; padding: 1px 4px; }
+  #foot { padding: 3px 6px; }
+  .sk-row { gap: 3px; }
+  .sk { font-size: 8px; }
+  #log { font-size: 9px; max-height: 36px; }
+  #nav { font-size: 9px; flex-wrap: wrap; gap: 4px; }
+  .res-title { font-size: 32px; }
+  .res-sub { font-size: 12px; }
+  .res-detail { font-size: 11px; }
+  .res-links a { font-size: 11px; margin: 0 6px; }
 }
