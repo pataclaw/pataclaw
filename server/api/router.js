@@ -63,6 +63,23 @@ function checkDuplicateName(name) {
   return dupe || null;
 }
 
+// TEMPORARY: Clean up old backup files to free disk space
+router.post('/admin/cleanup', (req, res) => {
+  if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
+  const fs = require('fs');
+  const path = require('path');
+  const dbPath = path.resolve(config.dbPath);
+  const dbDir = path.dirname(dbPath);
+  const files = fs.readdirSync(dbDir);
+  const deleted = [];
+  for (const f of files) {
+    if (f.includes('.corrupt.') || f.includes('.pre-restore.') || f.includes('.upload')) {
+      try { fs.unlinkSync(path.join(dbDir, f)); deleted.push(f); } catch (e) { deleted.push(f + ' (FAILED: ' + e.message + ')'); }
+    }
+  }
+  res.json({ deleted, remaining: fs.readdirSync(dbDir) });
+});
+
 // TEMPORARY: Upload recovered DB to replace the current one
 router.post('/admin/upload-db', (req, res) => {
   if (req.query.key !== 'recover-pataclaw-2026') return res.status(403).json({ error: 'forbidden' });
@@ -78,8 +95,10 @@ router.post('/admin/upload-db', (req, res) => {
       fs.unlinkSync(uploadPath);
       return res.status(400).json({ error: 'file too small', size });
     }
-    // Back up current DB, swap in uploaded one
-    try { fs.renameSync(dbPath, dbPath + '.pre-restore.' + Date.now()); } catch (_) {}
+    // Remove current empty DB (no need to back up an empty one)
+    try { fs.unlinkSync(dbPath); } catch (_) {}
+    try { fs.unlinkSync(dbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(dbPath + '-shm'); } catch (_) {}
     fs.renameSync(uploadPath, dbPath);
     res.json({ ok: true, size, message: 'DB replaced. Server must restart to use it.' });
   });
