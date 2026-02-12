@@ -81,7 +81,7 @@ function buildTownFrame(worldId) {
   const INDOOR_ROLES = new Set(['scholar', 'priest']);
 
   // Max visible villagers in the town view (prevents overcrowding)
-  const MAX_OUTDOOR = 20;
+  const MAX_OUTDOOR = 14;
 
   // Enrich villagers with unique appearance + activity-aware speech
   const enrichedVillagers = villagers.map((v) => {

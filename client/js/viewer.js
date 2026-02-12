@@ -44,6 +44,10 @@ var activeW = 140;
 var targetW = 140;
 var lastGrowthStage = -1;
 
+// Villager spacing — sprite is 7 wide + 2 gap
+var MIN_AGENT_SPACING = 9;
+var MAX_SPEECH_BUBBLES = 4;
+
 // ─── CIVILIZATION VISUAL STYLES ───
 var CIV_STYLES = [
   { name: 'verdant', ground: ['~','*','.',"'"], groundAlt: [',',';','`','"'], groundSparse: [' ','.','.','`'], border: '\u2248', decor: ['\u2663','\u273f','Y','\u2740','\u2698'], gndClass: 'c-gnd-v', bldClass: 'c-civ-v', decClass: 'c-dec-v' },
@@ -303,6 +307,23 @@ function connect() {
   };
 }
 
+// ─── SPACED POSITIONING HELPER ───
+function findSpacedX(minX, maxX) {
+  var bestX = minX + Math.random() * (maxX - minX);
+  var bestDist = 0;
+  for (var attempt = 0; attempt < 8; attempt++) {
+    var candidate = minX + Math.random() * (maxX - minX);
+    var nearest = Infinity;
+    for (var id in agents) {
+      var d = Math.abs(agents[id].x - candidate);
+      if (d < nearest) nearest = d;
+    }
+    if (nearest >= MIN_AGENT_SPACING) return candidate;
+    if (nearest > bestDist) { bestDist = nearest; bestX = candidate; }
+  }
+  return bestX;
+}
+
 // ─── AGENT ANIMATION SYNC ───
 function syncAgents(villagers) {
   var seen = new Set();
@@ -311,9 +332,10 @@ function syncAgents(villagers) {
     if (v.status !== 'alive') continue;
     seen.add(v.id);
     if (!agents[v.id]) {
+      var spawnX = findSpacedX(townStartX + 5, townStartX + 5 + Math.max(10, townEndX - townStartX - 10));
       agents[v.id] = {
-        x: townStartX + 5 + Math.random() * Math.max(10, townEndX - townStartX - 10),
-        targetX: townStartX + 5 + Math.random() * Math.max(10, townEndX - townStartX - 10),
+        x: spawnX,
+        targetX: spawnX,
         state: 'idle',
         stateTimer: 0,
         speechTimer: 0,
@@ -406,7 +428,7 @@ function updateAgent(a, world) {
     }
 
     if (a.state === 'walking') {
-      a.targetX = townStartX + 3 + Math.random() * Math.max(10, townEndX - townStartX - 6);
+      a.targetX = findSpacedX(townStartX + 3, townStartX + 3 + Math.max(10, townEndX - townStartX - 6));
       a.facing = a.targetX > a.x ? 1 : -1;
     }
 
@@ -448,6 +470,20 @@ function updateAgent(a, world) {
       if (Math.abs(move) > a.walkSpeed) move = Math.sign(dx) * a.walkSpeed;
       a.x += move;
       a.facing = Math.sign(dx);
+    }
+  }
+
+  // Soft repulsion — nudge overlapping non-sleeping agents apart
+  if (a.state !== 'sleeping') {
+    for (var rid in agents) {
+      if (rid === (a.data && a.data.id)) continue;
+      var other = agents[rid];
+      if (!other.data || other.state === 'sleeping' || other.state === 'dying') continue;
+      var gap = Math.abs(a.x - other.x);
+      if (gap < MIN_AGENT_SPACING && gap > 0.01) {
+        var nudge = a.x > other.x ? 0.1 : -0.1;
+        a.x = Math.max(townStartX + 2, Math.min(townEndX - 2, a.x + nudge));
+      }
     }
   }
 
@@ -2153,6 +2189,27 @@ function renderScene(data) {
     else if (agents[aid].data && agents[aid].data.status === 'alive') { aliveAgents.push(agents[aid]); }
   }
 
+  // Sort by X for deterministic left-to-right rendering (used for name anti-overlap)
+  aliveAgents.sort(function(a, b) { return a.x - b.x; });
+
+  // Speech bubble limiter — only top MAX_SPEECH_BUBBLES by priority
+  var speechPriority = { molting: 10, fighting: 8, sparring: 8, making_art: 6, playing_music: 6, celebrating: 5, talking: 3 };
+  var speechCandidates = [];
+  for (var si = 0; si < aliveAgents.length; si++) {
+    var sa = aliveAgents[si];
+    if (sa.currentSpeech && sa.speechTimer > 0 && sa.data) {
+      speechCandidates.push({ id: sa.data.id, score: speechPriority[sa.state] || 1 });
+    }
+  }
+  speechCandidates.sort(function(a, b) { return b.score - a.score; });
+  var speechAllowed = {};
+  for (var sp = 0; sp < Math.min(MAX_SPEECH_BUBBLES, speechCandidates.length); sp++) {
+    speechAllowed[speechCandidates[sp].id] = true;
+  }
+
+  // Name label anti-overlap tracking
+  var nameOccupied = [];
+
   for (var ai = 0; ai < aliveAgents.length; ai++) {
     var a = aliveAgents[ai];
     var v = a.data || {};
@@ -2409,8 +2466,8 @@ function renderScene(data) {
       ];
     }
 
-    // Speech bubble
-    if (a.currentSpeech && a.speechTimer > 0) {
+    // Speech bubble (limited to top MAX_SPEECH_BUBBLES by priority)
+    if (a.currentSpeech && a.speechTimer > 0 && speechAllowed[v.id]) {
       var bubbleText = a.currentSpeech;
       var bubbleLine = '\u250c' + '\u2500'.repeat(bubbleText.length + 2) + '\u2510';
       var bubbleContent = '\u2502 ' + bubbleText + ' \u2502';
@@ -2477,8 +2534,20 @@ function renderScene(data) {
     var nameClass = ROLE_NAME_COLORS[role] || 'c-n-idle';
     if (role === 'warrior' && (v.molt_count || 0) > 0) nameClass = 'c-n-warrior-molt';
     else if ((v.experience || 0) > 200) nameClass += '-hi';
-    for (var ni = 0; ni < nameStr.length && nx + ni < W; ni++) {
-      if (nx + ni >= 0) setCell(grid, nx + ni, nameY, nameStr[ni], nameClass);
+    // Anti-overlap: skip name if it collides with an already-drawn name (1-char buffer)
+    var nameLeft = nx - 1;
+    var nameRight = nx + nameStr.length;
+    var nameCollides = false;
+    for (var oi = 0; oi < nameOccupied.length; oi++) {
+      if (nameLeft < nameOccupied[oi].right && nameRight > nameOccupied[oi].left) {
+        nameCollides = true; break;
+      }
+    }
+    if (!nameCollides) {
+      for (var ni = 0; ni < nameStr.length && nx + ni < W; ni++) {
+        if (nx + ni >= 0) setCell(grid, nx + ni, nameY, nameStr[ni], nameClass);
+      }
+      nameOccupied.push({ left: nameLeft, right: nameRight });
     }
   }
 
