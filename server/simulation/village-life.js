@@ -505,21 +505,6 @@ function processSpar(worldId, a, b, tick) {
 function processProjects(worldId, villagers, tick) {
   const events = [];
 
-  // Archive excess completed projects — keep only 2 newest complete ones
-  const keepIds = db.prepare(
-    "SELECT id FROM projects WHERE world_id = ? AND status = 'complete' ORDER BY created_at DESC LIMIT 2"
-  ).all(worldId).map(r => r.id);
-  if (keepIds.length > 0) {
-    const placeholders = keepIds.map(() => '?').join(',');
-    db.prepare(
-      `UPDATE projects SET status = 'archived' WHERE world_id = ? AND status = 'complete' AND id NOT IN (${placeholders})`
-    ).run(worldId, ...keepIds);
-  } else {
-    db.prepare(
-      "UPDATE projects SET status = 'archived' WHERE world_id = ? AND status = 'complete'"
-    ).run(worldId);
-  }
-
   // Progress active projects
   const activeProjects = db.prepare(
     "SELECT * FROM projects WHERE world_id = ? AND status = 'in_progress'"

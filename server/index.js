@@ -445,6 +445,24 @@ app.get('/view/:token', (req, res) => {
 
 app.use(errorHandler);
 
+// One-time cleanup: archive excess completed projects (keep 2 newest per world)
+try {
+  const worlds = db.prepare("SELECT DISTINCT world_id FROM projects WHERE status = 'complete'").all();
+  for (const { world_id } of worlds) {
+    const keep = db.prepare(
+      "SELECT id FROM projects WHERE world_id = ? AND status = 'complete' ORDER BY created_at DESC LIMIT 2"
+    ).all(world_id).map(r => r.id);
+    if (keep.length > 0) {
+      db.prepare(
+        `UPDATE projects SET status = 'archived' WHERE world_id = ? AND status = 'complete' AND id NOT IN (${keep.map(() => '?').join(',')})`
+      ).run(world_id, ...keep);
+    } else {
+      db.prepare("UPDATE projects SET status = 'archived' WHERE world_id = ? AND status = 'complete'").run(world_id);
+    }
+  }
+  console.log(`  [DB] Archived excess projects for ${worlds.length} worlds`);
+} catch (e) { console.error('[DB] Project cleanup error:', e.message); }
+
 // Start simulation engine
 const engine = require('./simulation/engine');
 engine.start();
