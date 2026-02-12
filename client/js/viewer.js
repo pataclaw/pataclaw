@@ -1548,12 +1548,21 @@ function renderScene(data) {
       }
 
     } else {
-      // Completed building — render with type-specific color
+      // Completed building — render with type-specific color + interior accents
       for (var r = 0; r < sh; r++) {
         for (var c = 0; c < sw; c++) {
-          if (sprite[r][c] !== ' ') {
-            setCellW(grid, bx + c, bsy + r, sprite[r][c], bColor);
-          }
+          var ch = sprite[r][c];
+          if (ch === ' ') continue;
+          var cColor = bColor;
+          // Windows and doors: warm glow
+          if (ch === '<' || ch === '>' || ch === 'o' || ch === 'O' || ch === '0') cColor = 'c-bld-window';
+          // Decorative/special chars: accent highlight
+          else if (ch === '*' || ch === '@' || ch === '#' && r < sh - 1) cColor = 'c-bld-accent';
+          // Roof ornaments and tops
+          else if (ch === '~' || ch === '$' || ch === '.' && r < 2) cColor = 'c-bld-trim';
+          // Fire/hearth elements
+          else if (ch === '(' || ch === ')') cColor = 'c-bld-hearth';
+          setCellW(grid, bx + c, bsy + r, ch, cColor);
         }
       }
       // Track roof for winter snow (world-space)

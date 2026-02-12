@@ -420,6 +420,14 @@ body {
 #world .c-civ-f { color: #88bbdd; }
 #world .c-civ-e { color: #dd6633; }
 
+/* Building interior accents */
+#world .c-bld-window { color: #ffdd66; }
+#world .c-bld-accent { color: #ff9966; }
+#world .c-bld-trim   { color: #aaddcc; }
+#world .c-bld-hearth { color: #ff8844; }
+body.night #world .c-bld-window { color: #ffcc33; text-shadow: 0 0 3px rgba(255, 204, 51, 0.5); }
+body.dusk #world .c-bld-window  { color: #ffbb44; }
+
 #world .c-dec-v { color: #44cc55; }
 #world .c-dec-s { color: #7799aa; }
 #world .c-dec-m { color: #bb88ee; }
