@@ -505,6 +505,17 @@ function processSpar(worldId, a, b, tick) {
 function processProjects(worldId, villagers, tick) {
   const events = [];
 
+  // Archive excess completed projects — keep only 2 newest complete ones
+  db.prepare(`
+    UPDATE projects SET status = 'archived'
+    WHERE world_id = ? AND status = 'complete'
+      AND id NOT IN (
+        SELECT id FROM projects
+        WHERE world_id = ? AND status = 'complete'
+        ORDER BY created_at DESC LIMIT 2
+      )
+  `).run(worldId, worldId);
+
   // Progress active projects
   const activeProjects = db.prepare(
     "SELECT * FROM projects WHERE world_id = ? AND status = 'in_progress'"
@@ -585,8 +596,11 @@ function processProjects(worldId, villagers, tick) {
     }
   }
 
-  // Initiate new projects
-  if (activeProjects.length < 2) {
+  // Initiate new projects (hard cap: 3 total projects per town)
+  const totalProjects = db.prepare(
+    "SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND status IN ('in_progress', 'complete')"
+  ).get(worldId).c;
+  if (activeProjects.length < 2 && totalProjects < 3) {
     for (const v of villagers) {
       if ((v.creativity || 50) > 60 && v.morale > 50) {
         const act = activities[v.id];

@@ -817,6 +817,18 @@ body.night #world .c-canopy-tundra   { color: #2a3344; }
 #world .c-veg-ice   { color: #8899aa; }
 #world .c-veg-shell { color: #6688aa; }
 
+/* ─── Above-ground flora (colorful tall plants) ─── */
+#world .c-flora-pink   { color: #ff77aa; }
+#world .c-flora-gold   { color: #ffcc44; }
+#world .c-flora-lilac  { color: #cc88ff; }
+#world .c-flora-green  { color: #55cc66; }
+#world .c-flora-teal   { color: #44bbaa; }
+#world .c-flora-sand   { color: #ccaa55; }
+#world .c-flora-slate  { color: #8899aa; }
+#world .c-flora-ice    { color: #99ddee; }
+/* Dim flora in snow/winter */
+body.weather-snow #world [class*="c-flora-"], body.season-winter #world [class*="c-flora-"] { opacity: 0.5; }
+
 /* ─── Building tier colors (type-t2 / type-t3 = brighter) ─── */
 #world .c-b-hut-t2        { color: #ccbb88; }
 #world .c-b-hut-t3        { color: #eedd99; }

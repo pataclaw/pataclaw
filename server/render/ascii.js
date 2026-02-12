@@ -53,9 +53,9 @@ function buildTownFrame(worldId) {
   const activityMap = {};
   for (const a of activityRows) activityMap[a.villager_id] = a;
 
-  // Get projects
+  // Get projects (cap at 3 — prioritize in-progress, then newest complete)
   const projects = db.prepare(
-    "SELECT * FROM projects WHERE world_id = ? AND status IN ('in_progress', 'complete') ORDER BY x"
+    "SELECT * FROM projects WHERE world_id = ? AND status IN ('in_progress', 'complete') ORDER BY CASE status WHEN 'in_progress' THEN 0 ELSE 1 END, created_at DESC LIMIT 3"
   ).all(worldId);
 
   // Get growing crops

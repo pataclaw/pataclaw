@@ -1265,6 +1265,35 @@ function renderScene(data) {
   }
   // Winter + snow ground tinting handled by CSS body classes (season-winter, weather-snow, biome-ice/tundra)
 
+  // ─── ABOVE-GROUND PLANTS (tall flora that pokes up from the border) ───
+  var BIOME_FLORA = {
+    plains:   { sprites: [['❀','|'],['✿','|'],['*','|'],['.','Y']], cls: ['c-flora-pink','c-flora-gold','c-flora-lilac'], density: 12 },
+    forest:   { sprites: [['♣','|'],['✿','|'],['Y','|'],['♠','|']], cls: ['c-flora-green','c-flora-teal','c-flora-gold'], density: 14 },
+    desert:   { sprites: [['*','}'],['.','|']], cls: ['c-flora-gold','c-flora-sand'], density: 5 },
+    mountain: { sprites: [['^','|'],['▴','.']], cls: ['c-flora-slate','c-flora-teal'], density: 4 },
+    swamp:    { sprites: [['~','§'],['≈','|']], cls: ['c-flora-teal','c-flora-green'], density: 8 },
+    ice:      { sprites: [['◇','|'],['*','.']], cls: ['c-flora-ice','c-flora-ice'], density: 3 },
+    tundra:   { sprites: [['*','|'],['.','·']], cls: ['c-flora-ice','c-flora-slate'], density: 4 },
+    water:    { sprites: [['~','≈'],['✿','~']], cls: ['c-flora-teal','c-flora-pink'], density: 6 },
+  };
+  var flora = BIOME_FLORA[biomeKey] || BIOME_FLORA.plains;
+  for (var fx = 0; fx < W; fx++) {
+    var fSeed = ((fx * 23 + wSeed * 11) % 100);
+    if (fSeed < flora.density) {
+      var fSprite = flora.sprites[fSeed % flora.sprites.length];
+      var fCls = flora.cls[fSeed % flora.cls.length];
+      // Draw stem at groundY-1, bloom at groundY-2
+      var stemY = groundY - 1;
+      var bloomY = groundY - 2;
+      if (stemY >= 0 && stemY < H && getCell(grid, fx, stemY).ch === ' ') {
+        setCell(grid, fx, stemY, fSprite[1], fCls);
+      }
+      if (bloomY >= 0 && bloomY < H && getCell(grid, fx, bloomY).ch === ' ') {
+        setCell(grid, fx, bloomY, fSprite[0], fCls);
+      }
+    }
+  }
+
   // Track building top positions for winter snow-on-roofs
   var buildingRoofs = [];
 
