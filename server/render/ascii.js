@@ -53,10 +53,14 @@ function buildTownFrame(worldId) {
   const activityMap = {};
   for (const a of activityRows) activityMap[a.villager_id] = a;
 
-  // Get projects (cap at 3 — prioritize in-progress, then newest complete)
-  const projects = db.prepare(
-    "SELECT * FROM projects WHERE world_id = ? AND status IN ('in_progress', 'complete') ORDER BY CASE status WHEN 'in_progress' THEN 0 ELSE 1 END, created_at DESC LIMIT 3"
+  // Get projects (cap at 3 — in-progress first, then newest complete)
+  const projectsInProgress = db.prepare(
+    "SELECT * FROM projects WHERE world_id = ? AND status = 'in_progress'"
   ).all(worldId);
+  const projectsComplete = db.prepare(
+    "SELECT * FROM projects WHERE world_id = ? AND status = 'complete' ORDER BY created_at DESC LIMIT ?"
+  ).all(worldId, Math.max(0, 3 - projectsInProgress.length));
+  const projects = projectsInProgress.concat(projectsComplete);
 
   // Get growing crops
   const crops = db.prepare(

@@ -585,11 +585,11 @@ function processProjects(worldId, villagers, tick) {
     }
   }
 
-  // Initiate new projects (hard cap: 3 total projects per town)
-  const totalProjects = db.prepare(
-    "SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND status IN ('in_progress', 'complete')"
+  // Initiate new projects (cap: max 2 active, max 3 visible including complete)
+  const completeCount = db.prepare(
+    "SELECT COUNT(*) as c FROM projects WHERE world_id = ? AND status = 'complete'"
   ).get(worldId).c;
-  if (activeProjects.length < 2 && totalProjects < 3) {
+  if (activeProjects.length < 2 && (activeProjects.length + completeCount) < 3) {
     for (const v of villagers) {
       if ((v.creativity || 50) > 60 && v.morale > 50) {
         const act = activities[v.id];

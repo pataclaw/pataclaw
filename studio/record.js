@@ -82,14 +82,18 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   await page.goto('file://' + tempHTML, { waitUntil: 'domcontentloaded' });
   await sleep(200);
 
-  // Capture frames until animation signals DONE
-  let frame = 0;
-  let maxFrames = 3000; // safety limit (~4 min)
+  // Enable stepped mode — we drive each frame manually for exact 1:1 capture
+  await page.evaluate(() => { window.__stepped = true; });
+  await sleep(100);
 
-  console.log('Capturing frames...');
+  // Capture frames by stepping the animation ourselves
+  let frame = 0;
+  let maxFrames = 5000; // safety limit
+
+  console.log('Capturing frames (stepped mode)...');
   while (frame < maxFrames) {
-    const title = await page.title();
-    if (title === 'DONE') break;
+    // Step one frame
+    const running = await page.evaluate(() => window.stepFrame());
 
     const num = String(frame).padStart(5, '0');
     await page.screenshot({
@@ -98,8 +102,7 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
     });
     frame++;
 
-    // Wait for next frame (match the animation's setTimeout interval)
-    await sleep(1000 / FPS);
+    if (!running) break;
 
     if (frame % 60 === 0) process.stdout.write(`  ${frame} frames (${Math.round(frame / FPS)}s)...\n`);
   }

@@ -310,11 +310,8 @@ function applyTransition(g, f, total) {
 }
 
 // ─── Main loop ───
-function render() {
-  if (!window.EPISODE || !window.EPISODE.scenes) {
-    sceneEl.textContent = 'No episode loaded. Include an episode script.';
-    return;
-  }
+function renderOneFrame() {
+  if (!window.EPISODE || !window.EPISODE.scenes) return false;
   var ep = window.EPISODE;
   var g = STUDIO.makeGrid();
 
@@ -330,9 +327,22 @@ function render() {
     currentScene++;
     if (currentScene >= ep.scenes.length) {
       document.title = 'DONE';
-      return;
+      return false;
     }
   }
+  return true;
+}
+
+// Stepped mode: recording script calls window.stepFrame() for exact 1:1 capture
+window.stepFrame = function() { return renderOneFrame(); };
+
+function render() {
+  if (!window.EPISODE || !window.EPISODE.scenes) {
+    sceneEl.textContent = 'No episode loaded. Include an episode script.';
+    return;
+  }
+  if (window.__stepped) return; // recording mode — don't auto-play
+  if (!renderOneFrame()) return;
   setTimeout(render, 1000 / FPS);
 }
 
