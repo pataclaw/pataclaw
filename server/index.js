@@ -445,10 +445,7 @@ app.get('/view/:token', (req, res) => {
 
 app.use(errorHandler);
 
-// Start simulation engine
-const engine = require('./simulation/engine');
-engine.start();
-
+// Start HTTP server FIRST, then simulation engine
 app.listen(config.port, () => {
   console.log(`
   ╔═══════════════════════════════════════╗
@@ -459,4 +456,8 @@ app.listen(config.port, () => {
   ║  Tick: ${String(config.tickRateMs + 'ms').padEnd(30)}║
   ╚═══════════════════════════════════════╝
   `);
+
+  // Start simulation engine after server is listening
+  const engine = require('./simulation/engine');
+  engine.start();
 });
