@@ -19,13 +19,16 @@ let tickCount = 0; // global tick counter for slow-mode gating
 function start() {
   console.log(`  Simulation engine starting (tick rate: ${config.tickRateMs}ms)`);
 
-  intervalId = setInterval(() => {
-    try {
-      tickAllWorlds();
-    } catch (err) {
-      console.error('[ENGINE] Tick error:', err.message);
-    }
-  }, config.tickRateMs);
+  // Delay first tick so HTTP server can respond to health checks
+  setTimeout(() => {
+    intervalId = setInterval(() => {
+      try {
+        tickAllWorlds();
+      } catch (err) {
+        console.error('[ENGINE] Tick error:', err.message);
+      }
+    }, config.tickRateMs);
+  }, 2000);
 }
 
 function stop() {
