@@ -66,21 +66,11 @@ try {
 try {
   db.pragma('journal_mode = WAL');
 } catch (e) {
-  console.warn('[DB] WAL mode failed, falling back to DELETE journal mode:', e.code || e.message);
-  try { db.pragma('journal_mode = DELETE'); } catch (_) { /* proceed anyway */ }
+  console.warn('[DB] WAL mode failed:', e.code || e.message);
+  try { db.pragma('journal_mode = DELETE'); } catch (_) {}
 }
 db.pragma('foreign_keys = ON');
-
-// Periodic WAL checkpoint — flush WAL to main DB file every 5 minutes
-// This prevents data loss if the process is killed, since Railway can
-// terminate containers at any time during redeploys
-setInterval(() => {
-  try {
-    db.pragma('wal_checkpoint(PASSIVE)');
-  } catch (e) {
-    console.warn('[DB] WAL checkpoint failed:', e.message);
-  }
-}, 5 * 60 * 1000);
+console.log('[DB] Pragmas set, ready');
 
 // Also checkpoint on clean shutdown signals
 for (const sig of ['SIGTERM', 'SIGINT']) {
