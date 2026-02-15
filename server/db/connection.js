@@ -14,7 +14,9 @@ const dbPath = path.resolve(config.dbPath);
 let db;
 try {
   db = new Database(dbPath);
-  db.pragma('integrity_check');
+  // Force WAL checkpoint to recover from any stuck writes, then quick_check (faster than integrity_check)
+  try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch (_) {}
+  db.pragma('quick_check');
   console.log('[DB] Opened database successfully (WAL intact)');
 } catch (e) {
   // First attempt failed — try cleaning WAL/SHM and retrying
