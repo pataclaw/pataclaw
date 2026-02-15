@@ -72,14 +72,11 @@ try {
 db.pragma('foreign_keys = ON');
 console.log('[DB] Pragmas set, ready');
 
-// Also checkpoint on clean shutdown signals
+// Clean shutdown — close DB immediately, no checkpoint (avoids hanging on large WAL)
 for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, () => {
-    try {
-      console.log(`[DB] ${sig} received — checkpointing WAL...`);
-      db.pragma('wal_checkpoint(TRUNCATE)');
-      db.close();
-    } catch (_) {}
+    console.log(`[DB] ${sig} received — closing`);
+    try { db.close(); } catch (_) {}
     process.exit(0);
   });
 }
