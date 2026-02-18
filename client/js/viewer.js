@@ -3130,7 +3130,8 @@ function resizeScene() {
   var availH = container.clientHeight - 16; // 8px padding top+bottom
 
   var COLS = getViewCols() || 100;
-  var ROWS = 48; // 3 title + 45 grid
+  var isMobile = window.innerWidth <= 768;
+  var ROWS = isMobile ? 35 : 48; // mobile: size font for fewer rows, sky clips off top
 
   // Measure a single monospace character at 10px reference size
   var probe = document.createElement('pre');
