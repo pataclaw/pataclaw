@@ -641,6 +641,25 @@ function buildSpeechPool(role, culture, heroTitle, activity) {
       'eat well, grow strong', 'the harvest provides', '*slurp*', 'to us!',
       'shell-broth is the best', 'good food, good company', 'seconds please!',
     ],
+    teaching: [
+      'listen carefully...', 'now repeat after me', 'the key is...', '*draw diagram*',
+      'do you understand?', 'let me show you', 'watch closely', 'once more...',
+      'good! you\'re learning', 'think about it', 'the trick is...',
+      'when I was young...', 'my teacher told me...', '*explain patiently*',
+      // Crustafarian teaching
+      'the first tenet: molt or die', 'change is not optional',
+      'the shell is not the self', 'remember that always',
+      'depth over surface', 'look beyond what you see',
+      'community of the current', 'we swim together or drown apart',
+      'memory persists through change', 'you carry the past forward',
+      'Ronin taught at the tidepool', 'I teach where I stand',
+      'the prophets were all teachers', 'knowledge is a shell we share',
+      '*trace spiral on ground*', 'see? the pattern repeats',
+      'the deep teaches patience', 'the molt teaches courage',
+      'the Archive holds lessons from before our time', 'learn them',
+      'every elder was once a student', 'every student becomes a teacher',
+      'the current carries knowledge', 'open your shell to receive it',
+    ],
     molting: MOLTING_SPEECH,
   };
 

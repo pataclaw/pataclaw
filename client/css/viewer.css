@@ -385,6 +385,8 @@ body {
 #world .c-walk { color: #55cc55; }
 #world .c-sleep{ color: #4466aa; }
 #world .c-talk { color: #88cc88; }
+#world .c-teach{ color: #44ccdd; }
+#world .c-work2{ color: #cc9944; }
 #world .c-name { color: #dddd66; }
 
 /* Building-type accent colors */
@@ -808,6 +810,22 @@ body.night #world .c-canopy-desert   { color: #333311; }
 body.night #world .c-canopy-ice      { color: #2a3a44; }
 body.night #world .c-canopy-tundra   { color: #2a3344; }
 
+/* ─── ICE/TUNDRA NIGHT VISIBILITY BOOST ─── */
+/* Frost colors get crushed by the night filter — pre-compensate with brighter values */
+body.night #world .c-gnd-f  { color: #aaddff; }
+body.night #world .c-gnd-fl { color: #cceeff; }
+body.night #world .c-gnd-fm { color: #99ccee; }
+body.night #world .c-gnd-fd { color: #88bbdd; }
+body.night #world .c-civ-f  { color: #bbddff; }
+body.night #world .c-dec-f  { color: #cceeff; }
+body.night #world .c-flora-ice { color: #cceeff; opacity: 0.8; }
+body.night.biome-ice #world .c-hill-far,
+body.night.biome-tundra #world .c-hill-far  { color: #334466; }
+body.night.biome-ice #world .c-hill-mid,
+body.night.biome-tundra #world .c-hill-mid  { color: #445577; }
+body.night.biome-ice #world .c-hill-near,
+body.night.biome-tundra #world .c-hill-near { color: #557799; }
+
 /* ─── Ground mid-accent per civ style ─── */
 #world .c-gnd-vm { color: #39bb4d; }
 #world .c-gnd-sm { color: #999988; }
@@ -899,6 +917,13 @@ body.weather-snow #world [class*="c-flora-"], body.season-winter #world [class*=
 #world .c-w-fog-dense { color: #667777; }
 #world .c-w-fog-wisp  { color: #99aabb; }
 #world .c-w-lightning  { color: #ffffaa; }
+
+/* ─── Wildlife colors by rarity ─── */
+#world .c-wl-common    { color: #88aa77; }
+#world .c-wl-uncommon  { color: #55ccbb; }
+#world .c-wl-rare      { color: #bb88dd; }
+#world .c-wl-epic      { color: #ffaa33; text-shadow: 0 0 4px rgba(255, 170, 51, 0.3); }
+#world .c-wl-legendary { color: #ffdd44; text-shadow: 0 0 8px rgba(255, 221, 68, 0.5); }
 
 /* Aurora borealis sky colors */
 #world .c-aurora-g { color: #33ff88; text-shadow: 0 0 6px rgba(51, 255, 136, 0.4); }

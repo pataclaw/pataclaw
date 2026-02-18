@@ -155,6 +155,22 @@ function processResources(worldId, weather, season, planetaryEffects) {
     }
   }
 
+  // Resource decay — overabundance spoilage (prevents permanent max-out)
+  const DECAY_RATES = { food: 0.03, wood: 0.01, stone: 0.005 };
+  const SEASON_DECAY = { spring: 1.0, summer: 1.5, autumn: 1.2, winter: 0.5 };
+  const sdm = SEASON_DECAY[season] || 1.0;
+  const allRes = db.prepare('SELECT type, amount, capacity FROM resources WHERE world_id = ?').all(worldId);
+  for (const r of allRes) {
+    const threshold = r.capacity * 0.8;
+    if (r.amount > threshold && DECAY_RATES[r.type]) {
+      const excess = r.amount - threshold;
+      const decay = excess * DECAY_RATES[r.type] * sdm;
+      if (decay > 0.01) {
+        db.prepare('UPDATE resources SET amount = MAX(0, amount - ?) WHERE world_id = ? AND type = ?').run(decay, worldId, r.type);
+      }
+    }
+  }
+
   // Check for starvation
   const food = db.prepare("SELECT amount FROM resources WHERE world_id = ? AND type = 'food'").get(worldId);
   const isStarving = food && food.amount <= 0;

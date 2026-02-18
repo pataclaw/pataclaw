@@ -412,7 +412,7 @@ function updateAgent(a, world) {
     playing_music: 'playing_music', arguing: 'talking',
     celebrating: 'celebrating', mourning: 'idle', sparring: 'sparring',
     meditating: 'meditating', feasting: 'celebrating', praying: 'meditating',
-    teaching: 'talking', brooding: 'idle', socializing: 'talking',
+    teaching: 'teaching', brooding: 'idle', socializing: 'talking',
     wandering: 'walking', sleeping: 'sleeping', molting: 'molting',
     chopping: 'chopping', mining: 'mining', fishing: 'fishing', hunting: 'hunting',
   };
@@ -432,7 +432,7 @@ function updateAgent(a, world) {
       a.facing = a.targetX > a.x ? 1 : -1;
     }
 
-    if (a.state === 'talking' || a.state === 'celebrating' || serverActivity === 'arguing') {
+    if (a.state === 'talking' || a.state === 'celebrating' || serverActivity === 'arguing' || a.state === 'teaching') {
       var greetPool = a.data.greetingPool;
       var pool = (greetPool && Math.random() < 0.3) ? greetPool : (a.data.speechPool || ['...']);
       a.currentSpeech = pool[Math.floor(Math.random() * pool.length)];
@@ -2220,6 +2220,96 @@ function renderScene(data) {
     }
   }
 
+  // ─── WILDLIFE (small animated creatures wandering the town area) ───
+  if (data.wildlife && data.wildlife.length > 0) {
+    var WILDLIFE_SPRITES = {
+      // Forest
+      shell_deer:      ['>°)~', '(°<~'],
+      bark_beetle:     ['·,·', '·.·'],
+      moss_crab:       ['V(.)V', 'v(.)v'],
+      ancient_stag:    ['>@)=~', '(@<=~'],
+      spirit_elk:      ['*>@)~', '*(@<~'],
+      // Plains
+      prairie_crawler: ['~c~', '~c~'],
+      grass_hopper:    ['^n^', ' n '],
+      burrowing_claw:  ['V(^)V', 'v(^)v'],
+      golden_scarab:   ['<@>', '(@)'],
+      plains_titan:    ['>O)=', '(O<='],
+      // Mountain
+      rock_crab:       ['V(#)V', 'v(#)v'],
+      cliff_spider:    ['/X\\', '\\X/'],
+      mountain_ram:    ['>o)=', '(o<='],
+      crystal_beetle:  ['<*>', '(*)'],
+      peak_wyrm:       ['~>S)=', '~(S<='],
+      // Swamp
+      mud_crawler:     ['~.~', '~·~'],
+      swamp_leech:     ['~~~', '≈≈≈'],
+      bog_toad:        ['oOo', 'o.o'],
+      mire_serpent:    ['~S~~', '~~S~'],
+      ancient_snapper: ['V(@)V', 'v(@)v'],
+      // Desert
+      sand_skitter:    ['·,·', '·.·'],
+      dune_scorpion:   ['J(.)', 'j(.)'],
+      husk_beetle:     ['<o>', '(o)'],
+      mirage_lizard:   ['~=>=', '~=<='],
+      sun_drake:       ['>@)=^', '(@<=^'],
+      // Ice
+      frost_hare:      ['(·)', '( )'],
+      ice_mite:        ['·*·', '·.·'],
+      snow_crab:       ['V(*)V', 'v(*)v'],
+      glacier_bear:    ['>O)=', '(O<='],
+      frost_wyrm:      ['*~>S)', '*~(S<'],
+      // Tundra
+      tundra_fox:      ['>.)~', '(.<~'],
+      lichen_beetle:   ['·:·', '·.·'],
+      permafrost_crab: ['V(.)V', 'v(.)v'],
+      woolly_crawler:  ['>{~}', '<{~}'],
+      aurora_elk:      ['*>@)~', '*(@<~'],
+    };
+    var RARITY_CLASS = {
+      common: 'c-wl-common', uncommon: 'c-wl-uncommon', rare: 'c-wl-rare',
+      epic: 'c-wl-epic', legendary: 'c-wl-legendary'
+    };
+    var wlGeneric = ['>·)', '(·<'];
+    for (var wi = 0; wi < Math.min(data.wildlife.length, 8); wi++) {
+      var wl = data.wildlife[wi];
+      var wlSprites = WILDLIFE_SPRITES[wl.species] || wlGeneric;
+      var wlCls = RARITY_CLASS[wl.rarity] || 'c-wl-common';
+      // Deterministic position from species+coords hash
+      var wlHash = 0;
+      var wlKey = wl.species + wl.x + ',' + wl.y;
+      for (var whi = 0; whi < wlKey.length; whi++) wlHash = ((wlHash << 5) - wlHash + wlKey.charCodeAt(whi)) | 0;
+      wlHash = Math.abs(wlHash);
+      // Position in world-space — spread around town edges and wilderness
+      var wlRange = Math.max(40, worldWidth - 40);
+      var wlX = 20 + (wlHash % wlRange);
+      // Animation: alternate frames + gentle wander
+      var wlFrame = ((waveCounter + wi * 7) % 24) < 12 ? 0 : 1;
+      var wlWander = Math.sin(waveCounter * 0.04 + wlHash * 0.1) * 3;
+      var wlDrawX = wlX + wlWander;
+      var wlStr = wlSprites[wlFrame];
+      var wlY = groundY - 1;
+      // Legendary/epic: float slightly above ground
+      if (wl.rarity === 'legendary') wlY = groundY - 2;
+      for (var wci = 0; wci < wlStr.length; wci++) {
+        if (wlStr[wci] !== ' ') {
+          setCellW(grid, wlDrawX + wci, wlY, wlStr[wci], wlCls);
+        }
+      }
+      // Legendary glow particles
+      if (wl.rarity === 'legendary' && ((waveCounter + wi) % 5) < 3) {
+        var glowChars = ['*', '·', '+', '˙'];
+        var glowX = wlDrawX + Math.floor(wlStr.length / 2) + ((waveCounter + wi * 3) % 3 - 1);
+        if (wlY - 1 >= 0) setCellW(grid, glowX, wlY - 1, glowChars[(waveCounter + wi) % glowChars.length], wlCls);
+      }
+      // Epic shimmer
+      if (wl.rarity === 'epic' && ((waveCounter + wi * 2) % 8) < 2) {
+        var shimX = wlDrawX + ((waveCounter + wi) % Math.max(1, wlStr.length));
+        if (wlY - 1 >= 0) setCellW(grid, shimX, wlY - 1, '*', wlCls);
+      }
+    }
+  }
+
   // Agents (villagers — alive + dying)
   var aliveAgents = [];
   for (var aid in agents) {
@@ -2231,7 +2321,7 @@ function renderScene(data) {
   aliveAgents.sort(function(a, b) { return a.x - b.x; });
 
   // Speech bubble limiter — only top MAX_SPEECH_BUBBLES by priority
-  var speechPriority = { molting: 10, fighting: 8, sparring: 8, making_art: 6, playing_music: 6, celebrating: 5, talking: 3 };
+  var speechPriority = { molting: 10, fighting: 8, sparring: 8, making_art: 6, playing_music: 6, celebrating: 5, teaching: 4, talking: 3 };
   var speechCandidates = [];
   for (var si = 0; si < aliveAgents.length; si++) {
     var sa = aliveAgents[si];
@@ -2279,6 +2369,7 @@ function renderScene(data) {
     else if (a.state === 'mining') vColor = 'c-mine';
     else if (a.state === 'fishing') vColor = 'c-fish';
     else if (a.state === 'hunting') vColor = 'c-hunt';
+    else if (a.state === 'teaching') vColor = 'c-teach';
 
     var charLines;
     var bob = a.bobFrame < 6 ? 0 : 1;
@@ -2413,6 +2504,18 @@ function renderScene(data) {
         '|' + ap.eyes + '|',
         '|' + ap.mouth + '|' + bowChars[huntFrame],
         "'" + ap.body.slice(1, -1) + "')",
+        ' d   b ',
+      ];
+    } else if (a.state === 'teaching') {
+      var teachFrame = a.bobFrame % 6;
+      var pointChars = ['/', '-', '\\', '|', '/', '-'];
+      charLines = [
+        '    ?!',
+        hat,
+        ap.head,
+        '|' + ap.eyes + '|' + pointChars[teachFrame],
+        '|' + ap.mouth + '|',
+        "'" + ap.body.slice(1, -1) + "'",
         ' d   b ',
       ];
     } else if (a.state === 'walking') {

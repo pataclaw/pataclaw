@@ -237,14 +237,15 @@ function resolveActivities(worldId, villagers, world) {
       weights.idle = 5;
     } else {
       weights.working = Math.max(5, 15 - cre / 10);
-      weights.making_art = cre / 8;
-      weights.playing_music = cre / 10;
+      weights.making_art = Math.min(8, cre / 8);   // capped to prevent dominance
+      weights.playing_music = Math.min(7, cre / 10); // capped to prevent dominance
       weights.socializing = soc / 5;
       weights.sparring = (100 - temp) / 8;
       weights.building_project = activeProjects > 0 ? 15 : 2;
       weights.celebrating = avgMorale > 70 ? 8 : 1;
       weights.feasting = food && food.amount > 20 ? (soc > 60 ? 10 : 5) : 1;
       weights.meditating = temp / 12;
+      weights.teaching = cre > 40 ? Math.max(2, soc / 8) : 1; // creative + social villagers teach
       weights.wandering = 8;
       weights.praying = 3;
       weights.fishing = nodeAvail.fish.active > 0 ? (v.role === 'fisherman' ? 12 : 2) : 0;
@@ -252,6 +253,17 @@ function resolveActivities(worldId, villagers, world) {
       weights.chopping = nodeAvail.trees.active > 0 ? (v.role === 'builder' ? 12 : 2) : 0;
       weights.mining = nodeAvail.rocks.active > 0 ? (v.role === 'builder' ? 12 : 2) : 0;
       weights.idle = 5;
+
+      // Prosperity variety — wealthy towns develop diverse culture
+      const isProsperous = avgMorale > 65 && food && food.amount > 50;
+      if (isProsperous) {
+        weights.teaching += 6;
+        weights.socializing += 4;
+        weights.wandering += 3;
+        weights.meditating += 3;
+        weights.praying += 2;
+        weights.sparring += 2;
+      }
     }
 
     // Recent memories boost certain activities
@@ -261,12 +273,15 @@ function resolveActivities(worldId, villagers, world) {
 
     for (const m of recentMemories) {
       if (m.memory_type === 'made_art' || m.memory_type === 'heard_music') {
-        weights.making_art = (weights.making_art || 0) + m.c * 2;
-        weights.playing_music = (weights.playing_music || 0) + m.c;
+        // Diminishing returns: first memories inspire, repetition breeds boredom
+        const artBoost = Math.max(-3, 3 - m.c); // +3 at 0, +2 at 1, 0 at 3, -3 at 6+
+        weights.making_art = Math.max(1, (weights.making_art || 0) + artBoost);
+        weights.playing_music = Math.max(1, (weights.playing_music || 0) + artBoost);
       }
       if (m.memory_type === 'celebrated' || m.memory_type === 'shared_meal') {
-        weights.celebrating = (weights.celebrating || 0) + m.c * 2;
-        weights.socializing = (weights.socializing || 0) + m.c;
+        const celeBoost = Math.max(-2, 3 - m.c);
+        weights.celebrating = Math.max(1, (weights.celebrating || 0) + celeBoost);
+        weights.socializing = (weights.socializing || 0) + Math.max(0, m.c);
       }
       if (m.memory_type === 'saw_death' || m.memory_type === 'mourned') {
         weights.mourning = (weights.mourning || 0) + m.c * 3;
