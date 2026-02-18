@@ -1292,20 +1292,17 @@ body.crt-mode #world {
 
   #scene-container {
     width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    min-height: 35vh;
+    overflow: hidden;
+    touch-action: pan-y;
+    min-height: 40vh;
     max-height: 55vh;
     align-items: center;
     justify-content: center;
   }
 
   #world {
-    font-size: 7px;
-    line-height: 1.05;
+    line-height: 1.1;
     padding: 2px 4px;
-    transform-origin: center center;
     max-width: none;
     overflow: visible;
   }
@@ -1350,14 +1347,13 @@ body.crt-mode #world {
 
 @media (max-width: 480px) {
   #world {
-    font-size: 5.5px;
-    line-height: 1.0;
+    line-height: 1.05;
     padding: 1px 2px;
   }
 
   #scene-container {
-    min-height: 30vh;
-    max-height: 45vh;
+    min-height: 35vh;
+    max-height: 50vh;
   }
 
   #sidebar { font-size: 10px; }
@@ -1366,11 +1362,4 @@ body.crt-mode #world {
   #bottom-bar { height: 28px; font-size: 9px; }
   #whisper-box { max-width: 140px; }
   #whisper-input { font-size: 9px; padding: 2px 5px; }
-}
-
-@media (max-width: 380px) {
-  #world {
-    font-size: 4.5px;
-    line-height: 0.95;
-  }
 }

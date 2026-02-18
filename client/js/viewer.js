@@ -44,6 +44,13 @@ var activeW = 140;
 var targetW = 140;
 var lastGrowthStage = -1;
 
+// Responsive viewport columns — mobile shows fewer cols for readable text
+function getViewCols() {
+  if (window.innerWidth <= 480) return Math.min(activeW, 50);
+  if (window.innerWidth <= 768) return Math.min(activeW, 70);
+  return activeW;
+}
+
 // Villager spacing — sprite is 7 wide + 2 gap
 var MIN_AGENT_SPACING = 9;
 var MAX_SPEECH_BUBBLES = 4;
@@ -386,9 +393,10 @@ function startAnimLoop() {
       }
 
       // Update nomad agents
-      syncNomads(lastWorldData.nomad_camps, activeW);
+      var viewW = getViewCols();
+      syncNomads(lastWorldData.nomad_camps, viewW);
       for (var nid in nomadAgents) {
-        updateNomad(nomadAgents[nid], activeW);
+        updateNomad(nomadAgents[nid], viewW);
       }
 
       renderScene(lastWorldData);
@@ -595,7 +603,7 @@ function renderScene(data) {
     if (Math.abs(activeW - targetW) < 2) activeW = targetW;
   }
 
-  var W = activeW;       // viewport width (screen columns)
+  var W = getViewCols(); // viewport width (screen columns, capped on mobile)
   var H = 45;
   var grid = [];
   for (var y = 0; y < H; y++) {
@@ -3121,7 +3129,7 @@ function resizeScene() {
   var availW = container.clientWidth - 24; // 12px padding each side
   var availH = container.clientHeight - 16; // 8px padding top+bottom
 
-  var COLS = activeW || 100;
+  var COLS = getViewCols() || 100;
   var ROWS = 48; // 3 title + 45 grid
 
   // Measure a single monospace character at 10px reference size
@@ -3139,7 +3147,8 @@ function resizeScene() {
   var maxFromW = 10 * availW / (COLS * charW10);
   var maxFromH = 10 * availH / (ROWS * charH10);
   var fontSize = Math.min(maxFromW, maxFromH);
-  fontSize = Math.max(6, Math.min(20, Math.floor(fontSize * 10) / 10));
+  var minFont = window.innerWidth <= 768 ? 8 : 6;
+  fontSize = Math.max(minFont, Math.min(20, Math.floor(fontSize * 10) / 10));
 
   world.style.fontSize = fontSize + 'px';
 }
@@ -3384,28 +3393,48 @@ var ITEM_SPRITES = {
     }
   });
 
-  // Touch drag
+  // Touch drag with direction detection (horizontal = pan, vertical = scroll)
   var touchId = null;
+  var touchStartY = 0;
+  var touchDirection = null; // 'h' or 'v' or null (undecided)
+
   container.addEventListener('touchstart', function(e) {
     if (e.touches.length !== 1) return;
     var touch = e.touches[0];
     touchId = touch.identifier;
-    isDragging = true;
     dragStartX = touch.clientX;
+    touchStartY = touch.clientY;
     dragStartCam = cameraX;
-    e.preventDefault();
-  }, { passive: false });
+    touchDirection = null; // undecided until first significant move
+    isDragging = false;
+  }, { passive: true });
 
   document.addEventListener('touchmove', function(e) {
-    if (!isDragging || touchId === null) return;
+    if (touchId === null) return;
     for (var i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === touchId) {
-        var dx = e.changedTouches[i].clientX - dragStartX;
+      if (e.changedTouches[i].identifier !== touchId) continue;
+      var t = e.changedTouches[i];
+      var dx = t.clientX - dragStartX;
+      var dy = t.clientY - touchStartY;
+
+      // Decide direction from first 10px of movement
+      if (!touchDirection) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          touchDirection = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+          if (touchDirection === 'h') isDragging = true;
+        }
+        break;
+      }
+
+      // Horizontal → camera pan
+      if (touchDirection === 'h') {
         var charW = getCharWidth();
         cameraX = dragStartCam - dx / charW;
         cameraX = ((cameraX % worldWidth) + worldWidth) % worldWidth;
-        break;
+        e.preventDefault();
       }
+      // Vertical → do nothing, let browser scroll
+      break;
     }
   }, { passive: false });
 
@@ -3414,6 +3443,7 @@ var ITEM_SPRITES = {
       if (e.changedTouches[i].identifier === touchId) {
         isDragging = false;
         touchId = null;
+        touchDirection = null;
         break;
       }
     }
